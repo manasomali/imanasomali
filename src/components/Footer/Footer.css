@@ -1,0 +1,17 @@
+.Footer {
+    width: 100%;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    color: var(--black)k;
+    padding-left: 5%;
+    padding-right: 5%;
+    background: var(--white);
+    border-top: 2px solid var(--black);
+}
+div {
+    font-weight: bold;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    font-size: 15px;
+}
