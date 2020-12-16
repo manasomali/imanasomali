@@ -1,17 +1,40 @@
 import React from 'react'
-import Button from '../Button'
+import { NavLink } from 'react-router-dom';
 import './Menu.css'
+import styled from 'styled-components'
+
+const ButtonMenu = styled(NavLink)`
+    color: var(--black);
+    box-sizing: border-box;
+    cursor: pointer;
+    padding: 16px 24px;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 20px;
+    outline: none;
+    border-radius: 5px;
+    text-decoration: none;
+    display: inline-block;
+    transition: opacity .3s;
+    &:hover,
+    &:focus {
+        opacity: .6;
+        text-decoration: underline;
+    }
+    &.selected {
+    text-decoration: underline;
+  }
+`;
 
 function Menu() {
     return (
         <nav className="Menu" >
             <div>
-                <Button as="a" className="Button" href="/"> MATHEUS NASCIMENTO </Button>
+                <ButtonMenu as={NavLink} exact activeClassName="selected" to="/"> MATHEUS NASCIMENTO </ButtonMenu>
             </div>
             <div>
-                <Button as="a" className="Button" href="/"> SOBRE </Button>
-                <Button as="a" className="Button" href="/"> POSTS </Button>
-                <Button as="a" className="Button" href="/"> PROJETOS </Button>
+                <ButtonMenu as={NavLink} activeClassName="selected" to="/sobre"> SOBRE </ButtonMenu>
+                <ButtonMenu as={NavLink} activeClassName="selected" to="/portfolio"> PORTFÓLIO </ButtonMenu>
             </div>
         </nav>
     )
