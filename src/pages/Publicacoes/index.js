@@ -1,15 +1,14 @@
 import React from 'react';
-import Game from '../../components/Game';
 import PageDefault from '../../components/PageDefault';
 
-function Pagina404() {
+function Publicacoes() {
   return (
     <>
         <PageDefault>
-            <Game />
+            Publicações
         </PageDefault>
     </>
   );
 }
 
-export default Pagina404;
+export default Publicacoes;

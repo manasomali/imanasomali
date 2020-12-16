@@ -13,10 +13,16 @@ const Button = styled.button`
     text-decoration: none;
     display: inline-block;
     transition: opacity .3s;
-    &:hover,
-    &:focus {
-        opacity: .6;
-        text-decoration: underline;
+    &::after {
+        content: '';
+        display: block;
+        width: 0;
+        height: 2px;
+        background: #000;
+        transition: width .3s;
+    }
+    &:hover::after {
+        width: 100%;
     }
 `;
 export default Button;

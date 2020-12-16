@@ -6,7 +6,7 @@ function Sobre() {
         <>
             <PageDefault>
                 Sobre
-          </PageDefault>
+            </PageDefault>
         </>
     );
 }
