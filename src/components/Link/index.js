@@ -4,7 +4,7 @@ const Link = styled.a`
     color: var(--black);
     cursor: pointer;
     font-style: normal;
-    font-size: 15px;
+    font-size: ${props => props.fontSize || '15px'};
     outline: none;
     text-decoration: underline;
     display: inline-block;
@@ -15,4 +15,5 @@ const Link = styled.a`
         opacity: .6;
     }
 `;
+
 export default Link;

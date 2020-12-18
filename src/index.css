@@ -1,6 +1,8 @@
 * {
   box-sizing: border-box;
   font-family: 'Fira Mono', monospace;
+  color: var(--black);
+  font-weight: 550;
 }
 :root {
   --primary: #2A7AE4;

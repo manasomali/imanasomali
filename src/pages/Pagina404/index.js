@@ -1,12 +1,15 @@
 import React from 'react';
-import Game from '../../components/Game';
 import PageDefault from '../../components/PageDefault';
+import Iframe from 'react-iframe';
 
 function Pagina404() {
   return (
     <>
         <PageDefault>
-            <Game />
+            <Iframe url="https://manasomali.github.io/jogo-redsquare/"
+            width = "100%"
+            height = "384"
+            />
         </PageDefault>
     </>
   );

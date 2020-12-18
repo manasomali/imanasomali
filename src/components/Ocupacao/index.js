@@ -7,6 +7,7 @@ const Ocupacao = styled.div`
     display: block;
     margin-left: auto;
     margin-right: auto;
+    font-weight: bold;
 `;
 
 export default Ocupacao

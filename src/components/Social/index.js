@@ -8,6 +8,9 @@ import styled from 'styled-components';
 
 const Icone = styled.a`
     cursor: pointer;
+    margin-right: 10px;
+    margin-left: 10px;
+    margin-bottom: 10px;
     &::after {
         content: '';
         display: block;

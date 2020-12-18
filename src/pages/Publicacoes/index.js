@@ -1,11 +1,14 @@
 import React from 'react';
 import PageDefault from '../../components/PageDefault';
+import Titulo from '../../components/Titulo';
 
 function Publicacoes() {
   return (
     <>
         <PageDefault>
-            Publicações
+            <Titulo>
+              Publicações
+            </Titulo>
         </PageDefault>
     </>
   );
