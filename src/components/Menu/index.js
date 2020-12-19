@@ -16,6 +16,8 @@ const ButtonMenu = styled(NavLink)`
     display: inline-block;
     transition: opacity .3s;
     border-bottom: 2px solid white;
+    padding-bottom: 5px;
+    padding-top: 5px;
     &:hover {
         border-bottom: 2px solid black;
     }
