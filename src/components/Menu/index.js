@@ -10,14 +10,12 @@ const ButtonMenu = styled(NavLink)`
     margin: 0px 24px 0px 24px;
     font-style: normal;
     font-weight: bold;
-    font-size: 20px;
+    font-size: 19px;
     outline: none;
     text-decoration: none;
     display: inline-block;
     transition: opacity .3s;
     border-bottom: 2px solid white;
-    padding-bottom: 5px;
-    padding-top: 5px;
     &:hover {
         border-bottom: 2px solid black;
     }
