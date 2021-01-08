@@ -27,6 +27,10 @@ const Filter = styled.a`
   &:hover::after {
       width: 100%;
   }
+  &:hover {
+    text-decoration:none;
+    color:black;
+  }
 `;
 
 class ListaPublicacoes extends React.Component {

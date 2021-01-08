@@ -1,9 +1,15 @@
 import styled from 'styled-components';
-const Titulo = styled.h1`
+const Titulo = styled.div`
     text-align: left;
-    font-size: 30;
+    display: block;
+    font-size: 2em;
+    margin-top: 0.67em;
+    margin-bottom: 0.67em;
+    margin-left: 0;
+    margin-right: 0;
+    font-weight: bold;
     width: 100%;
-    padding-top: 0;
+    padding-top: 15px;
     margin-top: 0;
 `;
 export default Titulo;

@@ -18,6 +18,8 @@ const ButtonMenu = styled(NavLink)`
     border-bottom: 2px solid white;
     &:hover {
         border-bottom: 2px solid black;
+        text-decoration:none;
+        color:black;
     }
     &.selected {
         border-bottom: 2px solid black;

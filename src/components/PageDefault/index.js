@@ -3,7 +3,7 @@ import Menu from '../Menu'
 import Footer from '../Footer'
 import styled from 'styled-components';
 
-const Body = styled.body`
+const Body = styled.div`
   background-color: var(--white);
   color: var(--black);
   flex: 1;

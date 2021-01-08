@@ -1,6 +1,6 @@
 import styled from 'styled-components';
 
-const Link = styled.a`
+const Link = styled.div`
     color: var(--black);
     cursor: pointer;
     font-style: normal;

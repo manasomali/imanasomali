@@ -2,7 +2,7 @@ import React from 'react';
 import styled from 'styled-components';
 import Link from '../Link';
 
-const Descricao = styled.p`
+const Descricao = styled.div`
     text-align: justify;
     font-size: 20px;
     width: 100%;
