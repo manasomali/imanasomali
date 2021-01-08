@@ -19,10 +19,22 @@ function Projetos() {
       imagedir: '/aplac.png'
     },
     {
-      titulo: 'Preço de Indiferença - PI',
+      titulo: 'Simulador para controle de geração Eólica',
       descricao: 'Aplicação web tem como objetivo, recomendar os valores de corte de geração de conjuntos eólicos, em função do limite de fluxo na LT de 525 kV Nova Santa Rita/Povo Novo.',
       link: 'https://gese.florianopolis.ifsc.edu.br/consumidorlivre/simulador/',
       imagedir: '/simulador.png'
+    },
+    {
+      titulo: 'Sistema de Registro de Transcrição de Voz para Operação',
+      descricao: 'Aplicação web para registro de informações a partir da transcrição de voz de operadores do setor elétrico no formato de um produto minimamente viável que prova o conceito de que o registro de informações por meio da voz do operador é algo vantajoso para o setor de operação e pós operação do setor elétrico.',
+      link: 'https://manasomalidev.cf',
+      imagedir: '/transcricao.png'
+    },
+    {
+      titulo: 'Jogo RedSquare',
+      descricao: 'Jogo desenvolvido com a engine Construct 2 durante a formação do curso técnico de Programação de Jogos Digitais',
+      link: 'https://play.google.com/store/apps/details?id=com.redsquare.manasomali',
+      imagedir: '/redsquare.png'
     }
   ];
   return (

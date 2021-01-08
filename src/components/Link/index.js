@@ -1,6 +1,6 @@
 import styled from 'styled-components';
 
-const Link = styled.div`
+const Link = styled.a`
     color: var(--black);
     cursor: pointer;
     font-style: normal;
@@ -13,6 +13,7 @@ const Link = styled.div`
     &:hover,
     &:focus {
         opacity: .6;
+        color: var(--black);
     }
 `;
 
