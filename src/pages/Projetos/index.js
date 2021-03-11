@@ -35,6 +35,12 @@ function Projetos() {
       descricao: 'Jogo desenvolvido com a engine Construct 2 durante a formação do curso técnico de Programação de Jogos Digitais',
       link: 'https://play.google.com/store/apps/details?id=com.redsquare.manasomali',
       imagedir: '/redsquare.png'
+    },
+    {
+      titulo: 'App TimeLineList',
+      descricao: 'App desenvolvido durante a formação do curso de Desenvolvimento Mobile (Android), para cadastro de filmes e séries com registro de nota, status e reações',
+      link: 'https://play.google.com/store/apps/details?id=com.manasomali.timelinelist',
+      imagedir: '/timelinelist.jpg'
     }
   ];
   return (
