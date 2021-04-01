@@ -40,21 +40,6 @@ class ListaPublicacoes extends React.Component {
       publis: [
         {
           id: '0',
-          tipo: 'Artigo Completo',
-          titulo: 'Desenvolvimento de uma página para divulgação do Grupo de Pesquisa',
-          autores: 'LIMA, M. N. S. M.; TAKIGAWA, F. Y. K.',
-          local: 'Boituva',
-          revista: 'Revista Interdisciplinar de Tecnologias e Educação v.3 n.1',
-          evento: 'Simpósio Interdisciplinar de Tecnologias na Educação (SInTE)',
-          ano: '2017',
-          link: 'http://rinte.ifsp.edu.br/index.php/RInTE/issue/view/%5BRInTE%5D%20-%20v.%203%20-%20nº%201/showToc',
-          doi: '',
-          issn: '2447-5955',
-          isbn: '',
-          arquivo: 'documents/Sinte_2017.pdf'
-        },
-        {
-          id: '1',
           tipo: 'Capítulo de Livro',
           titulo: 'Desenvolvimento de uma Ferramenta web para o controle de geração na região de Nova Santa Rita - Povo Novo',
           autores: 'LIMA, M. N. S. M.; TAKIGAWA, F. Y. K. ; FLORINDO, T. P. ; PAULA, W. R. ; SCHMITT, M. R.',
@@ -69,7 +54,7 @@ class ListaPublicacoes extends React.Component {
           arquivo: 'documents/Uniedusul_2020.pdf'
         },
         {
-          id: '2',
+          id: '1',
           tipo: 'Artigo Completo',
           titulo: 'Aplicação web para corte de geração eólica na região de Nova Santa Rita - Povo Novo',
           autores: 'LIMA, M. N. S. M. ; TAKIGAWA, F. Y. K. ; PAULA, W. R. ; FLORINDO, T. P.',
@@ -84,7 +69,7 @@ class ListaPublicacoes extends React.Component {
           arquivo: 'documents/Cobicet_2020.pdf'
         },
         {
-          id: '3',
+          id: '2',
           tipo: 'Artigo Completo',
           titulo: 'Análise da ferramenta web para alocação de contratos de energia para consumidores (potencialmente) livres',
           autores: 'TAKIGAWA, F. Y. K. ; LIMA, M. N. S. M. ; LIMA, M. N. S. M. ; PAULA, W. R.',
@@ -99,7 +84,7 @@ class ListaPublicacoes extends React.Component {
           arquivo: 'documents/Eriac_2019.pdf'
         },
         {
-          id: '4',
+          id: '3',
           tipo: 'Artigo Completo',
           titulo: 'Principais etapas do desenvolvimento da ferramenta Web para alocação de contratos de energia',
           autores: 'LIMA, M. N. S. M.; PAULA, W. R. ; TAKIGAWA, F. Y. K.',
@@ -114,7 +99,7 @@ class ListaPublicacoes extends React.Component {
           arquivo: 'documents/Etic_2018.pdf'
         },
         {
-          id: '5',
+          id: '4',
           tipo: 'Artigo Completo',
           titulo: 'A Disponibilidade da Ferramenta Web Preço de Indiferença (PI) para Cursos de Graduação',
           autores: 'LIMA, M. N. S. M.; LIMA, M. N. S. M. ; TAKIGAWA, F. Y. K. ; SCUZZIATO, M. R. ; FERNANDES, R. C.',
@@ -129,7 +114,7 @@ class ListaPublicacoes extends React.Component {
           arquivo: 'documents/Cidel_2018.pdf'
         },
         {
-          id: '6',
+          id: '5',
           tipo: 'Artigo Completo',
           titulo: 'Desenvolvimento de uma Ferramenta Web para o Cálculo do Preço de Indiferença (PI) entre os Ambientes de Contratação de Energia Elétrica',
           autores: 'LIMA, M. N. S. M.; LIMA, M. N. S. M. ; TAKIGAWA, F. Y. K. ; SILVA, A. S.',
@@ -144,7 +129,7 @@ class ListaPublicacoes extends React.Component {
           arquivo: 'documents/Cotb1_2018.pdf'
         },
         {
-          id: '7',
+          id: '6',
           tipo: 'Expandido',
           titulo: 'Proposta de desenvolvimento de uma ferramenta on-line para o gerenciamento de contratos de compra de energia elétrica',
           autores: 'SILVA, A. S. ; TAKIGAWA, F. Y. K. ; LIMA, M. N. S. M. ; LIMA, M. N. S. M.',
@@ -159,22 +144,7 @@ class ListaPublicacoes extends React.Component {
           arquivo: 'documents/Cotb2_2018.pdf'
         },
         {
-          id: '8',
-          tipo: 'Expandido',
-          titulo: 'Guia de informações e ferramenta de apoio a decisão para o consumidor potencialmente livre',
-          autores: 'TAKIGAWA, F. Y. K. ; LIMA, M. N. S. M. ; SOUSA, R. J. S. M. A. ; SILVA, A. S.',
-          local: 'Itajaí',
-          revista: 'Anais do 6 Seminário de Ensino, Pesquisa, Extensão e Inovação do IFSC p. 88-91',
-          evento: 'SEPEI - Seminário de Ensino, Pesquisa, Extensão e Inovação do IFSC',
-          ano: '2017',
-          link: 'https://discovirtual.ifsc.edu.br/index.php/s/8GdIfAEKGlIGWZo',
-          doi: '',
-          issn: '2357-836X',
-          isbn: '',
-          arquivo: 'documents/Sepei_2017.pdf'
-        },
-        {
-          id: '9',
+          id: '7',
           tipo: 'Resumo',
           titulo: 'Aplicativo para alocação de contratos (APLAC)',
           autores: 'TAKIGAWA, F. Y. K. ; LIMA, M. N. S. M. ; LIMA, M. N. S. M. ; PAULA, W. R. ; SILVA, A. S.',
@@ -187,6 +157,36 @@ class ListaPublicacoes extends React.Component {
           issn: '2357-836X',
           isbn: '',
           arquivo: 'documents/Sepei_2018.pdf'
+        },
+        {
+          id: '8',
+          tipo: 'Artigo Completo',
+          titulo: 'Desenvolvimento de uma página para divulgação do Grupo de Pesquisa',
+          autores: 'LIMA, M. N. S. M.; TAKIGAWA, F. Y. K.',
+          local: 'Boituva',
+          revista: 'Revista Interdisciplinar de Tecnologias e Educação v.3 n.1',
+          evento: 'Simpósio Interdisciplinar de Tecnologias na Educação (SInTE)',
+          ano: '2017',
+          link: 'http://rinte.ifsp.edu.br/index.php/RInTE/issue/view/%5BRInTE%5D%20-%20v.%203%20-%20nº%201/showToc',
+          doi: '',
+          issn: '2447-5955',
+          isbn: '',
+          arquivo: 'documents/Sinte_2017.pdf'
+        },        
+        {
+          id: '9',
+          tipo: 'Expandido',
+          titulo: 'Guia de informações e ferramenta de apoio a decisão para o consumidor potencialmente livre',
+          autores: 'TAKIGAWA, F. Y. K. ; LIMA, M. N. S. M. ; SOUSA, R. J. S. M. A. ; SILVA, A. S.',
+          local: 'Itajaí',
+          revista: 'Anais do 6 Seminário de Ensino, Pesquisa, Extensão e Inovação do IFSC p. 88-91',
+          evento: 'SEPEI - Seminário de Ensino, Pesquisa, Extensão e Inovação do IFSC',
+          ano: '2017',
+          link: 'https://discovirtual.ifsc.edu.br/index.php/s/8GdIfAEKGlIGWZo',
+          doi: '',
+          issn: '2357-836X',
+          isbn: '',
+          arquivo: 'documents/Sepei_2017.pdf'
         }
       ],
       filterTipo: ''
