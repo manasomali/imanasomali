@@ -41,6 +41,12 @@ function Projetos() {
       descricao: 'App desenvolvido durante a formação do curso de Desenvolvimento Mobile (Android), para cadastro de filmes e séries com registro de nota, status e reações',
       link: 'https://play.google.com/store/apps/details?id=com.manasomali.timelinelist',
       imagedir: '/timelinelist.jpg'
+    },
+    {
+      titulo: 'Legendas TV Organizer',
+      descricao: 'Utilitário feito com Python que seleciona e organiza a legenda correta automaticamente. Basta executar o utilitário em uma pasta com o arquivo de video e o .zip do legendas.tv que os arquivos são organizados automaticamente.',
+      link: 'https://github.com/manasomali/legendas-tv-organizer',
+      imagedir: '/legendas-tv-organizer.png'
     }
   ];
   return (
