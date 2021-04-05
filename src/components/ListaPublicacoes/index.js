@@ -72,7 +72,7 @@ class ListaPublicacoes extends React.Component {
           id: '2',
           tipo: 'Artigo Completo',
           titulo: 'Análise da ferramenta web para alocação de contratos de energia para consumidores (potencialmente) livres',
-          autores: 'TAKIGAWA, F. Y. K. ; LIMA, M. N. S. M. ; LIMA, M. N. S. M. ; PAULA, W. R.',
+          autores: 'TAKIGAWA, F. Y. K. ; LIMA, M. N. S. M. ; PAULA, W. R.',
           local: 'Foz do Iguaçu',
           revista: 'Anais do XVIII ERIAC',
           evento: 'XVIII ERIAC - ENCONTRO REGIONAL IBERO-AMERICANO DO CIGRE',

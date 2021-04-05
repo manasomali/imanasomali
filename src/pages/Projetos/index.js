@@ -46,7 +46,13 @@ function Projetos() {
       titulo: 'Legendas TV Organizer',
       descricao: 'Utilitário feito com Python que seleciona e organiza a legenda correta automaticamente. Basta executar o utilitário em uma pasta com o arquivo de video e o .zip do legendas.tv que os arquivos são organizados automaticamente.',
       link: 'https://github.com/manasomali/legendas-tv-organizer',
-      imagedir: '/legendas-tv-organizer.png'
+      imagedir: '/legendas-tv-organizer.gif'
+    },
+    {
+      titulo: 'Automatic Renamer',
+      descricao: 'Utilitário feito com Python que realiza a renomeação de arquivos ou pastas seguindo uma lógica dependendo do tipo do arquivo (série, filme ou anime). Possui interface gráfica',
+      link: 'https://github.com/manasomali/automatic-renamer',
+      imagedir: '/automatic-renamer.gif'
     }
   ];
   return (

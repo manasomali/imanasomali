@@ -4,6 +4,7 @@
   color: var(--black);
   font-weight: 550;
 }
+
 :root {
   --primary: #2A7AE4;
   --black: #000000;
@@ -17,6 +18,16 @@
 html, body {
  margin: 0;
  padding: 0;
+ min-height: calc(100vh - var(--bodyPaddingTop));
+ display: flex;
+ flex-direction: column;
+}
+html::-webkit-scrollbar {
+  display: none;
+}
+html {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 a {
   color: inherit;
@@ -25,4 +36,6 @@ a {
   min-height: calc(100vh - var(--bodyPaddingTop));
   display: flex;
   flex-direction: column;
+  flex-grow: 1;
+  justify-content: space-around;
 }
