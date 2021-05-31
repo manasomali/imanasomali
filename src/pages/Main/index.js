@@ -15,6 +15,7 @@ function Main() {
           <Nome>Matheus Nascimento Soares Marques de Lima</Nome>
           <Ocupacao>Estudante e Pesquisador no Instituto Federal de Santa Catarina (IFSC)</Ocupacao>
           <Ocupacao>Desenvolvedor Web e Mobile</Ocupacao>
+          <Ocupacao>Assistente de Projetos P&D na ENGIE Brasil</Ocupacao>
       </PageDefault>
     </>
   );
