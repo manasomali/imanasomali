@@ -82,6 +82,19 @@ function Experiencia() {
                 </ul>
                 </i>
             </Descricao>
+            <SubTitulo>Assistente de Projetos P&D, ENGIE Brasil</SubTitulo>
+            <Ano>2021 – 2022</Ano>
+            <Descricao>
+                Atuou como assitente no projeto P&D intitulado Speech to Text: Assistente Virtual para Centros de Operação (PD-00063-3071/2020):
+                <i>
+                <ul>
+                    <li>Acompanhar e realizar atividades administrativas de apoio ao projeto de atuação, conforme orientações recebidas da equipe do projeto.</li>
+                    <li>Apoiar na supervisão da tramitação de documentos do projetos relacionado junto às empresas Contratadas e Parceiras.</li>
+                    <li>Acompanhar e apoiar as reuniões periódicas de status e definições do projeto.</li>
+                    <li>Auxiliar no desenvolvimento de métodos, lógicas e algoritmos.</li>
+                </ul>
+                </i>
+            </Descricao>
         </>
     )
 }
