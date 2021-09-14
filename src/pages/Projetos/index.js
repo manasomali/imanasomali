@@ -53,6 +53,12 @@ function Projetos() {
       descricao: 'Utilitário feito com Python que realiza a renomeação de arquivos ou pastas seguindo uma lógica dependendo do tipo do arquivo (série, filme ou anime). Possui interface gráfica',
       link: 'https://github.com/manasomali/automatic-renamer',
       imagedir: '/automatic-renamer.gif'
+    },
+    {
+      titulo: 'Sistema para classificação da Comunicação Verbal na Operação do Setor Elétrico',
+      descricao: 'Sistema desenvolvido com Python destinado a classificação da operação do setor elétrico com múltiplos modelos de aprendizado de máquina capazes de resolver problemas de classificação multiclasse. A entrada de dados pode ser no formato de texto ou de áudio (transcrição de fala ou de um arquivo).',
+      link: 'https://gese.florianopolis.ifsc.edu.br/classificador-operacao/',
+      imagedir: '/classificador.png'
     }
   ];
   return (
