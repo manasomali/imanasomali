@@ -39,10 +39,25 @@ class ListaPublicacoes extends React.Component {
     this.state = {
       publis: [
         {
+          id: '11',
+          tipo: 'Trabalho de Conclusão e Curso',
+          titulo: 'Processamento, Transcrição e Classificação Automatizada da Comunicação Verbal na Operação do Setor Elétrico Aplicando Técnicas de Aprendizado De Máquina e Processamento de Linguagem Natural',
+          autores: 'LIMA, M. N. S. M.; TAKIGAWA, F. Y. K.',
+          local: 'Florianópolis',
+          revista: 'Trabalho de Conclusão e Curso',
+          evento: '',
+          ano: '2021',
+          link: '',
+          doi: '',
+          issn: '',
+          isbn: '',
+          arquivo: 'documents/Tcc_2021.pdf'
+        },
+        {
           id: '10',
           tipo: 'Artigo Completo',
           titulo: 'Ferramentas e recursos disponíveis para reconhecimento de fala em Português Brasileiro',
-          autores: 'LIMA, M. N. S. M.; COELHO, B. H. TAKIGAWA, F. Y. K.',
+          autores: 'LIMA, M. N. S. M.; COELHO, B. H. ; TAKIGAWA, F. Y. K.',
           local: 'Online',
           revista: 'Anais do Computer on the Beach 2021. p.475--479',
           evento: 'Computer on the Beach 2021',
