@@ -39,6 +39,21 @@ class ListaPublicacoes extends React.Component {
     this.state = {
       publis: [
         {
+          id: '12',
+          tipo: 'Artigo Completo',
+          titulo: 'Evaluation of Machine Learning Algorithms for Multiclass Classification of Voice Calls from Power Systems Operations',
+          autores: 'LIMA, M. N. S. M.; TAKIGAWA, F. Y. K.',
+          local: 'Istanbul',
+          revista: 'Anais do 7th International Conference on Engineering and Emerging Technologies',
+          evento: '7th International Conference on Engineering and Emerging Technologies',
+          ano: '2021',
+          link: 'https://iceet.net',
+          doi: '',
+          issn: '',
+          isbn: '',
+          arquivo: 'documents/Iceet_2021.pdf'
+        },
+        {
           id: '11',
           tipo: 'Trabalho de Conclusão e Curso',
           titulo: 'Processamento, Transcrição e Classificação Automatizada da Comunicação Verbal na Operação do Setor Elétrico Aplicando Técnicas de Aprendizado De Máquina e Processamento de Linguagem Natural',

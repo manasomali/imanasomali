@@ -13,7 +13,7 @@ function Main() {
           <ImageRound src={Avatar}/>
           <Social />
           <Nome>Matheus Nascimento Soares Marques de Lima</Nome>
-          <Ocupacao>Estudante e Pesquisador no Instituto Federal de Santa Catarina (IFSC)</Ocupacao>
+          <Ocupacao>Engenheiro Eletricista</Ocupacao>
           <Ocupacao>Desenvolvedor Web e Mobile</Ocupacao>
           <Ocupacao>Assistente de Projetos P&D na ENGIE Brasil</Ocupacao>
       </PageDefault>
