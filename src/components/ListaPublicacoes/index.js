@@ -47,8 +47,8 @@ class ListaPublicacoes extends React.Component {
           revista: 'Anais do 7th International Conference on Engineering and Emerging Technologies',
           evento: '7th International Conference on Engineering and Emerging Technologies',
           ano: '2021',
-          link: 'https://iceet.net',
-          doi: '',
+          link: 'https://ieeexplore.ieee.org/document/9659723',
+          doi: '10.1109/ICEET53442.2021.9659723',
           issn: '',
           isbn: '',
           arquivo: 'documents/Iceet_2021.pdf'
