@@ -15,7 +15,7 @@ function Main() {
           <Nome>Matheus Nascimento Soares Marques de Lima</Nome>
           <Ocupacao>Engenheiro Eletricista</Ocupacao>
           <Ocupacao>Desenvolvedor Web e Mobile</Ocupacao>
-          <Ocupacao>Assistente de Projetos P&D na ENGIE Brasil</Ocupacao>
+          <Ocupacao></Ocupacao>
       </PageDefault>
     </>
   );
