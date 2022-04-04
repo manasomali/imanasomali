@@ -95,6 +95,10 @@ function Experiencia() {
                 </ul>
                 </i>
             </Descricao>
+            <SubTitulo>desenvolvedor, BYNE</SubTitulo>
+            <Ano>2022 – atual</Ano>
+            <Descricao>
+            </Descricao>
         </>
     )
 }

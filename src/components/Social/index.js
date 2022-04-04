@@ -3,6 +3,11 @@ import { Github } from '@styled-icons/boxicons-logos/Github';
 import { Gmail } from '@styled-icons/simple-icons/Gmail';
 import { Linkedin } from '@styled-icons/boxicons-logos/Linkedin';
 import { GraduationCap } from '@styled-icons/fa-solid/GraduationCap';
+import { Instagram } from '@styled-icons/bootstrap/Instagram';
+import { Letterboxd } from '@styled-icons/simple-icons/Letterboxd';
+import { Tvtime } from '@styled-icons/simple-icons/Tvtime';
+import { Myanimelist } from '@styled-icons/simple-icons/Myanimelist';
+
 import './Social.css'
 import styled from 'styled-components';
 
@@ -38,6 +43,18 @@ function Social() {
             </Icone>
             <Icone href="http://lattes.cnpq.br/2299260238389056" rel="noopener noreferrer" target="_blank">
                 <GraduationCap size="48" />
+            </Icone>
+            <Icone href="https://www.instagram.com/mat.n96/" rel="noopener noreferrer" target="_blank">
+                <Instagram size="48" />
+            </Icone>
+            <Icone href="https://letterboxd.com/manasomali/" rel="noopener noreferrer" target="_blank">
+                <Letterboxd size="48" />
+            </Icone>
+            <Icone href="https://www.tvtime.com/pt_BR/user/1459743/profile" rel="noopener noreferrer" target="_blank">
+                <Tvtime size="48" />
+            </Icone>
+            <Icone href="https://myanimelist.net/profile/manasomali" rel="noopener noreferrer" target="_blank">
+                <Myanimelist size="48" />
             </Icone>
         </nav>
     )
