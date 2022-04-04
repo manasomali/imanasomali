@@ -3,7 +3,7 @@ import { Github } from '@styled-icons/boxicons-logos/Github';
 import { Gmail } from '@styled-icons/simple-icons/Gmail';
 import { Linkedin } from '@styled-icons/boxicons-logos/Linkedin';
 import { GraduationCap } from '@styled-icons/fa-solid/GraduationCap';
-import { Instagram } from '@styled-icons/bootstrap/Instagram';
+import { Instagram } from '@styled-icons/boxicons-logos/Instagram';
 import { Letterboxd } from '@styled-icons/simple-icons/Letterboxd';
 import { Tvtime } from '@styled-icons/simple-icons/Tvtime';
 import { Myanimelist } from '@styled-icons/simple-icons/Myanimelist';
