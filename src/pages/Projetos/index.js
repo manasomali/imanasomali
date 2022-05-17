@@ -27,7 +27,7 @@ function Projetos() {
     {
       titulo: 'Sistema de Registro de Transcrição de Voz para Operação',
       descricao: 'Aplicação web para registro de informações a partir da transcrição de voz de operadores do setor elétrico no formato de um produto minimamente viável que prova o conceito de que o registro de informações por meio da voz do operador é algo vantajoso para o setor de operação e pós operação do setor elétrico.',
-      link: 'https://manasomalidev.cf',
+      link: 'https://github.com/manasomali/poc-transcritor-pi3',
       imagedir: '/transcricao.png'
     },
     {
