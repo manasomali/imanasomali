@@ -68,7 +68,7 @@ function Projetos() {
             Projetos
           </Titulo>
           <CardColumns>
-            {projetos.map(item => <Projeto  key={item.titulo} titulo={item.titulo} descricao={item.descricao} link={item.link} imagedir={item.imagedir}/>)}
+            {projetos.map(item => <Projeto  key = {item.titulo} titulo = {item.titulo} descricao = {item.descricao} link = {item.link} imagedir = {item.imagedir}/>)}
           </CardColumns>
         </PageDefault>
     </>
