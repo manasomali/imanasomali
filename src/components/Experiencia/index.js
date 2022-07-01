@@ -98,6 +98,16 @@ function Experiencia() {
             <SubTitulo>Desenvolvedor, BYNE</SubTitulo>
             <Ano>2022 – atual</Ano>
             <Descricao>
+                Atua como desenvolvedor Python back-end. Desempenhando as seguites atividade:
+                <i>
+                <ul>
+                    <li>Desenvolver códigos que sejam confiáveis, reutilizáveis e escaláveis.</li>
+                    <li>Desenvolver integrações de back-end com serviços e bancos de dados.</li>
+                    <li>Realizar teste unitários e de integração.</li>
+                    <li>Aprimorar a funcionalidade de sistemas existentes garantindo uma melhor performance e usabilidade das aplicações.</li>
+                    <li>Participa ativamente da criação de novos projetos.</li>
+                </ul>
+                </i>
             </Descricao>
         </>
     )
