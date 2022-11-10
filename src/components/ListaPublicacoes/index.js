@@ -39,6 +39,21 @@ class ListaPublicacoes extends React.Component {
     this.state = {
       publis: [
         {
+          id: '13',
+          tipo: 'Artigo Completo',
+          titulo: 'Processamento de Arquivos de Áudios e Texto Relacionados a Comunicação Verbal da Operação do Setor Elétrico',
+          autores: 'LIMA, M. N. S. M.; Coelho, B. H.; TAKIGAWA, F. Y. K.',
+          local: 'Rio de Janeiro',
+          revista: '',
+          evento: 'XXVI SNPTEE - XXVI Seminário Nacional de Produção e Transmissão de Energia Elétrica',
+          ano: '2022',
+          link: 'https://xxvisnptee.com.br/',
+          doi: '',
+          issn: '',
+          isbn: '',
+          arquivo: 'documents/Snptee_2022.pdf'
+        },
+        {
           id: '12',
           tipo: 'Artigo Completo',
           titulo: 'Evaluation of Machine Learning Algorithms for Multiclass Classification of Voice Calls from Power Systems Operations',

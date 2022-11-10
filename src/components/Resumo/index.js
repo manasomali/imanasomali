@@ -16,7 +16,9 @@ function Resumo() {
                 <br />
                 <br />
                 Possui conhecimentos sobre <Link fontSize="20px" href="https://docs.microsoft.com/pt-br/office/vba/api/overview/" target="_blank" rel="noopener noreferrer">VBA</Link>, <Link fontSize="20px" href="https://www.php.net" target="_blank" rel="noopener noreferrer">PHP</Link>, <Link fontSize="20px" href="https://developer.mozilla.org/pt-BR/docs/Web/JavaScript" target="_blank" rel="noopener noreferrer">JS</Link>, <Link fontSize="20px" href="https://angularjs.org" target="_blank" rel="noopener noreferrer">AngularJS</Link>, <Link fontSize="20px" href="https://www.mysql.com" target="_blank" rel="noopener noreferrer">mySQL</Link>, <Link fontSize="20px" href="https://www.python.org" target="_blank" rel="noopener noreferrer">Python</Link>, <Link fontSize="20px" href="https://www.r-project.org" target="_blank" rel="noopener noreferrer">R</Link>, <Link fontSize="20px" href="https://kotlinlang.org" target="_blank" rel="noopener noreferrer">Kotlin</Link>, <Link fontSize="20px" href="https://git-scm.com" target="_blank" rel="noopener noreferrer">Git</Link> e <Link fontSize="20px" href="https://flask.palletsprojects.com" target="_blank" rel="noopener noreferrer">Flask</Link>.<br />
-                Adicionalmente, tem experiênia nas áreas de Ciência de Dados: Processamento de Linguagem Natural (NLP) e Aprendizado de Máquina (ML).
+                Tem experiênia nas áreas de Ciência de Dados: Processamento de Linguagem Natural (NLP), Reconhecimento Automático de Fala (ASR) e Aprendizado de Máquina (ML).
+                <br />
+                Adicionalmente, possui experiência na área de projetos elétricos residenciais.
             </Descricao>
         </>
     )
