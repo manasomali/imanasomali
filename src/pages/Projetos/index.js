@@ -59,6 +59,12 @@ function Projetos() {
       descricao: 'Sistema desenvolvido com Python destinado a classificação da operação do setor elétrico com múltiplos modelos de aprendizado de máquina capazes de resolver problemas de classificação multiclasse. A entrada de dados pode ser no formato de texto ou de áudio (transcrição de fala ou de um arquivo).',
       link: 'https://gese.florianopolis.ifsc.edu.br/classificador-operacao/',
       imagedir: '/classificador.png'
+    },
+    {
+      titulo: 'Legendas TV Viewer App',
+      descricao: 'App para visualização do site legendas.tv',
+      link: 'https://github.com/manasomali/start-project-react-native',
+      imagedir: '/legendas-tv-viewer.png'
     }
   ];
   return (
