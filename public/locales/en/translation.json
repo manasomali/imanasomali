@@ -1,0 +1,92 @@
+{
+  "title": "Welcome to react using react-i18next",
+  "pages":{
+      "about": {"title":"About"},
+      "main": {"ocupation1":"Electrical Engineer","ocupation2":"Developer"},
+      "projects": {"title":"Projects"},
+      "publications": {"title":"Publications"}
+  },  "menu":{
+      "about": "ABOUT",
+      "projects": "PROJECTS",
+      "publications": "PUBLICATIONS"
+  },
+  "components": {
+    "experience": {
+      "title": "Professional Experience",
+      "role1": "Developer, BYNE",
+      "year1": "2022 – Present",
+      "description1": {
+        "description": "Works as a Python back-end developer, performing the following activities:",
+        "item1": "Develop reliable, reusable, and scalable code.",
+        "item2": "Develop back-end integrations with services and databases.",
+        "item3": "Perform unit and integration testing.",
+        "item4": "Enhance the functionality of existing systems to ensure better performance and usability of applications."
+      },
+
+      "role2": "Assistant Project P&D, ENGIE Brazil",
+      "year2": "2021 – 2022",
+      "description2": {
+        "description": "Worked as an assistant on the R&D project titled Speech to Text: Virtual Assistant for Operation Centers (PD-00063-3071/2020):",
+        "item1": "Assist and perform administrative support activities for the project, following guidance from the project team.",
+        "item2": "Support in overseeing the processing of documents related to the project with Contracted and Partner companies.",
+        "item3": "Attend and support regular status and project definition meetings.",
+        "item4": "Assist in the development of methods, logic, and algorithms."
+      },
+      "role3": "Intern, ONS",
+      "year3": "2019 – 2020",
+      "description3": {
+        "description": "Worked in the post-operation sector, assisting in activities in the following systems:",
+        "item1": "SADHI – Hydrological Data Apportionment",
+        "item2": "SAMUG – Apportionment of Operational State Changes of Generating Units",
+        "item3": "SIPER – Integrated Disturbance System",
+        "item4": "SAGIC – Apportionment of Generation, Load, and Exchange",
+        "item5": "SAIPC – Apportionment of Interruptions at Control Points",
+        "item6": "SAMUST – System for Apportionment of Transmission System Usage Amounts",
+        "item7": "SATRA – Transmission Apportionment System"
+      },
+      "role4": "Researcher, IFSC - GESE",
+      "description4": {
+        "year1": "2016 - 2018",
+        "item1": "Developed a computational application for the management of electricity purchase contracts.",
+        "year2": "2018 - 2020",
+        "item2": "Developed a web tool to assist in reducing wind generation due to the limit of transmission line loading.",
+        "year3": "2020 - 2021",
+        "item3": "Developed a web platform for recording voice transcriptions of operators in the electricity sector."
+      }
+    },
+    "summary": {
+      "line1": {
+          "sector1": "I have a degree in Electrical Engineering (2016-2021) from ",
+          "IFSC": "Federal Institute of Santa Catarina (IFSC)",
+          "sector2": " with various research projects in the ",
+          "GESE": "Group for the Study of Energy Systems (GESE) ",
+          "sector3": " (2016-2021). Additionally, I have a formation in Android Mobile Development at ",
+          "DH": "Digital House",
+          "sector4": " (2020-2021) and began my journey with a technical course in Game Development (2014 – 2015) at ",
+          "Opet": "Opet Educational Group."
+      },
+      "line2": {
+          "sector1": "Currently, I work as a developer at ",
+          "BYNE": "BYNE ",
+          "sector2": " (2022-present), previously worked as an Assistant in R&D Projects at ",
+          "engie": "Engie ",
+          "sector3": " (2021-2022), and had an internship in the post-operation sector at ",
+          "ONS": "National Operator of the Electric System (ONS) ",
+          "sector4": " (2019-2020)."
+      },
+      "line3": "I have experience in Data Science, covering Natural Language Processing (NLP), Automatic Speech Recognition (ASR), and Computer Vision (CV)."
+    },
+    "footer": {
+      "line1": "Developed by",
+      "line2": "Using",
+      "line3": "Inspired by"
+    },
+    "list_publications": {
+      "all": "All", 
+      "complete_article": "Complete Article", 
+      "summary": "Summary",
+      "exanded_summary":"Exanded Summary",
+      "book_chapter":"Book Chapter" 
+    }
+  }
+}

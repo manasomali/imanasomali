@@ -1,0 +1,93 @@
+{
+    "title": "Welcome to react using react-i18next",
+    "pages":{
+        "about": {"title":"Sobre"},
+        "main": {"ocupation1":"Engenheiro Eletricista","ocupation2":"Desenvolvedor"},
+        "projects": {"title":"Projetos"},
+        "publications": {"title":"Publicações"}
+    },
+    "menu":{
+        "about": "SOBRE",
+        "projects": "PROJETOS",
+        "publications": "PUBLICAÇÕES"
+    },
+    "components": {
+        "experience": {
+            "title": "Experiência Profissional",
+            "role1": "Desenvolvedor, BYNE",
+            "year1": "2022 – atual",
+            "description1": {
+                "description":"Atua como desenvolvedor Python back-end. Desempenhando as seguintes atividades:",
+                "item1":"Desenvolver códigos que sejam confiáveis, reutilizáveis e escaláveis.",
+                "item2":"Desenvolver integrações de back-end com serviços e bancos de dados.",
+                "item3":"Realizar teste unitários e de integração.",
+                "item4":"Aprimorar a funcionalidade de sistemas existentes garantindo uma melhor performance e usabilidade das aplicações."
+            },
+
+            "role2": "Assistente de Projects P&D, ENGIE Brasil",
+            "year2": "2021 – 2022",
+            "description2": {
+                "description":"Atuou como assitente no projeto P&D intitulado Speech to Text: Assistente Virtual para Centros de Operação (PD-00063-3071/2020):",
+                "item1":"Acompanhar e realizar atividades administrativas de apoio ao projeto de atuação, conforme orientações recebidas da equipe do projeto.",
+                "item2":"Apoiar na supervisão da tramitação de documentos do projects relacionado junto às empresas Contratadas e Parceiras.",
+                "item3":"Acompanhar e apoiar as reuniões periódicas de status e definições do projeto.",
+                "item4":"Auxiliar no desenvolvimento de métodos, lógicas e algoritmos."
+            },
+            "role3": "Estágiario, ONS",     
+            "year3": "2019 – 2020",
+            "description3": {
+                "description":"Atuou no setor de pós operação, auxiliando nas atividades de apuração nos sistemas:",
+                "item1":"SADHI – Apuração dos Dados Hidrológicos",
+                "item2":"SAMUG – Apuração das Mudanças de Estados Operativos de Unidades Geradoras",
+                "item3":"SIPER – Sistema Integrado de Perturbações",
+                "item4":"SAGIC – Apuração da Geração, Carga e Intercâmbio",
+                "item5":"SAIPC – Apuração das Interrupções dos Pontos de Controle",
+                "item6":"SAMUST – Sistema de Apuração dos Montantes de Uso do Sistema da Transmissão",
+                "item7":"SATRA – Sistema de Apuração da Transmissão"
+            },
+            "role4": "Pesquisador, IFSC - GESE", 
+            "description4": {
+                "year1": "2016 - 2018",
+                "item1":"Desenvolvimento de um aplicativo computacional para a gestão de contratos de compra de energia elétrica.",
+                "year2": "2018 - 2020",
+                "item2": "Desenvolvimento de uma ferramenta web para auxílio na redução de geração eólica devido ao limite de carregamento de linhas de transmissão.",
+                "year3": "2020 - 2021",
+                "item3": "Desenvolvimento de uma plataforma web para registro de transcrições de voz de operadores do setor elétrico."
+            }
+        },
+        "summary": {
+            "line1": {
+                "sector1":"Possuo formação em Engenharia Elétrica (2016-2021) pelo ",
+                "IFSC":"Instituto de Federal de Santa Catarina (IFSC) ",
+                "sector2":" contando vários projects de pesquisa no ",
+                "GESE":"Grupo em Estudos de Sistemas de Energia (GESE) ",
+                "sector3":" (2016-2021). Adicionalmente, possuo formação em Desenvolvimento Mobile Android na ",
+                "DH":"Digital House ",
+                "sector4": "(2020-2021) e iniciei minha jornada com uma Formação Técnica em Programação de Jogos Digitais (2014 – 2015) no ",
+                "Opet": "Grupo Educacional Opet."
+            },
+            "line2": {
+                "sector1":"Atualmente, sou desenvolvedor na ",
+                "BYNE":"BYNE ",
+                "sector2":" (2022-atual), posteriormente atuava como Assistente de Projects P&D na ",
+                "engie":"Engie ",
+                "sector3":" (2021-2022) e estagiei no setor de pós-operação no ",
+                "ONS":"Operador Nacional do Sistema Elétrico (ONS) ",
+                "sector4":" (2019-2020)."
+            },
+            "line3": "Tenho experiência em Ciência de Dados, abrangendo Processamento de Linguagem Natural (NLP), Reconhecimento Automático de Fala (ASR) e Visão Computacional (CV)."
+        },
+        "footer": {
+          "line1": "Desenvolvido por ",
+          "line2": "Usando ",
+          "line3": "Inspirado por "
+        },
+        "list_publications": {
+          "all": "Todos", 
+          "complete_article": "Artigo Completo", 
+          "summary": "Resumo",
+          "exanded_summary":"Resumo Expandido",
+          "book_chapter":"Capítulo de Livro" 
+        }
+    }
+}
