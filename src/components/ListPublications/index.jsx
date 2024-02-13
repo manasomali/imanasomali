@@ -40,6 +40,21 @@ class ListPublications extends React.Component {
     this.state = {
       publis: [
         {
+          id: '14',
+          tipo: '1',
+          titulo: 'Potencial do Padrão de Arquitetura CQRS/ES Aplicado no Setor Elétrico, Várias Visualizações com uma Fonte de Dados',
+          autores: 'LIMA, M. N. S. M.',
+          local: 'Brasília',
+          revista: '',
+          evento: 'XXVII SNPTEE - XXVII Seminário Nacional de Produção e Transmissão de Energia Elétrica',
+          ano: '2023',
+          link: 'https://xxviisnptee.com.br/',
+          doi: '',
+          issn: '',
+          isbn: '',
+          arquivo: 'documents/Snptee_2023.pdf'
+        },
+        {
           id: '13',
           tipo: '1',
           titulo: 'Processamento de Arquivos de Áudios e Texto Relacionados a Comunicação Verbal da Operação do Setor Elétrico',
