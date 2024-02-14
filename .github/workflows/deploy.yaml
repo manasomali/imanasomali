@@ -27,4 +27,5 @@ jobs:
         remote-user: ${{ secrets.REMOTE_USER }}
         private-ssh-key: ${{ secrets.SERVER_SSH_KEY }}
         destination-path: /var/www/html/
-        rsync-options: --verbose --compress --human-readable --exclude=node_modules --exclude=src  --exclude=.git* --exclude=.git/ --exclude=README.md --exclude=readme.md --exclude=.gitignore
+        source-path: ./dist/
+        rsync-options: --omit-dir-times --archive --verbose --delete --delete-after --compress --human-readable --exclude=node_modules --exclude=src  --exclude=.git* --exclude=.git/ --exclude=README.md --exclude=readme.md --exclude=.gitignore
