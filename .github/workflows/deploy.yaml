@@ -26,4 +26,5 @@ jobs:
         target-server: ${{ secrets.REMOTE_HOST }}
         remote-user: ${{ secrets.REMOTE_USER }}
         private-ssh-key: ${{ secrets.SERVER_SSH_KEY }}
-        destination-path: /var/www/html
+        destination-path: /var/www/html/
+        rsync-options: --exclude=node_modules --exclude=src
