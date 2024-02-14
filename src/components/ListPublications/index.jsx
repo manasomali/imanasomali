@@ -93,7 +93,7 @@ class ListPublications extends React.Component {
           revista: 'Trabalho de Conclusão e Curso',
           evento: '',
           ano: '2021',
-          link: '',
+          link: 'https://sigaa.ifsc.edu.br/sigaa/public/curso/monografias.jsf',
           doi: '',
           issn: '',
           isbn: '',
