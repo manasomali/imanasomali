@@ -66,6 +66,12 @@ function Projects() {
       description: 'App para visualização do site legendas.tv',
       link: 'https://github.com/manasomali/start-project-react-native',
       imagedir: '/legendas-tv-viewer.png'
+    },
+    {
+      titulo: 'Movie Graber',
+      description: 'Executável para download de filmes do site topdezfilmes',
+      link: 'https://github.com/manasomali/movie-grabber',
+      imagedir: '/movie-graber.png'
     }
   ];
   const { t, i18n } = useTranslation();
