@@ -55,7 +55,7 @@ function Publication(props) {
     const { t } = useTranslation();
     return(
         <AccordionContent>
-        <Icon href={props.arquivo} target="_blank" rel="noreferrer"><Download size="48" /></Icon>
+        <Icon href={props.arquivo} target="_blank" rel="noopener noreferrer"><Download size="48" /></Icon>
         <Reference >{buildPublication(props.id, props.tipo, props.titulo, props.autores, props.local, props.revista, props.evento, props.ano, props.link, props.doi, props.issn, props.isbn, props.arquivo, t('components.publication.accessed'))}</Reference>
         </AccordionContent>
     )

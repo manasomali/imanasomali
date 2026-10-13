@@ -29,7 +29,7 @@ function Project(props) {
     return (
         <>
         <Card className="text-center">
-                <Card.Img variant="top" src={props.imagedir}/>
+                <Card.Img variant="top" src={props.imagedir} alt={props.title} loading="lazy"/>
                 <Card.Body>
                     <Card.Title>{props.title}</Card.Title>
                     <Card.Text>

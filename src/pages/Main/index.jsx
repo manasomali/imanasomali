@@ -13,7 +13,7 @@ function Main() {
   return (
     <>
       <PageDefault>
-          <ImageRound src={Avatar}/>
+          <ImageRound src={Avatar} alt="Matheus Nascimento" width="300" height="300"/>
           <Social />
           <Name>Matheus Nascimento Soares Marques de Lima</Name>
           <Ocupation>{t('pages.main.ocupation1')}</Ocupation>

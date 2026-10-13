@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-const Title = styled.div`
+const Title = styled.h1`
     text-align: left;
     display: block;
     font-size: 2em;

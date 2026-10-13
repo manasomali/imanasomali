@@ -51,7 +51,8 @@
                 }
             }
         },
-        "publications": {"title": "Publicações"}
+        "publications": {"title": "Publicações"},
+        "page404": {"title": "Página não encontrada", "message": "O endereço que você tentou acessar não existe ou foi removido.", "back": "Voltar para o início"}
     },
     "menu": {
         "about": "SOBRE",

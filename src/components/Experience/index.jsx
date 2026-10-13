@@ -10,7 +10,7 @@ const Description = styled.div`
     margin-bottom: 20px;
 `;
 
-const SubTitle = styled.h2`
+const SubTitle = styled.h3`
     text-align: left;
     display: block;
     font-size: 1.5em;
@@ -24,7 +24,7 @@ const SubTitle = styled.h2`
     margin-bottom: 0;
     margin-left: 10px;
 `;
-const Ano = styled.h3`
+const Ano = styled.h4`
     text-align: left;
     display: block;
     font-size: 1.17em;
@@ -39,7 +39,7 @@ const Ano = styled.h3`
     margin-top:0;
 
 `;
-const Title = styled.h1`
+const Title = styled.h2`
     text-align: left;
     font-size: 2em;
     margin-top: 0.67em;
