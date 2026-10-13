@@ -1,92 +1,238 @@
 {
-  "title": "Welcome to react using react-i18next",
-  "pages":{
-      "about": {"title":"About"},
-      "main": {"ocupation1":"Electrical Engineer","ocupation2":"Developer"},
-      "projects": {"title":"Projects"},
-      "publications": {"title":"Publications"}
-  },  "menu":{
-      "about": "ABOUT",
-      "projects": "PROJECTS",
-      "publications": "PUBLICATIONS"
-  },
-  "components": {
-    "experience": {
-      "title": "Professional Experience",
-      "role1": "Developer, BYNE",
-      "year1": "2022 – Present",
-      "description1": {
-        "description": "Works as a Python back-end developer, performing the following activities:",
-        "item1": "Develop reliable, reusable, and scalable code.",
-        "item2": "Develop back-end integrations with services and databases.",
-        "item3": "Perform unit and integration testing.",
-        "item4": "Enhance the functionality of existing systems to ensure better performance and usability of applications."
-      },
+    "pages": {
+        "about": {"title": "About"},
+        "main": {"ocupation1": "Electrical Engineer", "ocupation2": "Developer"},
+        "projects": {
+            "title": "Projects",
+            "items": {
+                "pi": {
+                    "title": "Indifference Price - PI",
+                    "description": "The Indifference Price determines the minimum average price for the cost of electricity, aiming to enable a possible migration from the Regulated Contracting Environment (ACR) to the Free Contracting Environment (ACL)."
+                },
+                "aplac": {
+                    "title": "Contract Allocation Application - APLAC",
+                    "description": "Analyzes the user's energy consumption history and returns a report with the best possible contracting scenario in the free market, considering a portfolio of bilateral contracts that can be chosen by the user. Along with this scenario, the tool calculates the minimum price (indifference price), which may enable a possible migration to the free market."
+                },
+                "wind_simulator": {
+                    "title": "Wind Generation Control Simulator",
+                    "description": "Web application that recommends generation curtailment values for wind farm clusters based on the power flow limit of the 525 kV Nova Santa Rita/Povo Novo transmission line."
+                },
+                "voice_transcription": {
+                    "title": "Voice Transcription Logging System for Operations",
+                    "description": "Web application for logging information from voice transcriptions of power sector operators, built as a minimum viable product that proves the concept that recording information through the operator's voice is advantageous for the operation and post-operation sectors of the power industry."
+                },
+                "redsquare": {
+                    "title": "RedSquare Game",
+                    "description": "Game developed with the Construct 2 engine during the technical course in Digital Game Programming."
+                },
+                "timelinelist": {
+                    "title": "TimeLineList App",
+                    "description": "App developed during the Mobile Development (Android) course for cataloging movies and TV shows, with ratings, status, and reactions."
+                },
+                "legendas_organizer": {
+                    "title": "Legendas TV Organizer",
+                    "description": "Python utility that automatically selects and organizes the correct subtitle. Just run the utility in a folder containing the video file and the legendas.tv .zip, and the files are organized automatically."
+                },
+                "automatic_renamer": {
+                    "title": "Automatic Renamer",
+                    "description": "Python utility with a graphical interface that renames files or folders following a logic based on the file type (TV show, movie, or anime)."
+                },
+                "classifier": {
+                    "title": "Classification System for Verbal Communication in Power System Operations",
+                    "description": "Python system for classifying verbal communication in power system operations, using multiple machine learning models capable of solving multiclass classification problems. Input can be text or audio (speech or file transcription)."
+                },
+                "legendas_viewer": {
+                    "title": "Legendas TV Viewer App",
+                    "description": "App for browsing the legendas.tv website."
+                },
+                "movie_grabber": {
+                    "title": "Movie Grabber",
+                    "description": "Executable for downloading movies from the topdezfilmes website."
+                }
+            }
+        },
+        "publications": {"title": "Publications"}
+    },
+    "menu": {
+        "about": "ABOUT",
+        "projects": "PROJECTS",
+        "publications": "PUBLICATIONS"
+    },
+    "components": {
+        "experience": {
+            "title": "Professional Experience",
+            "role1": "Developer, BYNE",
+            "year1": "2022 – Present",
+            "description1": {
+                "description": "Works as a Python back-end developer, performing the following activities:",
+                "item1": "Develop reliable, reusable, and scalable code.",
+                "item2": "Develop back-end integrations with services and databases.",
+                "item3": "Perform unit and integration testing.",
+                "item4": "Enhance the functionality of existing systems, ensuring better performance and usability of applications."
+            },
 
-      "role2": "Assistant Project P&D, ENGIE Brazil",
-      "year2": "2021 – 2022",
-      "description2": {
-        "description": "Worked as an assistant on the R&D project titled Speech to Text: Virtual Assistant for Operation Centers (PD-00063-3071/2020):",
-        "item1": "Assist and perform administrative support activities for the project, following guidance from the project team.",
-        "item2": "Support in overseeing the processing of documents related to the project with Contracted and Partner companies.",
-        "item3": "Attend and support regular status and project definition meetings.",
-        "item4": "Assist in the development of methods, logic, and algorithms."
-      },
-      "role3": "Intern, ONS",
-      "year3": "2019 – 2020",
-      "description3": {
-        "description": "Worked in the post-operation sector, assisting in activities in the following systems:",
-        "item1": "SADHI – Hydrological Data Apportionment",
-        "item2": "SAMUG – Apportionment of Operational State Changes of Generating Units",
-        "item3": "SIPER – Integrated Disturbance System",
-        "item4": "SAGIC – Apportionment of Generation, Load, and Exchange",
-        "item5": "SAIPC – Apportionment of Interruptions at Control Points",
-        "item6": "SAMUST – System for Apportionment of Transmission System Usage Amounts",
-        "item7": "SATRA – Transmission Apportionment System"
-      },
-      "role4": "Researcher, IFSC - GESE",
-      "description4": {
-        "year1": "2016 - 2018",
-        "item1": "Developed a computational application for the management of electricity purchase contracts.",
-        "year2": "2018 - 2020",
-        "item2": "Developed a web tool to assist in reducing wind generation due to the limit of transmission line loading.",
-        "year3": "2020 - 2021",
-        "item3": "Developed a web platform for recording voice transcriptions of operators in the electricity sector."
-      }
-    },
-    "summary": {
-      "line1": {
-          "sector1": "I have a degree in Electrical Engineering (2016-2021) from ",
-          "IFSC": "Federal Institute of Santa Catarina (IFSC)",
-          "sector2": " with various research projects in the ",
-          "GESE": "Group for the Study of Energy Systems (GESE) ",
-          "sector3": " (2016-2021). Additionally, I have a formation in Android Mobile Development at ",
-          "DH": "Digital House",
-          "sector4": " (2020-2021) and began my journey with a technical course in Game Development (2014 – 2015) at ",
-          "Opet": "Opet Educational Group."
-      },
-      "line2": {
-          "sector1": "Currently, I work as a developer at ",
-          "BYNE": "BYNE ",
-          "sector2": " (2022-present), previously worked as an Assistant in R&D Projects at ",
-          "engie": "Engie ",
-          "sector3": " (2021-2022), and had an internship in the post-operation sector at ",
-          "ONS": "National Operator of the Electric System (ONS) ",
-          "sector4": " (2019-2020)."
-      },
-      "line3": "I have experience in Data Science, covering Natural Language Processing (NLP), Automatic Speech Recognition (ASR), and Computer Vision (CV)."
-    },
-    "footer": {
-      "line1": "Developed by",
-      "line2": "Using",
-      "line3": "Inspired by"
-    },
-    "list_publications": {
-      "all": "All", 
-      "complete_article": "Complete Article", 
-      "summary": "Summary",
-      "exanded_summary":"Exanded Summary",
-      "book_chapter":"Book Chapter" 
+            "role2": "R&D Project Assistant, ENGIE Brazil",
+            "year2": "2021 – 2022",
+            "description2": {
+                "description": "Worked as an assistant on the R&D project titled Speech to Text: Virtual Assistant for Operation Centers (PD-00063-3071/2020):",
+                "item1": "Monitor and perform administrative support activities for the project, following guidance from the project team.",
+                "item2": "Support the oversight of project document processing with contracted and partner companies.",
+                "item3": "Attend and support regular status and project definition meetings.",
+                "item4": "Assist in the development of methods, logic, and algorithms."
+            },
+            "role3": "Intern, ONS",
+            "year3": "2019 – 2020",
+            "description3": {
+                "description": "Worked in the post-operation sector, assisting with assessment activities in the following systems:",
+                "item1": "SADHI – Hydrological Data Assessment",
+                "item2": "SAMUG – Assessment of Operational State Changes of Generating Units",
+                "item3": "SIPER – Integrated Disturbance System",
+                "item4": "SAGIC – Assessment of Generation, Load, and Interchange",
+                "item5": "SAIPC – Assessment of Interruptions at Control Points",
+                "item6": "SAMUST – Transmission System Usage Amounts Assessment System",
+                "item7": "SATRA – Transmission Assessment System"
+            },
+            "role4": "Researcher, IFSC - GESE",
+            "description4": {
+                "year1": "2016 - 2018",
+                "item1": "Development of a computer application for managing electricity purchase contracts.",
+                "year2": "2018 - 2020",
+                "item2": "Development of a web tool to assist in curtailing wind generation due to transmission line loading limits.",
+                "year3": "2020 - 2021",
+                "item3": "Development of a web platform for recording voice transcriptions of power sector operators."
+            }
+        },
+        "summary": {
+            "line1": {
+                "sector1": "I have a degree in Electrical Engineering (2016-2021) from the ",
+                "IFSC": "Federal Institute of Santa Catarina (IFSC)",
+                "sector2": ", with several research projects at the ",
+                "GESE": "Energy Systems Studies Group (GESE)",
+                "sector3": " (2016-2021). Additionally, I completed a program in Android Mobile Development at ",
+                "DH": "Digital House",
+                "sector4": " (2020-2021) and began my journey with a technical course in Digital Game Programming (2014 – 2015) at ",
+                "Opet": "Opet Educational Group."
+            },
+            "line2": {
+                "sector1": "Currently, I work as a developer at ",
+                "BYNE": "BYNE",
+                "sector2": " (2022-present). Previously, I worked as an R&D Project Assistant at ",
+                "engie": "Engie",
+                "sector3": " (2021-2022) and interned in the post-operation sector at the ",
+                "ONS": "National Electric System Operator (ONS)",
+                "sector4": " (2019-2020)."
+            },
+            "line3": "I have experience in Data Science, covering Natural Language Processing (NLP), Automatic Speech Recognition (ASR), and Computer Vision (CV)."
+        },
+        "footer": {
+            "line1": "Developed by",
+            "line2": "Using",
+            "line3": "Inspired by"
+        },
+        "project": {
+            "access": "Open"
+        },
+        "publication": {
+            "accessed": "Available at"
+        },
+        "list_publications": {
+            "all": "All",
+            "complete_article": "Full Paper",
+            "summary": "Abstract",
+            "expanded_summary": "Extended Abstract",
+            "book_chapter": "Book Chapter",
+            "items": {
+                "14": {
+                    "title": "Potential of the CQRS/ES Architecture Pattern Applied to the Power Sector: Multiple Views from a Single Data Source",
+                    "location": "Brasília",
+                    "journal": "",
+                    "event": "XXVII SNPTEE - XXVII National Seminar on Electric Power Production and Transmission"
+                },
+                "13": {
+                    "title": "Processing of Audio and Text Files Related to Verbal Communication in Power Sector Operations",
+                    "location": "Rio de Janeiro",
+                    "journal": "",
+                    "event": "XXVI SNPTEE - XXVI National Seminar on Electric Power Production and Transmission"
+                },
+                "12": {
+                    "title": "Evaluation of Machine Learning Algorithms for Multiclass Classification of Voice Calls from Power Systems Operations",
+                    "location": "Istanbul",
+                    "journal": "Proceedings of the 7th International Conference on Engineering and Emerging Technologies",
+                    "event": "7th International Conference on Engineering and Emerging Technologies"
+                },
+                "11": {
+                    "title": "Automated Processing, Transcription and Classification of Verbal Communication in Power Sector Operations Using Machine Learning and Natural Language Processing Techniques",
+                    "location": "Florianópolis",
+                    "journal": "Undergraduate Thesis",
+                    "event": ""
+                },
+                "10": {
+                    "title": "Tools and Resources Available for Speech Recognition in Brazilian Portuguese",
+                    "location": "Online",
+                    "journal": "Proceedings of Computer on the Beach 2021. p.475--479",
+                    "event": "Computer on the Beach 2021"
+                },
+                "9": {
+                    "title": "Development of a Web Tool for Generation Control in the Nova Santa Rita - Povo Novo Region",
+                    "location": "",
+                    "journal": "Knowledge Management in Industry 4.0 p.103-117",
+                    "event": ""
+                },
+                "8": {
+                    "title": "Web Application for Wind Generation Curtailment in the Nova Santa Rita - Povo Novo Region",
+                    "location": "Online Event",
+                    "journal": "Proceedings of the I Brazilian Interdisciplinary Congress on Science and Technology",
+                    "event": "I Brazilian Interdisciplinary Congress on Science and Technology"
+                },
+                "7": {
+                    "title": "Analysis of the Web Tool for Energy Contract Allocation for (Potentially) Free Consumers",
+                    "location": "Foz do Iguaçu",
+                    "journal": "Proceedings of the XVIII ERIAC",
+                    "event": "XVIII ERIAC - CIGRE Ibero-American Regional Meeting"
+                },
+                "6": {
+                    "title": "Main Development Stages of the Web Tool for Energy Contract Allocation",
+                    "location": "Camboriú",
+                    "journal": "Proceedings of the I IFC Workshop on Information Systems",
+                    "event": "I IFC Workshop on Information Systems"
+                },
+                "5": {
+                    "title": "The Availability of the Indifference Price (PI) Web Tool for Undergraduate Courses",
+                    "location": "Buenos Aires",
+                    "journal": "Proceedings of CIDEL 2018",
+                    "event": "CIDEL – International Congress on Electricity Distribution"
+                },
+                "4": {
+                    "title": "Development of a Web Tool for Calculating the Indifference Price (PI) Between Electricity Contracting Environments",
+                    "location": "Florianópolis",
+                    "journal": "Proceedings of IX Computer on the Beach p. 602-611",
+                    "event": "IX Computer on the Beach"
+                },
+                "3": {
+                    "title": "Proposal for the Development of an Online Tool for Managing Electricity Purchase Contracts",
+                    "location": "Florianópolis",
+                    "journal": "Proceedings of IX Computer on the Beach p. 975-975",
+                    "event": "IX Computer on the Beach"
+                },
+                "2": {
+                    "title": "Contract Allocation Application (APLAC)",
+                    "location": "Florianópolis",
+                    "journal": "Proceedings of the 7th IFSC Seminar on Teaching, Research, Extension and Innovation p. 212-215",
+                    "event": "SEPEI - IFSC Seminar on Teaching, Research, Extension and Innovation"
+                },
+                "1": {
+                    "title": "Development of a Web Page for Promoting the Research Group",
+                    "location": "Boituva",
+                    "journal": "Interdisciplinary Journal of Technologies and Education v.3 n.1",
+                    "event": "Interdisciplinary Symposium on Technologies in Education (SInTE)"
+                },
+                "0": {
+                    "title": "Information Guide and Decision Support Tool for the Potentially Free Consumer",
+                    "location": "Itajaí",
+                    "journal": "Proceedings of the 6th IFSC Seminar on Teaching, Research, Extension and Innovation p. 88-91",
+                    "event": "SEPEI - IFSC Seminar on Teaching, Research, Extension and Innovation"
+                }
+            }
+        }
     }
-  }
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import Card from 'react-bootstrap/Card';
 import styled from 'styled-components';
 import 'bootstrap/dist/css/bootstrap.css';
+import { useTranslation } from 'react-i18next';
 
 const Button =  styled.a`
 	box-shadow:inset 0px 1px 0px 0px #ffffff;
@@ -24,6 +25,7 @@ const Button =  styled.a`
     }
 `;
 function Project(props) {
+    const { t } = useTranslation();
     return (
         <>
         <Card className="text-center">
@@ -33,7 +35,7 @@ function Project(props) {
                     <Card.Text>
                     {props.description}
                     </Card.Text>
-                    <Button href={props.link} target="_blanck">Acessar</Button>
+                    <Button href={props.link} target="_blank" rel="noopener noreferrer">{t('components.project.access')}</Button>
                 </Card.Body>
             </Card>
         </>

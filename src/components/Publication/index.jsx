@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Download } from '@styled-icons/boxicons-regular/Download';
+import { useTranslation } from 'react-i18next';
 
 const AccordionContent = styled.div`
   padding-top:20px;
@@ -33,8 +34,11 @@ const Reference = styled.nav`
   font-weight: normal;
   user-select: auto;
 `;
-function buildPublication(id, tipo, titulo, autores, local, revista, evento, ano, link, doi, issn, isbn, arquivo) {
-    var publication = autores + '. ' + titulo + '. ' + local+ '. ' + revista + '. ' + evento + '. ' + ano;
+function buildPublication(id, tipo, titulo, autores, local, revista, evento, ano, link, doi, issn, isbn, arquivo, accessedLabel) {
+    var publication = [autores, titulo, local, revista, evento, ano]
+      .filter((part) => part !== '')
+      .map((part) => part.replace(/\.$/, ''))
+      .join('. ');
     if(doi !== '') {
       publication = publication + '. DOI: ' + doi;
     } else if(issn !== '') {
@@ -42,16 +46,17 @@ function buildPublication(id, tipo, titulo, autores, local, revista, evento, ano
     } else if(isbn !== '') {
       publication = publication + '. ISBN: ' + isbn;
     }
-    publication = publication + '. Acesso em: <' + link + '>.'
+    publication = publication + '. ' + accessedLabel + ': <' + link + '>.'
     return publication;
   }
 
   
 function Publication(props) {
+    const { t } = useTranslation();
     return(
         <AccordionContent>
         <Icon href={props.arquivo} target="_blank" rel="noreferrer"><Download size="48" /></Icon>
-        <Reference >{buildPublication(props.id, props.tipo, props.titulo, props.autores, props.local, props.revista, props.evento, props.ano, props.link, props.doi, props.issn, props.isbn, props.arquivo)}</Reference>
+        <Reference >{buildPublication(props.id, props.tipo, props.titulo, props.autores, props.local, props.revista, props.evento, props.ano, props.link, props.doi, props.issn, props.isbn, props.arquivo, t('components.publication.accessed'))}</Reference>
         </AccordionContent>
     )
 }

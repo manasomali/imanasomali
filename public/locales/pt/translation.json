@@ -1,12 +1,59 @@
 {
-    "title": "Welcome to react using react-i18next",
-    "pages":{
-        "about": {"title":"Sobre"},
-        "main": {"ocupation1":"Engenheiro Eletricista","ocupation2":"Desenvolvedor"},
-        "projects": {"title":"Projetos"},
-        "publications": {"title":"Publicações"}
+    "pages": {
+        "about": {"title": "Sobre"},
+        "main": {"ocupation1": "Engenheiro Eletricista", "ocupation2": "Desenvolvedor"},
+        "projects": {
+            "title": "Projetos",
+            "items": {
+                "pi": {
+                    "title": "Preço de Indiferença - PI",
+                    "description": "O Preço de Indiferença busca o preço médio mínimo para o custo da energia elétrica, visando viabilizar uma possível migração do Ambiente de Contratação Regulado (ACR) para o Ambiente de Contratação Livre (ACL)."
+                },
+                "aplac": {
+                    "title": "Aplicativo para Alocação de Contratos - APLAC",
+                    "description": "Analisa o histórico de consumo de energia do usuário e retorna um relatório contendo o melhor cenário possível de contratação no ambiente livre, considerando um portfólio de contratos bilaterais que podem ser escolhidos pelo próprio usuário. Juntamente com esse cenário, a ferramenta calcula o preço mínimo (preço de indiferença), podendo viabilizar uma possível migração ao ambiente livre."
+                },
+                "wind_simulator": {
+                    "title": "Simulador para Controle de Geração Eólica",
+                    "description": "Aplicação web que tem como objetivo recomendar os valores de corte de geração de conjuntos eólicos em função do limite de fluxo na LT de 525 kV Nova Santa Rita/Povo Novo."
+                },
+                "voice_transcription": {
+                    "title": "Sistema de Registro de Transcrição de Voz para Operação",
+                    "description": "Aplicação web para registro de informações a partir da transcrição de voz de operadores do setor elétrico, no formato de um produto minimamente viável que prova o conceito de que o registro de informações por meio da voz do operador é vantajoso para os setores de operação e pós-operação do setor elétrico."
+                },
+                "redsquare": {
+                    "title": "Jogo RedSquare",
+                    "description": "Jogo desenvolvido com a engine Construct 2 durante o curso técnico de Programação de Jogos Digitais."
+                },
+                "timelinelist": {
+                    "title": "App TimeLineList",
+                    "description": "App desenvolvido durante o curso de Desenvolvimento Mobile (Android) para cadastro de filmes e séries com registro de nota, status e reações."
+                },
+                "legendas_organizer": {
+                    "title": "Legendas TV Organizer",
+                    "description": "Utilitário feito em Python que seleciona e organiza a legenda correta automaticamente. Basta executar o utilitário em uma pasta com o arquivo de vídeo e o .zip do legendas.tv para que os arquivos sejam organizados automaticamente."
+                },
+                "automatic_renamer": {
+                    "title": "Automatic Renamer",
+                    "description": "Utilitário feito em Python, com interface gráfica, que renomeia arquivos ou pastas seguindo uma lógica que depende do tipo do arquivo (série, filme ou anime)."
+                },
+                "classifier": {
+                    "title": "Sistema para Classificação da Comunicação Verbal na Operação do Setor Elétrico",
+                    "description": "Sistema desenvolvido em Python destinado à classificação da comunicação verbal da operação do setor elétrico, com múltiplos modelos de aprendizado de máquina capazes de resolver problemas de classificação multiclasse. A entrada de dados pode ser em formato de texto ou de áudio (transcrição de fala ou de um arquivo)."
+                },
+                "legendas_viewer": {
+                    "title": "Legendas TV Viewer App",
+                    "description": "App para visualização do site legendas.tv."
+                },
+                "movie_grabber": {
+                    "title": "Movie Grabber",
+                    "description": "Executável para download de filmes do site topdezfilmes."
+                }
+            }
+        },
+        "publications": {"title": "Publicações"}
     },
-    "menu":{
+    "menu": {
         "about": "SOBRE",
         "projects": "PROJETOS",
         "publications": "PUBLICAÇÕES"
@@ -17,38 +64,38 @@
             "role1": "Desenvolvedor, BYNE",
             "year1": "2022 – atual",
             "description1": {
-                "description":"Atua como desenvolvedor Python back-end. Desempenhando as seguintes atividades:",
-                "item1":"Desenvolver códigos que sejam confiáveis, reutilizáveis e escaláveis.",
-                "item2":"Desenvolver integrações de back-end com serviços e bancos de dados.",
-                "item3":"Realizar teste unitários e de integração.",
-                "item4":"Aprimorar a funcionalidade de sistemas existentes garantindo uma melhor performance e usabilidade das aplicações."
+                "description": "Atua como desenvolvedor Python back-end, desempenhando as seguintes atividades:",
+                "item1": "Desenvolver códigos confiáveis, reutilizáveis e escaláveis.",
+                "item2": "Desenvolver integrações de back-end com serviços e bancos de dados.",
+                "item3": "Realizar testes unitários e de integração.",
+                "item4": "Aprimorar a funcionalidade de sistemas existentes, garantindo melhor performance e usabilidade das aplicações."
             },
 
-            "role2": "Assistente de Projects P&D, ENGIE Brasil",
+            "role2": "Assistente de Projetos P&D, ENGIE Brasil",
             "year2": "2021 – 2022",
             "description2": {
-                "description":"Atuou como assitente no projeto P&D intitulado Speech to Text: Assistente Virtual para Centros de Operação (PD-00063-3071/2020):",
-                "item1":"Acompanhar e realizar atividades administrativas de apoio ao projeto de atuação, conforme orientações recebidas da equipe do projeto.",
-                "item2":"Apoiar na supervisão da tramitação de documentos do projeto relacionado junto às empresas Contratadas e Parceiras.",
-                "item3":"Acompanhar e apoiar as reuniões periódicas de status e definições do projeto.",
-                "item4":"Auxiliar no desenvolvimento de métodos, lógicas e algoritmos."
+                "description": "Atuou como assistente no projeto de P&D intitulado Speech to Text: Assistente Virtual para Centros de Operação (PD-00063-3071/2020):",
+                "item1": "Acompanhar e realizar atividades administrativas de apoio ao projeto, conforme orientações recebidas da equipe do projeto.",
+                "item2": "Apoiar na supervisão da tramitação de documentos do projeto junto às empresas contratadas e parceiras.",
+                "item3": "Acompanhar e apoiar as reuniões periódicas de status e definições do projeto.",
+                "item4": "Auxiliar no desenvolvimento de métodos, lógicas e algoritmos."
             },
-            "role3": "Estágiario, ONS",     
+            "role3": "Estagiário, ONS",
             "year3": "2019 – 2020",
             "description3": {
-                "description":"Atuou no setor de pós operação, auxiliando nas atividades de apuração nos sistemas:",
-                "item1":"SADHI – Apuração dos Dados Hidrológicos",
-                "item2":"SAMUG – Apuração das Mudanças de Estados Operativos de Unidades Geradoras",
-                "item3":"SIPER – Sistema Integrado de Perturbações",
-                "item4":"SAGIC – Apuração da Geração, Carga e Intercâmbio",
-                "item5":"SAIPC – Apuração das Interrupções dos Pontos de Controle",
-                "item6":"SAMUST – Sistema de Apuração dos Montantes de Uso do Sistema da Transmissão",
-                "item7":"SATRA – Sistema de Apuração da Transmissão"
+                "description": "Atuou no setor de pós-operação, auxiliando nas atividades de apuração nos sistemas:",
+                "item1": "SADHI – Apuração dos Dados Hidrológicos",
+                "item2": "SAMUG – Apuração das Mudanças de Estados Operativos de Unidades Geradoras",
+                "item3": "SIPER – Sistema Integrado de Perturbações",
+                "item4": "SAGIC – Apuração da Geração, Carga e Intercâmbio",
+                "item5": "SAIPC – Apuração das Interrupções dos Pontos de Controle",
+                "item6": "SAMUST – Sistema de Apuração dos Montantes de Uso do Sistema de Transmissão",
+                "item7": "SATRA – Sistema de Apuração da Transmissão"
             },
-            "role4": "Pesquisador, IFSC - GESE", 
+            "role4": "Pesquisador, IFSC - GESE",
             "description4": {
                 "year1": "2016 - 2018",
-                "item1":"Desenvolvimento de um aplicativo computacional para a gestão de contratos de compra de energia elétrica.",
+                "item1": "Desenvolvimento de um aplicativo computacional para a gestão de contratos de compra de energia elétrica.",
                 "year2": "2018 - 2020",
                 "item2": "Desenvolvimento de uma ferramenta web para auxílio na redução de geração eólica devido ao limite de carregamento de linhas de transmissão.",
                 "year3": "2020 - 2021",
@@ -57,37 +104,135 @@
         },
         "summary": {
             "line1": {
-                "sector1":"Possuo formação em Engenharia Elétrica (2016-2021) pelo ",
-                "IFSC":"Instituto de Federal de Santa Catarina (IFSC) ",
-                "sector2":" contando com vários projetos de pesquisa no ",
-                "GESE":"Grupo em Estudos de Sistemas de Energia (GESE) ",
-                "sector3":" (2016-2021). Adicionalmente, possuo formação em Desenvolvimento Mobile Android na ",
-                "DH":"Digital House ",
-                "sector4": "(2020-2021) e iniciei minha jornada com uma Formação Técnica em Programação de Jogos Digitais (2014 – 2015) no ",
+                "sector1": "Possuo formação em Engenharia Elétrica (2016-2021) pelo ",
+                "IFSC": "Instituto Federal de Santa Catarina (IFSC)",
+                "sector2": ", contando com vários projetos de pesquisa no ",
+                "GESE": "Grupo de Estudos em Sistemas de Energia (GESE)",
+                "sector3": " (2016-2021). Adicionalmente, possuo formação em Desenvolvimento Mobile Android na ",
+                "DH": "Digital House",
+                "sector4": " (2020-2021) e iniciei minha jornada com uma Formação Técnica em Programação de Jogos Digitais (2014 – 2015) no ",
                 "Opet": "Grupo Educacional Opet."
             },
             "line2": {
-                "sector1":"Atualmente, sou desenvolvedor na ",
-                "BYNE":"BYNE ",
-                "sector2":" (2022-atual), posteriormente atuava como Assistente de Projects P&D na ",
-                "engie":"Engie ",
-                "sector3":" (2021-2022) e estagiei no setor de pós-operação no ",
-                "ONS":"Operador Nacional do Sistema Elétrico (ONS) ",
-                "sector4":" (2019-2020)."
+                "sector1": "Atualmente, sou desenvolvedor na ",
+                "BYNE": "BYNE",
+                "sector2": " (2022-atual). Anteriormente, atuei como Assistente de Projetos P&D na ",
+                "engie": "Engie",
+                "sector3": " (2021-2022) e estagiei no setor de pós-operação do ",
+                "ONS": "Operador Nacional do Sistema Elétrico (ONS)",
+                "sector4": " (2019-2020)."
             },
             "line3": "Tenho experiência em Ciência de Dados, abrangendo Processamento de Linguagem Natural (NLP), Reconhecimento Automático de Fala (ASR) e Visão Computacional (CV)."
         },
         "footer": {
-          "line1": "Desenvolvido por ",
-          "line2": "Usando ",
-          "line3": "Inspirado por "
+            "line1": "Desenvolvido por",
+            "line2": "Usando",
+            "line3": "Inspirado por"
+        },
+        "project": {
+            "access": "Acessar"
+        },
+        "publication": {
+            "accessed": "Disponível em"
         },
         "list_publications": {
-          "all": "Todos", 
-          "complete_article": "Artigo Completo", 
-          "summary": "Resumo",
-          "exanded_summary":"Resumo Expandido",
-          "book_chapter":"Capítulo de Livro" 
+            "all": "Todos",
+            "complete_article": "Artigo Completo",
+            "summary": "Resumo",
+            "expanded_summary": "Resumo Expandido",
+            "book_chapter": "Capítulo de Livro",
+            "items": {
+                "14": {
+                    "title": "Potencial do Padrão de Arquitetura CQRS/ES Aplicado no Setor Elétrico, Várias Visualizações com uma Fonte de Dados",
+                    "location": "Brasília",
+                    "journal": "",
+                    "event": "XXVII SNPTEE - XXVII Seminário Nacional de Produção e Transmissão de Energia Elétrica"
+                },
+                "13": {
+                    "title": "Processamento de Arquivos de Áudios e Texto Relacionados a Comunicação Verbal da Operação do Setor Elétrico",
+                    "location": "Rio de Janeiro",
+                    "journal": "",
+                    "event": "XXVI SNPTEE - XXVI Seminário Nacional de Produção e Transmissão de Energia Elétrica"
+                },
+                "12": {
+                    "title": "Evaluation of Machine Learning Algorithms for Multiclass Classification of Voice Calls from Power Systems Operations",
+                    "location": "Istanbul",
+                    "journal": "Anais do 7th International Conference on Engineering and Emerging Technologies",
+                    "event": "7th International Conference on Engineering and Emerging Technologies"
+                },
+                "11": {
+                    "title": "Processamento, Transcrição e Classificação Automatizada da Comunicação Verbal na Operação do Setor Elétrico Aplicando Técnicas de Aprendizado de Máquina e Processamento de Linguagem Natural",
+                    "location": "Florianópolis",
+                    "journal": "Trabalho de Conclusão de Curso",
+                    "event": ""
+                },
+                "10": {
+                    "title": "Ferramentas e recursos disponíveis para reconhecimento de fala em Português Brasileiro",
+                    "location": "Online",
+                    "journal": "Anais do Computer on the Beach 2021. p.475--479",
+                    "event": "Computer on the Beach 2021"
+                },
+                "9": {
+                    "title": "Desenvolvimento de uma Ferramenta web para o controle de geração na região de Nova Santa Rita - Povo Novo",
+                    "location": "",
+                    "journal": "Gestão do conhecimento na indústria 4.0 p.103-117",
+                    "event": ""
+                },
+                "8": {
+                    "title": "Aplicação web para corte de geração eólica na região de Nova Santa Rita - Povo Novo",
+                    "location": "Evento Online",
+                    "journal": "Anais do I Congresso Brasileiro Interdisciplinar em Ciência e Tecnologia",
+                    "event": "I Congresso Brasileiro Interdisciplinar de Ciência e Tecnologia"
+                },
+                "7": {
+                    "title": "Análise da ferramenta web para alocação de contratos de energia para consumidores (potencialmente) livres",
+                    "location": "Foz do Iguaçu",
+                    "journal": "Anais do XVIII ERIAC",
+                    "event": "XVIII ERIAC - Encontro Regional Ibero-Americano do CIGRE"
+                },
+                "6": {
+                    "title": "Principais etapas do desenvolvimento da ferramenta Web para alocação de contratos de energia",
+                    "location": "Camboriú",
+                    "journal": "Anais do I Workshop em Sistemas de Informação do IFC",
+                    "event": "I Workshop em Sistemas de Informação do IFC"
+                },
+                "5": {
+                    "title": "A Disponibilidade da Ferramenta Web Preço de Indiferença (PI) para Cursos de Graduação",
+                    "location": "Buenos Aires",
+                    "journal": "Anais CIDEL 2018",
+                    "event": "CIDEL – Congreso Internacional de Distribución Eléctrica"
+                },
+                "4": {
+                    "title": "Desenvolvimento de uma Ferramenta Web para o Cálculo do Preço de Indiferença (PI) entre os Ambientes de Contratação de Energia Elétrica",
+                    "location": "Florianópolis",
+                    "journal": "Anais do IX Computer on the Beach p. 602-611",
+                    "event": "IX Computer on the Beach"
+                },
+                "3": {
+                    "title": "Proposta de desenvolvimento de uma ferramenta on-line para o gerenciamento de contratos de compra de energia elétrica",
+                    "location": "Florianópolis",
+                    "journal": "Anais do IX Computer on the Beach p. 975-975",
+                    "event": "IX Computer on the Beach"
+                },
+                "2": {
+                    "title": "Aplicativo para alocação de contratos (APLAC)",
+                    "location": "Florianópolis",
+                    "journal": "Anais do 7º Seminário de Ensino, Pesquisa, Extensão e Inovação do IFSC p. 212-215",
+                    "event": "SEPEI - Seminário de Ensino, Pesquisa, Extensão e Inovação do IFSC"
+                },
+                "1": {
+                    "title": "Desenvolvimento de uma página para divulgação do Grupo de Pesquisa",
+                    "location": "Boituva",
+                    "journal": "Revista Interdisciplinar de Tecnologias e Educação v.3 n.1",
+                    "event": "Simpósio Interdisciplinar de Tecnologias na Educação (SInTE)"
+                },
+                "0": {
+                    "title": "Guia de informações e ferramenta de apoio a decisão para o consumidor potencialmente livre",
+                    "location": "Itajaí",
+                    "journal": "Anais do 6º Seminário de Ensino, Pesquisa, Extensão e Inovação do IFSC p. 88-91",
+                    "event": "SEPEI - Seminário de Ensino, Pesquisa, Extensão e Inovação do IFSC"
+                }
+            }
         }
     }
 }

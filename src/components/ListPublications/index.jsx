@@ -42,11 +42,7 @@ class ListPublications extends React.Component {
         {
           id: '14',
           tipo: '1',
-          titulo: 'Potencial do Padrão de Arquitetura CQRS/ES Aplicado no Setor Elétrico, Várias Visualizações com uma Fonte de Dados',
           autores: 'LIMA, M. N. S. M.',
-          local: 'Brasília',
-          revista: '',
-          evento: 'XXVII SNPTEE - XXVII Seminário Nacional de Produção e Transmissão de Energia Elétrica',
           ano: '2023',
           link: 'https://xxviisnptee.com.br/',
           doi: '',
@@ -57,11 +53,7 @@ class ListPublications extends React.Component {
         {
           id: '13',
           tipo: '1',
-          titulo: 'Processamento de Arquivos de Áudios e Texto Relacionados a Comunicação Verbal da Operação do Setor Elétrico',
           autores: 'LIMA, M. N. S. M.; Coelho, B. H.; TAKIGAWA, F. Y. K.',
-          local: 'Rio de Janeiro',
-          revista: '',
-          evento: 'XXVI SNPTEE - XXVI Seminário Nacional de Produção e Transmissão de Energia Elétrica',
           ano: '2022',
           link: 'https://xxvisnptee.com.br/',
           doi: '',
@@ -72,11 +64,7 @@ class ListPublications extends React.Component {
         {
           id: '12',
           tipo: '1',
-          titulo: 'Evaluation of Machine Learning Algorithms for Multiclass Classification of Voice Calls from Power Systems Operations',
           autores: 'LIMA, M. N. S. M.; TAKIGAWA, F. Y. K.',
-          local: 'Istanbul',
-          revista: 'Anais do 7th International Conference on Engineering and Emerging Technologies',
-          evento: '7th International Conference on Engineering and Emerging Technologies',
           ano: '2021',
           link: 'https://ieeexplore.ieee.org/document/9659723',
           doi: '10.1109/ICEET53442.2021.9659723',
@@ -87,11 +75,7 @@ class ListPublications extends React.Component {
         {
           id: '11',
           tipo: '1',
-          titulo: 'Processamento, Transcrição e Classificação Automatizada da Comunicação Verbal na Operação do Setor Elétrico Aplicando Técnicas de Aprendizado De Máquina e Processamento de Linguagem Natural',
           autores: 'LIMA, M. N. S. M.; TAKIGAWA, F. Y. K.',
-          local: 'Florianópolis',
-          revista: 'Trabalho de Conclusão e Curso',
-          evento: '',
           ano: '2021',
           link: 'https://sigaa.ifsc.edu.br/sigaa/public/curso/monografias.jsf',
           doi: '',
@@ -102,11 +86,7 @@ class ListPublications extends React.Component {
         {
           id: '10',
           tipo: '1',
-          titulo: 'Ferramentas e recursos disponíveis para reconhecimento de fala em Português Brasileiro',
           autores: 'LIMA, M. N. S. M.; COELHO, B. H. ; TAKIGAWA, F. Y. K.',
-          local: 'Online',
-          revista: 'Anais do Computer on the Beach 2021. p.475--479',
-          evento: 'Computer on the Beach 2021',
           ano: '2021',
           link: 'https://siaiap32.univali.br/seer/index.php/acotb/article/view/17441',
           doi: '10.14210/cotb.v12.p475-479',
@@ -117,11 +97,7 @@ class ListPublications extends React.Component {
         {
           id: '9',
           tipo: '4',
-          titulo: 'Desenvolvimento de uma Ferramenta web para o controle de geração na região de Nova Santa Rita - Povo Novo',
           autores: 'LIMA, M. N. S. M.; TAKIGAWA, F. Y. K. ; FLORINDO, T. P. ; PAULA, W. R. ; SCHMITT, M. R.',
-          local: '',
-          revista: 'Gestão do conhecimento na indústria 4.0 p.103-117',
-          evento: '',
           ano: '2020',
           link: 'https://www.uniedusul.com.br/publication/gestao-do-conhecimento-na-industria-4-0/',
           doi: '10.29327/514128-8',
@@ -132,11 +108,7 @@ class ListPublications extends React.Component {
         {
           id: '8',
           tipo: '1',
-          titulo: 'Aplicação web para corte de geração eólica na região de Nova Santa Rita - Povo Novo',
           autores: 'LIMA, M. N. S. M. ; TAKIGAWA, F. Y. K. ; PAULA, W. R. ; FLORINDO, T. P.',
-          local: 'Evento Online',
-          revista: 'Anais do I Congresso Brasileiro Interdisciplinar em Ciência e Tecnologia',
-          evento: 'I Congresso Brasileiro Interdisciplinar de Ciência e Tecnologia',
           ano: '2020',
           link: 'www.even3.com.br/Anais/icobicet2020/269309-APLICACAO-WEB-PARA-CORTE-DE-GERACAO-EOLICA-NA-REGIAO-DE-NOVA-SANTA-RITA---POVO-NOVO',
           doi: '',
@@ -147,11 +119,7 @@ class ListPublications extends React.Component {
         {
           id: '7',
           tipo: '1',
-          titulo: 'Análise da ferramenta web para alocação de contratos de energia para consumidores (potencialmente) livres',
           autores: 'TAKIGAWA, F. Y. K. ; LIMA, M. N. S. M. ; PAULA, W. R.',
-          local: 'Foz do Iguaçu',
-          revista: 'Anais do XVIII ERIAC',
-          evento: 'XVIII ERIAC - ENCONTRO REGIONAL IBERO-AMERICANO DO CIGRE',
           ano: '2019',
           link: 'http://www.xviiieriac.com.br/',
           doi: '',
@@ -162,11 +130,7 @@ class ListPublications extends React.Component {
         {
           id: '6',
           tipo: '1',
-          titulo: 'Principais etapas do desenvolvimento da ferramenta Web para alocação de contratos de energia',
           autores: 'LIMA, M. N. S. M.; PAULA, W. R. ; TAKIGAWA, F. Y. K.',
-          local: 'Camboriú',
-          revista: 'Anais do I Workshop em Sistemas de Informação do IFC',
-          evento: 'I Workshop em Sistemas de Informação do IFC',
           ano: '2018',
           link: 'http://www.etic.ifc-camboriu.edu.br/2018/wsi.html',
           doi: '',
@@ -177,11 +141,7 @@ class ListPublications extends React.Component {
         {
           id: '5',
           tipo: '1',
-          titulo: 'A Disponibilidade da Ferramenta Web Preço de Indiferença (PI) para Cursos de Graduação',
           autores: 'LIMA, M. N. S. M.; LIMA, M. N. S. M. ; TAKIGAWA, F. Y. K. ; SCUZZIATO, M. R. ; FERNANDES, R. C.',
-          local: 'Buenos Aires',
-          revista: 'Anais CIDEL 2018',
-          evento: 'CIDEL – Congreso Internacional de Distribucíon Eléctric',
           ano: '2018',
           link: 'https://www.cidel2018.com/recap.asp',
           doi: '',
@@ -192,11 +152,7 @@ class ListPublications extends React.Component {
         {
           id: '4',
           tipo: '1',
-          titulo: 'Desenvolvimento de uma Ferramenta Web para o Cálculo do Preço de Indiferença (PI) entre os Ambientes de Contratação de Energia Elétrica',
           autores: 'LIMA, M. N. S. M.; LIMA, M. N. S. M. ; TAKIGAWA, F. Y. K. ; SILVA, A. S.',
-          local: 'Florianópolis',
-          revista: 'Anais do IX Computer on the Beach p. 602-611',
-          evento: 'IX Computer on the Beach',
           ano: '2018',
           link: 'https://siaiap32.univali.br/seer/index.php/acotb/article/view/12820',
           doi: '',
@@ -207,11 +163,7 @@ class ListPublications extends React.Component {
         {
           id: '3',
           tipo: '3',
-          titulo: 'Proposta de desenvolvimento de uma ferramenta on-line para o gerenciamento de contratos de compra de energia elétrica',
           autores: 'SILVA, A. S. ; TAKIGAWA, F. Y. K. ; LIMA, M. N. S. M. ; LIMA, M. N. S. M.',
-          local: 'Florianópolis',
-          revista: 'Anais do IX Computer on the Beach p. 975-975',
-          evento: 'IX Computer on the Beach',
           ano: '2018',
           link: 'https://siaiap32.univali.br/seer/index.php/acotb/article/view/12879',
           doi: '',
@@ -222,11 +174,7 @@ class ListPublications extends React.Component {
         {
           id: '2',
           tipo: '2',
-          titulo: 'Aplicativo para alocação de contratos (APLAC)',
           autores: 'TAKIGAWA, F. Y. K. ; LIMA, M. N. S. M. ; LIMA, M. N. S. M. ; PAULA, W. R. ; SILVA, A. S.',
-          local: 'Florianópolis',
-          revista: 'Anais do 7 Seminário de Ensino, Pesquisa, Extensão e Inovação do IFSC p. 212-215',
-          evento: 'SEPEI - Seminário de Ensino, Pesquisa, Extensão e Inovação do IFSC',
           ano: '2018',
           link: 'https://www.ifsc.edu.br/documents/832555/1685033/anais_2018_final_atualizado.pdf/a3b4d65d-6ef8-4c1d-ae97-f07e73624fcc',
           doi: '',
@@ -237,11 +185,7 @@ class ListPublications extends React.Component {
         {
           id: '1',
           tipo: '1',
-          titulo: 'Desenvolvimento de uma página para divulgação do Grupo de Pesquisa',
           autores: 'LIMA, M. N. S. M.; TAKIGAWA, F. Y. K.',
-          local: 'Boituva',
-          revista: 'Revista Interdisciplinar de Tecnologias e Educação v.3 n.1',
-          evento: 'Simpósio Interdisciplinar de Tecnologias na Educação (SInTE)',
           ano: '2017',
           link: 'http://rinte.ifsp.edu.br/index.php/RInTE/issue/view/%5BRInTE%5D%20-%20v.%203%20-%20nº%201/showToc',
           doi: '',
@@ -252,11 +196,7 @@ class ListPublications extends React.Component {
         {
           id: '0',
           tipo: '3',
-          titulo: 'Guia de informações e ferramenta de apoio a decisão para o consumidor potencialmente livre',
           autores: 'TAKIGAWA, F. Y. K. ; LIMA, M. N. S. M. ; SOUSA, R. J. S. M. A. ; SILVA, A. S.',
-          local: 'Itajaí',
-          revista: 'Anais do 6 Seminário de Ensino, Pesquisa, Extensão e Inovação do IFSC p. 88-91',
-          evento: 'SEPEI - Seminário de Ensino, Pesquisa, Extensão e Inovação do IFSC',
           ano: '2017',
           link: 'https://discovirtual.ifsc.edu.br/index.php/s/8GdIfAEKGlIGWZo',
           doi: '',
@@ -280,7 +220,7 @@ class ListPublications extends React.Component {
         <Filter onClick={() => this.handleFilter("")}><FilterItem i18nKey='components.list_publications.all'/></Filter>
         <Filter onClick={() => this.handleFilter("1")}><FilterItem i18nKey='components.list_publications.complete_article'/></Filter>
         <Filter onClick={() => this.handleFilter("2")}><FilterItem i18nKey='components.list_publications.summary'/></Filter>
-        <Filter onClick={() => this.handleFilter("3")}><FilterItem i18nKey='components.list_publications.exanded_summary'/></Filter>
+        <Filter onClick={() => this.handleFilter("3")}><FilterItem i18nKey='components.list_publications.expanded_summary'/></Filter>
         <Filter onClick={() => this.handleFilter("4")}><FilterItem i18nKey='components.list_publications.book_chapter'/></Filter>
         <Publications publicationsFiltered={publicationsFiltered}/>
        </>
