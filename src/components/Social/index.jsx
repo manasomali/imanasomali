@@ -1,7 +1,6 @@
 import React from 'react';
 import { Github } from '@styled-icons/boxicons-logos/Github';
 import { Gmail } from '@styled-icons/simple-icons/Gmail';
-import { Linkedin } from '@styled-icons/boxicons-logos/Linkedin';
 import { GraduationCap } from '@styled-icons/fa-solid/GraduationCap';
 import { Instagram } from '@styled-icons/boxicons-logos/Instagram';
 import { Letterboxd } from '@styled-icons/simple-icons/Letterboxd';
@@ -37,9 +36,6 @@ function Social() {
             </Icon>
             <Icon href="https://mail.google.com/mail/?view=cm&fs=1&to=matheus.nascimento.marques@gmail.com" rel="noopener noreferrer" target="_blank">
                 <Gmail size="48" />
-            </Icon>
-            <Icon href="https://www.linkedin.com/in/manasomali/" rel="noopener noreferrer" target="_blank">
-                <Linkedin size="48" />
             </Icon>
             <Icon href="http://lattes.cnpq.br/2299260238389056" rel="noopener noreferrer" target="_blank">
                 <GraduationCap size="48" />
