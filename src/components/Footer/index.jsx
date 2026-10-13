@@ -9,7 +9,7 @@ function Footer() {
     <FooterBase>
         <div>{t('components.footer.line1')} Matheus Nascimento</div>
         <div>{t('components.footer.line2')} <Link href="https://vitejs.dev/" target="_blank">Vite</Link> + <Link href="https://pt-br.reactjs.org" target="_blank">React</Link></div>
-        <div>{t('components.footer.line3')} <Link href="https://blog.naro143.com" target="_blank">Yusuke Ishimi</Link></div>
+        <div>{t('components.footer.line3')} <Link href="https://github.com/naro143/hugo-coder-portfolio" target="_blank" rel="noopener noreferrer">Yusuke Ishimi</Link></div>
     </FooterBase>
   );
 }
