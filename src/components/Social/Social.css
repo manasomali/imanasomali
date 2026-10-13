@@ -1,8 +1,52 @@
 .Social {
-   height: 50px;
+    --icon-size: 48px;
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
+    align-items: center;
+    gap: 10px 20px;
     margin-top: 20px;
+    margin-bottom: 10px;
     margin-left: auto;
     margin-right: auto;
+}
+
+.Social svg {
+    width: var(--icon-size);
+    height: var(--icon-size);
+}
+
+/* short, wide glyphs (Gmail, Lattes) get a wider box so their height matches the others */
+.Social .wide svg {
+    width: calc(var(--icon-size) * 7 / 6);
+    height: calc(var(--icon-size) * 7 / 6);
+}
+
+/* wordmark logos sit inside a filled circle, like Letterboxd */
+.Social .badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-size);
+    height: var(--icon-size);
+    border-radius: 50%;
+    background: var(--black);
+}
+
+.Social .badge svg {
+    width: calc(var(--icon-size) * 0.72);
+    height: calc(var(--icon-size) * 0.72);
+}
+
+/* index.css paints every element black, so the glyph needs its own color */
+.Social .badge svg,
+.Social .badge svg * {
+    color: #fff;
+}
+
+@media (max-width: 480px) {
+    .Social {
+        --icon-size: 34px;
+        gap: 10px;
+    }
 }

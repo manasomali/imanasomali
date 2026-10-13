@@ -1,8 +1,8 @@
 import React from 'react';
-import { Github } from '@styled-icons/boxicons-logos/Github';
+import { Github } from '@styled-icons/simple-icons/Github';
 import { Gmail } from '@styled-icons/simple-icons/Gmail';
 import { GraduationCap } from '@styled-icons/fa-solid/GraduationCap';
-import { Instagram } from '@styled-icons/boxicons-logos/Instagram';
+import { Instagram } from '@styled-icons/simple-icons/Instagram';
 import { Letterboxd } from '@styled-icons/simple-icons/Letterboxd';
 import { Trakt } from '@styled-icons/simple-icons/Trakt';
 import { Myanimelist } from '@styled-icons/simple-icons/Myanimelist';
@@ -12,9 +12,6 @@ import styled from 'styled-components';
 
 const Icon = styled.a`
     cursor: pointer;
-    margin-right: 10px;
-    margin-left: 10px;
-    margin-bottom: 10px;
     &::after {
         content: '';
         display: block;
@@ -34,10 +31,10 @@ function Social() {
             <Icon href="https://github.com/manasomali" rel="noopener noreferrer" target="_blank">
                 <Github size="48" />
             </Icon>
-            <Icon href="https://mail.google.com/mail/?view=cm&fs=1&to=matheus.nascimento.marques@gmail.com" rel="noopener noreferrer" target="_blank">
+            <Icon href="https://mail.google.com/mail/?view=cm&fs=1&to=matheus.nascimento.marques@gmail.com" className="wide" rel="noopener noreferrer" target="_blank">
                 <Gmail size="48" />
             </Icon>
-            <Icon href="http://lattes.cnpq.br/2299260238389056" rel="noopener noreferrer" target="_blank">
+            <Icon href="http://lattes.cnpq.br/2299260238389056" className="wide" rel="noopener noreferrer" target="_blank">
                 <GraduationCap size="48" />
             </Icon>
             <Icon href="https://www.instagram.com/mat.n96/" rel="noopener noreferrer" target="_blank">
@@ -50,7 +47,7 @@ function Social() {
                 <Trakt size="48" />
             </Icon>
             <Icon href="https://myanimelist.net/profile/manasomali" rel="noopener noreferrer" target="_blank">
-                <Myanimelist size="48" />
+                <span className="badge"><Myanimelist size="48" /></span>
             </Icon>
         </nav>
     )
