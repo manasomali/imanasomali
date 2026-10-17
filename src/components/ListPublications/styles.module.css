@@ -1,0 +1,48 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.6rem 0.35rem 0.9rem;
+  background: transparent;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+@media (hover: hover) {
+  .filter:hover {
+    background: var(--surface-hover);
+  }
+}
+
+.filter[aria-pressed='true'] {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.count {
+  min-width: 1.6rem;
+  padding: 0 0.4rem;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  text-align: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+}
+
+.list {
+  overflow: hidden;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}

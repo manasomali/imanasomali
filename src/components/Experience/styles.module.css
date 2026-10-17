@@ -1,0 +1,68 @@
+.timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-left: 2px solid var(--border);
+}
+
+.entry {
+  position: relative;
+  padding: 0 0 clamp(2rem, 4vw, 2.75rem) clamp(1.25rem, 3vw, 2rem);
+}
+
+.entry:last-child {
+  padding-bottom: 0;
+}
+
+.entry::before {
+  content: '';
+  position: absolute;
+  top: 0.4em;
+  left: -8px;
+  width: 14px;
+  height: 14px;
+  background: var(--bg);
+  border: 2px solid var(--fg);
+  border-radius: 50%;
+}
+
+.role {
+  font-size: var(--text-lg);
+}
+
+.period {
+  display: inline-block;
+  margin: 0.4rem 0 0.75rem;
+  padding: 0.05rem 0.5rem;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.items {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0;
+  padding-left: 1.25rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.items li::marker {
+  color: var(--fg);
+}
+
+.periods {
+  display: grid;
+  gap: 1rem;
+  margin: 0.5rem 0 0;
+}
+
+.periods dd {
+  margin: 0;
+}
+
+.periods .period {
+  margin-bottom: 0.4rem;
+}

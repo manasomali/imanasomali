@@ -1,71 +1,95 @@
-import React from 'react'
-import { NavLink } from 'react-router-dom';
-import './Menu.css'
-import styled from 'styled-components'
-import Link from '../Link'
+import { useEffect, useState } from 'react';
+import { NavLink } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import {
+  FiMenu, FiMoon, FiSun, FiX,
+} from 'react-icons/fi';
+import useTheme from '../../hooks/useTheme';
+import styles from './styles.module.css';
 
-const ButtonMenu = styled(NavLink)`
-    color: var(--black);
-    box-sizing: border-box;
-    cursor: pointer;
-    margin: 0px 24px 0px 24px;
-    font-style: normal;
-    font-weight: bold;
-    font-size: 19px;
-    outline: none;
-    text-decoration: none;
-    display: inline-block;
-    transition: opacity .3s;
-    border-bottom: 2px solid white;
-    &:hover {
-        border-bottom: 2px solid black;
-        text-decoration:none;
-        color:black;
-    }
-    &.selected {
-        border-bottom: 2px solid black;
-    }
-`;
-const LanguageMenu = styled.div`
-    color: var(--black);
-    box-sizing: border-box;
-    cursor: pointer;
-    margin: auto;
-    font-style: normal;
-    font-weight: bold;
-    font-size: 19px;
-    outline: none;
-    text-decoration: none;
-    display: inline-grid;
-    columns: auto 1;
-    transition: opacity .3s;
-    border-bottom: 2px solid white;
-    &.selected {
-        border-bottom: 2px solid black;
-    }
-    vertical-align: middle;
-`;
+const links = [
+  { to: '/about', i18nKey: 'menu.about' },
+  { to: '/projects', i18nKey: 'menu.projects' },
+  { to: '/publications', i18nKey: 'menu.publications' },
+];
 
+const languages = ['pt', 'en'];
 
 function Menu() {
-    const { t, i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { theme, toggleTheme } = useTheme();
+  const [open, setOpen] = useState(false);
 
-    return (
-        <nav className="Menu" >
-            <div>
-                <ButtonMenu as={NavLink} exact activeClassName="selected" to="/"> MATHEUS NASCIMENTO </ButtonMenu>
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+
+  const navClass = ({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`;
+
+  return (
+    <header className={styles.header}>
+      <div className={styles.inner}>
+        <NavLink to="/" end className={navClass} onClick={() => setOpen(false)}>
+          MATHEUS NASCIMENTO
+        </NavLink>
+
+        <button
+          type="button"
+          className={`${styles.iconButton} ${styles.toggle}`}
+          aria-expanded={open}
+          aria-controls="site-menu"
+          aria-label={open ? t('a11y.close_menu') : t('a11y.open_menu')}
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? <FiX aria-hidden /> : <FiMenu aria-hidden />}
+        </button>
+
+        <div id="site-menu" className={styles.panel} data-open={open}>
+          <nav aria-label={t('a11y.main_navigation')}>
+            <ul className={styles.links}>
+              {links.map((link) => (
+                <li key={link.to}>
+                  <NavLink to={link.to} className={navClass} onClick={() => setOpen(false)}>
+                    {t(link.i18nKey)}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <div className={styles.controls}>
+            <div className={styles.languages} role="group" aria-label={t('a11y.language')}>
+              {languages.map((lng) => (
+                <button
+                  key={lng}
+                  type="button"
+                  lang={lng}
+                  className={styles.language}
+                  aria-pressed={i18n.resolvedLanguage === lng}
+                  onClick={() => i18n.changeLanguage(lng)}
+                >
+                  {lng}
+                </button>
+              ))}
             </div>
-            <div>
-                <ButtonMenu as={NavLink} activeClassName="selected" to="/about"> {t('menu.about')} </ButtonMenu>
-                <ButtonMenu as={NavLink} activeClassName="selected" to="/projects"> {t('menu.projects')} </ButtonMenu>
-                <ButtonMenu as={NavLink} activeClassName="selected" to="/publications"> {t('menu.publications')} </ButtonMenu>
-                <LanguageMenu>
-                    <Link onClick={() => i18n.changeLanguage('pt')}>pt</Link>
-                    <Link onClick={() => i18n.changeLanguage('en')}>en</Link>
-                </LanguageMenu>
-            </div>
-        </nav>
-    )
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label={theme === 'dark' ? t('a11y.light_theme') : t('a11y.dark_theme')}
+              onClick={toggleTheme}
+            >
+              {theme === 'dark' ? <FiSun aria-hidden /> : <FiMoon aria-hidden />}
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
 }
-export default Menu
+
+export default Menu;

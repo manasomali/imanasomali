@@ -8,7 +8,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 // for passing in lng and translations on init
 // keep <html lang> in sync with the active language
 i18n.on('languageChanged', (lng) => {
-  document.documentElement.lang = lng;
+  document.documentElement.lang = i18n.resolvedLanguage || lng;
 });
 
 i18n

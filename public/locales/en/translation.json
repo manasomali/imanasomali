@@ -54,6 +54,16 @@
         "publications": {"title": "Publications"},
         "page404": {"title": "Page not found", "message": "The page you are looking for does not exist or has been removed.", "back": "Back to home"}
     },
+    "meta": {"tagline": "Electrical Engineer and Developer"},
+    "a11y": {
+        "skip_to_content": "Skip to content",
+        "open_menu": "Open menu",
+        "close_menu": "Close menu",
+        "main_navigation": "Main navigation",
+        "language": "Language",
+        "light_theme": "Switch to light theme",
+        "dark_theme": "Switch to dark theme"
+    },
     "menu": {
         "about": "ABOUT",
         "projects": "PROJECTS",
@@ -134,10 +144,13 @@
             "access": "Open"
         },
         "publication": {
-            "accessed": "Available at"
+            "accessed": "Available at",
+            "download": "Download PDF",
+            "source": "View source"
         },
         "list_publications": {
             "all": "All",
+            "filter": "Filter by type",
             "complete_article": "Full Paper",
             "summary": "Abstract",
             "expanded_summary": "Extended Abstract",

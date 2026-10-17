@@ -54,6 +54,16 @@
         "publications": {"title": "Publicações"},
         "page404": {"title": "Página não encontrada", "message": "O endereço que você tentou acessar não existe ou foi removido.", "back": "Voltar para o início"}
     },
+    "meta": {"tagline": "Engenheiro Eletricista e Desenvolvedor"},
+    "a11y": {
+        "skip_to_content": "Pular para o conteúdo",
+        "open_menu": "Abrir menu",
+        "close_menu": "Fechar menu",
+        "main_navigation": "Navegação principal",
+        "language": "Idioma",
+        "light_theme": "Ativar tema claro",
+        "dark_theme": "Ativar tema escuro"
+    },
     "menu": {
         "about": "SOBRE",
         "projects": "PROJETOS",
@@ -134,10 +144,13 @@
             "access": "Acessar"
         },
         "publication": {
-            "accessed": "Disponível em"
+            "accessed": "Disponível em",
+            "download": "Baixar PDF",
+            "source": "Ver fonte"
         },
         "list_publications": {
             "all": "Todos",
+            "filter": "Filtrar por tipo",
             "complete_article": "Artigo Completo",
             "summary": "Resumo",
             "expanded_summary": "Resumo Expandido",

@@ -1,117 +1,58 @@
-import React from 'react';
-import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
+import Title from '../Title';
+import styles from './styles.module.css';
 
-const Description = styled.div`
-    text-align: justify;
-    font-size: 18px;
-    width: 100%;
-    margin-left: 20px;
-    margin-bottom: 20px;
-`;
+const prefix = 'components.experience';
 
-const SubTitle = styled.h3`
-    text-align: left;
-    display: block;
-    font-size: 1.5em;
-    margin-top: 0.83em;
-    margin-bottom: 0.83em;
-    margin-left: 0;
-    margin-right: 0;
-    font-weight: bold;
-    width: 100%;
-    padding-top: 0;
-    margin-bottom: 0;
-    margin-left: 10px;
-`;
-const Ano = styled.h4`
-    text-align: left;
-    display: block;
-    font-size: 1.17em;
-    margin-top: 1em;
-    margin-bottom: 1em;
-    margin-left: 0;
-    margin-right: 0;
-    font-weight: bold;
-    width: 100%;
-    margin-bottom: 0px;
-    margin-left: 20px;
-    margin-top:0;
+// Roles with a description followed by a list of activities.
+const roles = [
+  { role: 'role1', period: 'year1', description: 'description1', items: 4 },
+  { role: 'role2', period: 'year2', description: 'description2', items: 4 },
+  { role: 'role3', period: 'year3', description: 'description3', items: 7 },
+];
 
-`;
-const Title = styled.h2`
-    text-align: left;
-    font-size: 2em;
-    margin-top: 0.67em;
-    margin-bottom: 0.67em;
-    margin-left: 0;
-    margin-right: 0;
-    font-weight: bold;
-    width: 100%;
-    padding-top: 40px;
-    margin-top: 0;
-`;
+// The research role is split into periods, one project each.
+const researchPeriods = [1, 2, 3];
+
+function range(count) {
+  return Array.from({ length: count }, (_, i) => i + 1);
+}
 
 function Experience() {
-    const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
-    return (
-        <>
-            <Title>{t('components.experience.title')}</Title>
-            <SubTitle>{t('components.experience.role1')}</SubTitle>
-            <Ano>{t('components.experience.year1')}</Ano>
-            <Description>
-            {t('components.experience.description1.description')}
-                <i>
-                <ul>
-                    <li>{t('components.experience.description1.item1')}</li>
-                    <li>{t('components.experience.description1.item2')}</li>
-                    <li>{t('components.experience.description1.item3')}</li>
-                    <li>{t('components.experience.description1.item4')}</li>
-                </ul>
-                </i>
-            </Description>
-
-            <SubTitle>{t('components.experience.role2')}</SubTitle>
-            <Ano>{t('components.experience.year2')}</Ano>
-            <Description>
-                {t('components.experience.description2.description')}
-                <i>
-                <ul>
-                    <li>{t('components.experience.description2.item1')}</li>
-                    <li>{t('components.experience.description2.item2')}</li>
-                    <li>{t('components.experience.description2.item3')}</li>
-                    <li>{t('components.experience.description2.item4')}</li>
-                </ul>
-                </i>
-            </Description>
-
-            <SubTitle>{t('components.experience.role3')}</SubTitle>
-            <Ano>{t('components.experience.year3')}</Ano>
-            <Description>
-            {t('components.experience.description3.description')}
-                <i>
-                <ul>
-                    <li>{t('components.experience.description3.item1')}</li>
-                    <li>{t('components.experience.description3.item2')}</li>
-                    <li>{t('components.experience.description3.item3')}</li>
-                    <li>{t('components.experience.description3.item4')}</li>
-                    <li>{t('components.experience.description3.item5')}</li>
-                    <li>{t('components.experience.description3.item6')}</li>
-                    <li>{t('components.experience.description3.item7')}</li>
-                </ul>
-                </i>
-            </Description>
-            <SubTitle>{t('components.experience.role4')}</SubTitle>
-            <Ano>{t('components.experience.description4.year1')}</Ano>
-            <Description>{t('components.experience.description4.item1')}</Description>
-            <Ano>{t('components.experience.description4.year2')}</Ano>
-            <Description>{t('components.experience.description4.item2')}</Description>
-            <Ano>{t('components.experience.description4.year3')}</Ano>
-            <Description>{t('components.experience.description4.item3')}</Description>
-
-
-        </>
-    )
+  return (
+    <section>
+      <Title as="h2">{t(`${prefix}.title`)}</Title>
+      <ol className={styles.timeline}>
+        {roles.map(({
+          role, period, description, items,
+        }) => (
+          <li key={role} className={styles.entry}>
+            <h3 className={styles.role}>{t(`${prefix}.${role}`)}</h3>
+            <p className={styles.period}>{t(`${prefix}.${period}`)}</p>
+            <p>{t(`${prefix}.${description}.description`)}</p>
+            <ul className={styles.items}>
+              {range(items).map((n) => (
+                <li key={n}>{t(`${prefix}.${description}.item${n}`)}</li>
+              ))}
+            </ul>
+          </li>
+        ))}
+        <li className={styles.entry}>
+          <h3 className={styles.role}>{t(`${prefix}.role4`)}</h3>
+          <dl className={styles.periods}>
+            {researchPeriods.map((n) => (
+              <div key={n}>
+                <dt className={styles.period}>{t(`${prefix}.description4.year${n}`)}</dt>
+                <dd>{t(`${prefix}.description4.item${n}`)}</dd>
+              </div>
+            ))}
+          </dl>
+        </li>
+      </ol>
+    </section>
+  );
 }
-export default Experience
+
+export default Experience;

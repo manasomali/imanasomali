@@ -1,0 +1,80 @@
+.social {
+  --icon-size: clamp(2rem, 1.6rem + 1.6vw, 2.75rem);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem clamp(0.5rem, 2vw, 1rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.25rem 0.5rem;
+  color: var(--fg);
+  transition: transform var(--transition);
+}
+
+.icon::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 0;
+  height: 2px;
+  background: var(--fg);
+  transition: width var(--transition), left var(--transition);
+}
+
+.icon:hover {
+  transform: translateY(-2px);
+}
+
+.icon:hover::after {
+  left: 0;
+  width: 100%;
+}
+
+.icon svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.wide svg {
+  width: calc(var(--icon-size) * 7 / 6);
+  height: calc(var(--icon-size) * 7 / 6);
+}
+
+.badgeCircle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  border-radius: 50%;
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.badge .badgeCircle svg {
+  width: calc(var(--icon-size) * 0.72);
+  height: calc(var(--icon-size) * 0.72);
+}
+
+/* keeps all seven icons on one row on small phones */
+@media (max-width: 420px) {
+  .social {
+    gap: 0.25rem 0.125rem;
+  }
+
+  .icon {
+    min-width: 2.5rem;
+    padding-inline: 0.125rem;
+  }
+}

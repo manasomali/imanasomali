@@ -1,15 +1,7 @@
-import styled from 'styled-components';
-const Title = styled.h1`
-    text-align: left;
-    display: block;
-    font-size: 2em;
-    margin-top: 0.67em;
-    margin-bottom: 0.67em;
-    margin-left: 0;
-    margin-right: 0;
-    font-weight: bold;
-    width: 100%;
-    padding-top: 15px;
-    margin-top: 0;
-`;
+import styles from './styles.module.css';
+
+function Title({ as: Component = 'h1', children }) {
+  return <Component className={styles.title}>{children}</Component>;
+}
+
 export default Title;
