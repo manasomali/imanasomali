@@ -1,5 +1,8 @@
 .social {
-  --icon-size: clamp(2rem, 1.6rem + 1.6vw, 2.75rem);
+  /* whole-pixel sizes keep the SVG edges on the pixel grid, so they stay sharp */
+  --icon-size: 40px;
+  --icon-wide: 46px;
+  --icon-badge: 28px;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -47,8 +50,8 @@
 }
 
 .wide svg {
-  width: calc(var(--icon-size) * 7 / 6);
-  height: calc(var(--icon-size) * 7 / 6);
+  width: var(--icon-wide);
+  height: var(--icon-wide);
 }
 
 .badgeCircle {
@@ -63,13 +66,24 @@
 }
 
 .badge .badgeCircle svg {
-  width: calc(var(--icon-size) * 0.72);
-  height: calc(var(--icon-size) * 0.72);
+  width: var(--icon-badge);
+  height: var(--icon-badge);
+}
+
+@media (max-width: 640px) {
+  .social {
+    --icon-size: 36px;
+    --icon-wide: 42px;
+    --icon-badge: 26px;
+  }
 }
 
 /* keeps all seven icons on one row on small phones */
 @media (max-width: 420px) {
   .social {
+    --icon-size: 32px;
+    --icon-wide: 38px;
+    --icon-badge: 24px;
     gap: 0.25rem 0.125rem;
   }
 

@@ -17,7 +17,7 @@ function Project({
         <a className={styles.button} href={link} target="_blank" rel="noopener noreferrer">
           {t('components.project.access')}
           <span className="visually-hidden">{`: ${title}`}</span>
-          <FiArrowUpRight aria-hidden />
+          <FiArrowUpRight size={16} aria-hidden />
         </a>
       </div>
     </article>
