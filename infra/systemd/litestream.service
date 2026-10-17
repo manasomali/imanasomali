@@ -1,0 +1,14 @@
+[Unit]
+Description=Litestream: replicação contínua dos bancos SQLite para o Object Storage
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=/etc/default/litestream
+ExecStart=/usr/local/bin/litestream replicate -config /etc/litestream.yml
+Restart=always
+RestartSec=5
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

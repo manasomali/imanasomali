@@ -1,0 +1,6 @@
+# Um banco SQLite por linha: letras minúsculas, números e hífen (2 a 27 caracteres, começando com letra).
+# Cada nome vira /var/lib/sqlite/<nome>/app.db, dono app-<nome>, com backup contínuo no Object Storage.
+# Remover uma linha NÃO apaga os dados: o banco só deixa de ter backup (o provision avisa no log).
+#
+# Descomente depois de cadastrar os secrets do Object Storage no GitHub:
+# exemplo

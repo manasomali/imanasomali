@@ -1,0 +1,8 @@
+[Unit]
+Description=Snapshot local diário dos bancos SQLite
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/infra/snapshot.sh
+Nice=10
+IOSchedulingClass=idle

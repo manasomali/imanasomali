@@ -1,7 +1,11 @@
-on: 
+on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "infra/**"
+      - ".github/workflows/infra.yaml"
+      - ".github/workflows/backup-verify.yaml"
 name: Publish Website
 jobs:
   web-deploy:
@@ -9,17 +13,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: 🚚 Get Latest Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: 📦 Install Packages
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: 22
         cache: "npm"
     - run: npm ci
-      
+
     - name: 🔨 Build
       run: npm run build
-    
+
     - name: 📂 Sync Files
       uses: SamKirkland/web-deploy@v1
       with:

@@ -1,0 +1,13 @@
+[Unit]
+Description=Carga de CPU diária para a Oracle não recuperar a VM Always Free por ociosidade
+
+[Service]
+Type=simple
+DynamicUser=yes
+ExecStart=/usr/bin/sysbench cpu --threads=1 --time=21600 run
+StandardOutput=null
+# prioridade mínima: o site e os backends sempre ganham a CPU
+Nice=19
+CPUWeight=1
+IOSchedulingClass=idle
+RuntimeMaxSec=7h

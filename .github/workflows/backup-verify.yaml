@@ -1,0 +1,33 @@
+name: Verificar backups
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # segunda, 03:00 em Brasília
+  workflow_dispatch:
+
+concurrency:
+  group: infra
+  cancel-in-progress: false
+
+jobs:
+  restore-test:
+    name: 🧪 Restaurar e validar
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configurar SSH
+        env:
+          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          echo "SSH=ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes" >> "$GITHUB_ENV"
+          echo "TARGET=$REMOTE_USER@$REMOTE_HOST" >> "$GITHUB_ENV"
+
+      # Falha (e o GitHub manda e-mail) se algum banco não restaurar íntegro ou faltar snapshot local
+      - name: Restaurar cada banco do Object Storage
+        run: $SSH "$TARGET" 'sudo -n /usr/local/lib/infra/restore-test.sh'
