@@ -11,3 +11,7 @@ Currently, two official plugins are available:
 # Deploy
 
 [<img alt="Website Deployed for Free with web deploy" src="https://img.shields.io/badge/Website deployed for free with-web deploy-%3CCOLOR%3E?style=for-the-badge&color=2b9348">](https://github.com/SamKirkland/web-deploy)
+
+# Infra
+
+The VM also hosts SQLite databases for other projects, with automated provisioning and backups. See [infra/README.md](infra/README.md).
