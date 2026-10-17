@@ -47,11 +47,6 @@ const projects = [
     image: '/classificador.png',
   },
   {
-    key: 'legendas_viewer',
-    link: 'https://github.com/manasomali/start-project-react-native',
-    image: '/legendas-tv-viewer.png',
-  },
-  {
     key: 'movie_grabber',
     link: 'https://github.com/manasomali/movie-grabber',
     image: '/movie-graber.png',

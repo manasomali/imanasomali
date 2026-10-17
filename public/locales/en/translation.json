@@ -41,10 +41,6 @@
                     "title": "Classification System for Verbal Communication in Power System Operations",
                     "description": "Python system for classifying verbal communication in power system operations, using multiple machine learning models capable of solving multiclass classification problems. Input can be text or audio (speech or file transcription)."
                 },
-                "legendas_viewer": {
-                    "title": "Legendas TV Viewer App",
-                    "description": "App for browsing the legendas.tv website."
-                },
                 "movie_grabber": {
                     "title": "Movie Grabber",
                     "description": "Executable for downloading movies from the topdezfilmes website."

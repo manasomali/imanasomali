@@ -41,10 +41,6 @@
                     "title": "Sistema para Classificação da Comunicação Verbal na Operação do Setor Elétrico",
                     "description": "Sistema desenvolvido em Python destinado à classificação da comunicação verbal da operação do setor elétrico, com múltiplos modelos de aprendizado de máquina capazes de resolver problemas de classificação multiclasse. A entrada de dados pode ser em formato de texto ou de áudio (transcrição de fala ou de um arquivo)."
                 },
-                "legendas_viewer": {
-                    "title": "Legendas TV Viewer App",
-                    "description": "App para visualização do site legendas.tv."
-                },
                 "movie_grabber": {
                     "title": "Movie Grabber",
                     "description": "Executável para download de filmes do site topdezfilmes."
