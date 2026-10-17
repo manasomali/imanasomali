@@ -25,9 +25,16 @@ provision_backups() {
   endpoint=$(env_get "$INFRA_STATE_DIR/s3.env" S3_ENDPOINT)
   bucket=$(env_get "$INFRA_STATE_DIR/s3.env" S3_BUCKET)
   region=$(env_get "$INFRA_STATE_DIR/s3.env" OCI_REGION)
-  if [[ -z $endpoint || -z $bucket || -z $region ]] \
-    || [[ -z $(env_get /etc/default/litestream LITESTREAM_SECRET_ACCESS_KEY) ]]; then
-    die "há bancos em databases.txt, mas o Object Storage não está configurado (secrets/variables do GitHub)"
+
+  local missing=() key
+  [[ -n $endpoint ]] || missing+=("S3_ENDPOINT (variable)")
+  [[ -n $bucket ]] || missing+=("S3_BUCKET (variable)")
+  [[ -n $region ]] || missing+=("OCI_REGION (variable)")
+  for key in LITESTREAM_ACCESS_KEY_ID LITESTREAM_SECRET_ACCESS_KEY; do
+    [[ -n $(env_get /etc/default/litestream "$key") ]] || missing+=("$key (secret)")
+  done
+  if ((${#missing[@]})); then
+    die "há bancos em databases.txt, mas faltam valores do Object Storage no GitHub: ${missing[*]}"
   fi
 
   if render_litestream_config "$endpoint" "$bucket" "$region" | sync_content /etc/litestream.yml 0644; then
