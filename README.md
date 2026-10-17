@@ -10,7 +10,6 @@ npm run build   # outputs to dist/
 ```
 
 - Projects and publications are listed in `src/data/`; their titles and descriptions are translation keys.
-- The modernization plan and its rationale are in [docs/MODERNIZACAO.md](docs/MODERNIZACAO.md).
 
 # Deploy
 
