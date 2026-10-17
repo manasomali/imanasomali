@@ -86,6 +86,9 @@ jobs:
           S3_BUCKET: ${{ vars.S3_BUCKET }}
           OCI_REGION: ${{ vars.OCI_REGION }}
         run: |
+          for name in LITESTREAM_ACCESS_KEY_ID LITESTREAM_SECRET_ACCESS_KEY S3_ENDPOINT S3_BUCKET OCI_REGION; do
+            [[ -n ${!name} ]] || echo "::warning::$name está vazio no GitHub (Settings → Secrets and variables → Actions)"
+          done
           printf '%s\n' \
             "LITESTREAM_ACCESS_KEY_ID=$LITESTREAM_ACCESS_KEY_ID" \
             "LITESTREAM_SECRET_ACCESS_KEY=$LITESTREAM_SECRET_ACCESS_KEY" \
