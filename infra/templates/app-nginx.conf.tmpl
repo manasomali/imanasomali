@@ -1,0 +1,13 @@
+# Modelo de rota para o backend de um projeto. Instalar como /etc/nginx/apps.d/__PROJETO__.conf
+# Fica dentro do server 443 do site (include em infra/nginx/site.conf).
+
+location /api/__PROJETO__/ {
+        proxy_pass http://127.0.0.1:__PORTA__/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 30s;
+        client_max_body_size 5m;
+}

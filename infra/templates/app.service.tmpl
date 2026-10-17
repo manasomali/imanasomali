@@ -1,0 +1,33 @@
+# Modelo de unit para o backend de um projeto. Instalar como /etc/systemd/system/app-__PROJETO__.service
+# Substituir __PROJETO__ (mesmo nome de infra/databases.txt) e __PORTA__ (única por projeto, ex.: 3001).
+
+[Unit]
+Description=Backend __PROJETO__
+After=network.target
+
+[Service]
+User=app-__PROJETO__
+Group=app-__PROJETO__
+WorkingDirectory=/opt/apps/__PROJETO__
+Environment=NODE_ENV=production
+Environment=PORT=__PORTA__
+Environment=DATABASE_PATH=/var/lib/sqlite/__PROJETO__/app.db
+# Migrações antes de subir (ALTER/CREATE em transação; nunca apagar e recriar o app.db)
+ExecStartPre=/opt/apps/__PROJETO__/migrate
+ExecStart=/opt/apps/__PROJETO__/start
+Restart=on-failure
+RestartSec=3
+
+# Limites: a VM tem 1 GB para tudo
+MemoryMax=150M
+CPUWeight=100
+
+# Isolamento: só escreve na pasta do próprio banco
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/sqlite/__PROJETO__
+
+[Install]
+WantedBy=multi-user.target

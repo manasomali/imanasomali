@@ -1,0 +1,3 @@
+# Scripts e configs da VM precisam de LF, mesmo com checkout no Windows
+infra/** text eol=lf
+*.sh text eol=lf

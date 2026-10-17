@@ -1,0 +1,3 @@
+# Caminhos de "source" e diretivas "shellcheck source=" são relativos ao próprio script
+source-path=SCRIPTDIR
+external-sources=true
