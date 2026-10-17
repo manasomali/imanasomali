@@ -1,0 +1,21 @@
+.footer {
+  border-top: 2px solid var(--border);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 2rem;
+  max-width: calc(var(--wide-width) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding: 1rem var(--gutter);
+}
+
+@media (max-width: 640px) {
+  .inner {
+    flex-direction: column;
+  }
+}

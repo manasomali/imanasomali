@@ -1,44 +1,27 @@
-import React from 'react';
-import Card from 'react-bootstrap/Card';
-import styled from 'styled-components';
-import 'bootstrap/dist/css/bootstrap.css';
 import { useTranslation } from 'react-i18next';
+import { FiArrowUpRight } from 'react-icons/fi';
+import styles from './styles.module.css';
 
-const Button =  styled.a`
-	box-shadow:inset 0px 1px 0px 0px #ffffff;
-    border-radius:6px;
-    padding:6px 24px;
-    border:2px solid black;
-    color: var(--black);
-    box-sizing: border-box;
-    cursor: pointer;
-    margin: 0px 24px 0px 24px;
-    font-style: normal;
-    font-weight: bold;
-    outline: none;
-    text-decoration: none;
-    display: inline-block;
-    transition: opacity .3s;
-    &:hover {
-        text-decoration:underline;
-        color:black;
-    }
-`;
-function Project(props) {
-    const { t } = useTranslation();
-    return (
-        <>
-        <Card className="text-center">
-                <Card.Img variant="top" src={props.imagedir} alt={props.title} loading="lazy"/>
-                <Card.Body>
-                    <Card.Title>{props.title}</Card.Title>
-                    <Card.Text>
-                    {props.description}
-                    </Card.Text>
-                    <Button href={props.link} target="_blank" rel="noopener noreferrer">{t('components.project.access')}</Button>
-                </Card.Body>
-            </Card>
-        </>
-    )
+function Project({
+  title, description, link, image,
+}) {
+  const { t } = useTranslation();
+  return (
+    <article className={styles.card}>
+      <div className={styles.media}>
+        <img src={image} alt="" loading="lazy" decoding="async" />
+      </div>
+      <div className={styles.body}>
+        <h2 className={styles.title}>{title}</h2>
+        <p className={styles.description}>{description}</p>
+        <a className={styles.button} href={link} target="_blank" rel="noopener noreferrer">
+          {t('components.project.access')}
+          <span className="visually-hidden">{`: ${title}`}</span>
+          <FiArrowUpRight aria-hidden />
+        </a>
+      </div>
+    </article>
+  );
 }
-export default Project
+
+export default Project;

@@ -1,0 +1,40 @@
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(1.25rem, 3vw, 1.75rem);
+}
+
+.avatar {
+  width: clamp(180px, 45vw, 280px);
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg);
+}
+
+.identity {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.name {
+  max-width: 24ch;
+  font-size: var(--text-xl);
+}
+
+.occupation {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 1.25rem;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.occupation span + span::before {
+  content: '/';
+  margin-right: 1.25rem;
+  color: var(--muted);
+}

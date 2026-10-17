@@ -1,24 +1,27 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import './index.css'
-import Main from './pages/Main'
-import About from './pages/About';
-import Publications from './pages/Publications';
-import Page404 from "./pages/Page404";
-import Projects from "./pages/Projects";
-import {BrowserRouter, Switch, Route } from 'react-router-dom'
+import { StrictMode, Suspense } from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter, Route, Routes } from 'react-router';
+import './index.css';
 import './i18n';
+import Main from './pages/Main';
+import About from './pages/About';
+import Projects from './pages/Projects';
+import Publications from './pages/Publications';
+import Page404 from './pages/Page404';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <BrowserRouter>
-    <Switch>
-      <Route path="/" component={Main} exact/>
-      <Route path="/about" component={About} />
-      <Route path="/projects" component={Projects} />
-      <Route path="/publications" component={Publications} />
-      <Route component={Page404} />
-    </Switch>
-  </BrowserRouter>
-  </React.StrictMode>
-)
+  <StrictMode>
+    {/* translations load over HTTP, so the first render waits for them */}
+    <Suspense fallback={null}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Main />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/publications" element={<Publications />} />
+          <Route path="*" element={<Page404 />} />
+        </Routes>
+      </BrowserRouter>
+    </Suspense>
+  </StrictMode>,
+);

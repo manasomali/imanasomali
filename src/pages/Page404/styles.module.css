@@ -1,0 +1,10 @@
+.back {
+  margin: 1rem 0 2rem;
+}
+
+.gif {
+  width: min(100%, 498px);
+  height: auto;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}

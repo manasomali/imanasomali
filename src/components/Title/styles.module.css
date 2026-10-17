@@ -1,0 +1,9 @@
+.title {
+  font-size: var(--text-2xl);
+  margin-bottom: clamp(1.25rem, 3vw, 2rem);
+}
+
+h2.title {
+  font-size: var(--text-xl);
+  margin-top: clamp(2.5rem, 6vw, 4rem);
+}

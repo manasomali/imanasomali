@@ -1,12 +1,15 @@
-# React + Vite
+# manasomali.com
 
-Website developed with React, Vite with HMR and some ESLint rules.
+Personal website built with React 19, React Router and Vite. Styles are plain CSS Modules over the design tokens in `src/index.css` (light and dark themes); texts live in `public/locales/{pt,en}/translation.json`.
 
-Currently, two official plugins are available:
+```bash
+npm install
+npm run dev     # http://localhost:5173
+npm run lint
+npm run build   # outputs to dist/
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
+- Projects and publications are listed in `src/data/`; their titles and descriptions are translation keys.
 
 # Deploy
 

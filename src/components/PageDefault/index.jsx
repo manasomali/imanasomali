@@ -1,27 +1,37 @@
-import React from 'react'
-import Menu from '../Menu'
-import Footer from '../Footer'
-import styled from 'styled-components';
+import { useEffect } from 'react';
+import { useLocation } from 'react-router';
+import { useTranslation } from 'react-i18next';
+import Menu from '../Menu';
+import Footer from '../Footer';
+import styles from './styles.module.css';
 
-const Body = styled.div`
-  background-color: var(--white);
-  color: var(--black);
-  flex: 1;
-  padding-top: 50px;
-  padding-bottom: 50px;
-  padding-left: 5%;
-  padding-right: 5%;
-`;
+const SITE_NAME = 'Matheus Nascimento';
 
-function PageDefault({children}) {
-    return (
-        <>
-            <Menu />
-            <Body>
-                {children}
-            </Body>
-            <Footer />
-        </>
-    )
+// `title` sets the browser tab title (React 19 hoists <title> into <head>).
+// `width` picks the content column: "text" for reading, "wide" for grids.
+function PageDefault({ title, width = 'text', centered = false, children }) {
+  const { t } = useTranslation();
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return (
+    <>
+      <title>{title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} | ${t('meta.tagline')}`}</title>
+      <a className={styles.skipLink} href="#content">{t('a11y.skip_to_content')}</a>
+      <Menu />
+      <main
+        id="content"
+        tabIndex={-1}
+        className={`${styles.main} ${styles[width]} ${centered ? styles.centered : ''}`}
+      >
+        {children}
+      </main>
+      <Footer />
+    </>
+  );
 }
-export default PageDefault
+
+export default PageDefault;

@@ -1,0 +1,130 @@
+.item + .item {
+  border-top: 1px solid var(--border-soft);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 0.75rem 1rem;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  list-style: none;
+  transition: background-color var(--transition);
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+@media (hover: hover) {
+  .summary:hover {
+    background: var(--surface);
+  }
+}
+
+.summary:focus-visible {
+  outline-offset: -4px;
+}
+
+.year {
+  padding: 0.05rem 0.5rem;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.title {
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.chevron {
+  margin-top: 0.2rem;
+  font-size: 1.25rem;
+  transition: transform var(--transition);
+}
+
+.item[open] .chevron {
+  transform: rotate(180deg);
+}
+
+.item[open] .summary {
+  background: var(--surface);
+}
+
+/* animates the opening where ::details-content is supported */
+.item::details-content {
+  block-size: 0;
+  overflow: hidden;
+  transition: block-size var(--transition), content-visibility var(--transition) allow-discrete;
+}
+
+.item[open]::details-content {
+  block-size: auto;
+}
+
+.content {
+  display: grid;
+  gap: 1rem;
+  padding: 0.25rem 1.25rem 1.25rem;
+  background: var(--surface);
+}
+
+.reference {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-decoration: none;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.action:hover {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+@media (max-width: 480px) {
+  .summary {
+    grid-template-columns: 1fr auto;
+    padding-inline: 1rem;
+  }
+
+  .year {
+    justify-self: start;
+    grid-column: 1;
+  }
+
+  .title {
+    grid-column: 1;
+  }
+
+  .chevron {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .content {
+    padding-inline: 1rem;
+  }
+}
