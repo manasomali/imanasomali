@@ -29,7 +29,7 @@ sudo systemctl start litestream app-<projeto>
 
 ## VM perdida
 
-1. Criar uma VM nova (Ubuntu 22.04 ou mais novo, x86_64) e apontar o DNS para o IP novo.
+1. Criar uma VM nova (Ubuntu 24.04 ou mais novo, x86_64) e apontar o DNS para o IP novo.
 2. Atualizar os secrets `REMOTE_HOST` e `SSH_KNOWN_HOSTS` (`ssh-keyscan <ip>`) no GitHub.
 3. Reemitir o certificado **antes** do workflow, porque a config versionada do Nginx aponta para os arquivos do Let's Encrypt e o `nginx -t` falha sem eles:
    `sudo apt install -y nginx && sudo snap install --classic certbot && sudo certbot --nginx -d manasomali.com -d www.manasomali.com`
