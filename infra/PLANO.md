@@ -306,6 +306,15 @@ Medição real em 2026-10-17: 964 MiB no total, **516 MiB usados, só 282 MiB di
 - Disco de boot é paravirtualizado (sem sessões iSCSI): `iscsid` e `multipathd` podem ser desligados.
 - Outros consumidores: oracle-cloud-agent (snap, plugins `gomon` e `oci-wlp`), snapd, journald. Sem uso: lxd, udisks2, rpcbind, packagekit.
 
+## Upgrade para o Ubuntu 24.04 (2026-10-22)
+
+- `apt full-upgrade` no 22.04 em 2026-10-18 (primeiro reboot desde 2022) e `do-release-upgrade` para o **24.04.5** em 2026-10-22. O kernel segue a linha HWE (`linux-image-oracle`) e subiu para o **7.0**.
+- Nginx agora é o **1.24**, e o CI valida com `nginx:1.24`. A sintaxe `listen 443 ssl http2;` continua valendo nessa versão (`http2 on;` só a partir da 1.25).
+- Node 19 e o repositório da NodeSource foram removidos antes do upgrade (nenhum backend usava).
+- Perguntas do upgrade: manter sempre o arquivo local (nginx, `netfilter-persistent`) e responder **não** a "Save current IPv4/IPv6 rules?", porque as regras do iptables carregadas estão vazias (ver o firewall abaixo) e sobrescreveriam o `rules.v4`/`rules.v6`. A VM é UEFI: se o `grub-pc` pedir disco, não marcar nenhum.
+- **Firewall:** a VM tem `firewalld` e `netfilter-persistent` ligados no boot. O firewalld sobe depois, apaga as regras do iptables e fica valendo sozinho. A 443 só estava liberada no `rules.v4`, e o reboot de 2026-10-18 derrubou o https até 2026-10-21 (liberado com `firewall-cmd --permanent --zone=public --add-service=https`). O smoke test não pegou porque testa pelo `127.0.0.1`. Ainda falta deixar um firewall só, gerenciado pelo provision.
+- Próximo salto: 24.04 → 26.04, com o mesmo roteiro (backup do boot volume, `backup-verify`, console da OCI aberto) e trocando de novo a imagem do nginx no CI.
+
 ## Riscos e mitigações
 
 | Risco | Mitigação |
