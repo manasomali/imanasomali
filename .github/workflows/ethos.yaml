@@ -79,6 +79,7 @@ jobs:
           FULL_COVERAGE: |
             app/audit.py
             app/auth/security.py
+            app/auth/service.py
             app/retention.py
             app/score.py
         run: |

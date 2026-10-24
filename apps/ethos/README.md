@@ -34,12 +34,12 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/security.py,app/retention.py,app/score.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/security.py,app/auth/service.py,app/retention.py,app/score.py   # depois do pytest
 ```
 
 Alguns módulos precisam de 100% de cobertura (linhas e ramos). A lista fica na variável `FULL_COVERAGE` do passo "Cobertura de 100% nos módulos críticos" do CI, que confere cada um com o `coverage report` acima.
 
-Os testes não precisam de `.env`: as fixtures de `tests/conftest.py` montam a config com um SQLite em arquivo temporário (`settings`, `make_settings`, `engine`, `db_session`, `app`, `client`, `make_client`, `smtp_server`, `make_smtp_server`). O banco de teste já vem com o schema completo: as migrações rodam uma vez por execução do pytest (`migrated_template`) e cada teste recebe uma cópia (`database`). Para testar migrações, `make_alembic_config(caminho)` devolve a config do Alembic apontando para outro banco. `tests/factories.py` tem `new_user`, `new_habit`, `save` e `count` para montar dados.
+Os testes não precisam de `.env`: as fixtures de `tests/conftest.py` montam a config com um SQLite em arquivo temporário (`settings`, `make_settings`, `engine`, `db_session`, `app`, `client`, `make_client`, `smtp_server`, `make_smtp_server`, `outbox`). O banco de teste já vem com o schema completo: as migrações rodam uma vez por execução do pytest (`migrated_template`) e cada teste recebe uma cópia (`database`). Para testar migrações, `make_alembic_config(caminho)` devolve a config do Alembic apontando para outro banco. `tests/factories.py` tem `new_user`, `new_habit`, `save` e `count` para montar dados.
 
 Dependências entram com `uv add <pacote>` (ou `uv add --dev <pacote>`), que atualiza o `pyproject.toml` e o `uv.lock`. Os dois vão juntos no commit.
 
@@ -82,6 +82,18 @@ uv run --env-file .env alembic check             # modelos e banco batem? (preci
 - `audit_log.habit_id` tem `ON DELETE CASCADE`: apagar o hábito apaga a auditoria dele. O evento que precisa sobreviver ao hábito (`habit_deleted`) vai com `habit_id=None` e o id no `details`; `account_deleted` também leva o id da conta no `details`.
 - `app/retention.py`: a retenção do plano, aplicada pelo `cleanup` (abaixo). Eventos de auth (`AUTH_EVENTS`) saem depois de 90 dias; o IP de todas as linhas do `audit_log` e de `sessions` vira `NULL` depois de 90 dias (pelo `created_at`); sessões vencidas saem; códigos de login vencidos saem 1 dia depois de criados, porque os limites de envio por hora e por dia contam as linhas de `login_codes`. A auditoria de hábitos, marcações, compartilhamento, conta e admin não é apagada (só o IP). `delete_expired_sessions` e `delete_expired_login_codes` servem também para a limpeza ao criar um código.
 
+### Login por código
+
+Cadastro e login são o mesmo fluxo, sem senha: `POST /auth/code/request` com `{email}` manda um código de 6 dígitos por email, e `POST /auth/code/verify` com `{email, code, timezone, locale}` confere o código, cria a conta no primeiro acesso e abre a sessão.
+
+- `app/auth/service.py`: as regras (100% de cobertura). Email salvo com strip + lower (`normalize_email`). O código vale 10 minutos, uma vez só, por no máximo 5 tentativas (contadas antes de comparar, num BEGIN IMMEDIATE, e gravadas mesmo quando a resposta é erro); pedir outro invalida o anterior. Limite por email de 1 código por minuto e 5 por hora e teto global `MAX_CODE_EMAILS_PER_HOUR`/`_PER_DAY`, todos contados pelas linhas de `login_codes`. Ao bater o teto, um aviso vai para o `SUPPORT_EMAIL`, no máximo 1 por hora: o último aviso é o evento `send_cap_reached` do `audit_log`, lido e gravado na mesma transação. Conta nova nasce com `TERMS_VERSION` aceita e com o fuso e o idioma do navegador; conta existente ignora os dois. `create_session` e `SESSION_LIFETIME` (60 dias) servem às próximas tasks.
+- `app/auth/routes.py`: os endpoints. O `request` responde sempre 202 com o mesmo corpo e os mesmos headers (com conta, sem conta, conta inativa, que não recebe email) e 429 `rate_limited` igual para qualquer email. O `verify` responde 400 `invalid_code` para qualquer código recusado e 422 `invalid_timezone` para fuso desconhecido no primeiro acesso.
+- `app/auth/cookies.py`: o cookie `__Host-ethos_session` (`HttpOnly; Secure; SameSite=Lax; Path=/`, sem `Domain`), com o token da sessão. No banco fica só o sha256 do token.
+- `app/terms.py`: `TERMS_VERSION`, a versão atual dos termos. Fica no código (não no ambiente) e muda no mesmo PR dos textos.
+- `app/request_info.py`: IP e User-Agent do cliente para o `audit_log` e `sessions`. O IP é o `request.client.host`: em produção, o uvicorn (`--proxy-headers --forwarded-allow-ips=127.0.0.1`) já o tirou do `X-Forwarded-For` que o nginx monta, pegando o endereço que o nginx viu, e não o que o cliente escreveu no header.
+
+Nos testes, a fixture `outbox` é um backend de email em memória (`create_app(settings, mail_backend=outbox)`), e `tests/auth_helpers.py` tem `login(client, outbox, email)`, que devolve o token da sessão, além de `code_in(email)` e `session_token(response)`. O cookie é `Secure`: o TestClient em `http://testserver` não o manda de volta sozinho.
+
 ### Comandos de operação (CLI)
 
 ```bash
@@ -95,7 +107,7 @@ O CLI lê a mesma config do servidor (variáveis de ambiente) e abre o banco de 
 | Comando | O quê |
 |---|---|
 | `cleanup` | Retenção de dados (ver acima), numa transação só. Imprime quantas linhas mudou em cada passo. Pode rodar quantas vezes quiser: a segunda seguida não muda nada. No plano, roda de hora em hora pelo `ethos-alerts.timer`, depois dos alertas. |
-| `create-admin <email>` | Liga o `is_admin` de uma conta que já existe e grava `admin_created` no `audit_log` (`user_id` = a conta promovida, `details` = `{"via": "cli"}`), numa transação só. É o único jeito de criar admin: não existe endpoint para isso. O email é normalizado como no login (espaços e maiúsculas não importam). A saída mostra o id da conta, nunca o email. Email sem conta: erro e nada muda (a pessoa precisa entrar no app uma vez antes, o que cria a conta). Conta bloqueada (`is_active=false`): erro e nada muda; desbloqueie antes. Conta que já é admin: avisa, sai com 0 e não grava nada. |
+| `create-admin <email>` | Liga o `is_admin` de uma conta que já existe e grava `admin_created` no `audit_log` (`user_id` = a conta promovida, `details` = `{"via": "cli"}`), numa transação só. É o único jeito de criar admin: não existe endpoint para isso. O email é normalizado e validado como no login (`normalize_email`: espaços e maiúsculas não importam; endereço inválido é erro). A saída mostra o id da conta, nunca o email. Email sem conta: erro e nada muda (a pessoa precisa entrar no app uma vez antes, o que cria a conta). Conta bloqueada (`is_active=false`): erro e nada muda; desbloqueie antes. Conta que já é admin: avisa, sai com 0 e não grava nada. |
 
 Na VM, o comando roda com o mesmo usuário, o mesmo ambiente e a mesma `.venv` da unit `app-ethos` ([infra/apps/ethos/app-ethos.service](../../infra/apps/ethos/app-ethos.service)):
 
