@@ -26,6 +26,10 @@ provision_databases() {
       runuser -u "$user" -- sqlite3 "$db" 'PRAGMA journal_mode=WAL;' >/dev/null
       log "banco criado: $db"
     fi
+
+    # Snapshots diários e o backup pré-deploy (sqlite3 rodando como o app) vão para cá.
+    # O snapshot.sh também cria, mas o deploy pode rodar antes do primeiro snapshot.
+    sync_dir "$BACKUP_ROOT/$name" 0700 "$user" || true
   done
 
   for dir in "$SQLITE_ROOT"/*/; do

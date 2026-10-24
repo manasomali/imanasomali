@@ -69,3 +69,20 @@ sync_content() {
   rm -f "$tmp"
   return "$rc"
 }
+
+# Garante a pasta $1 com modo $2 e dono $3 (grupo de mesmo nome). Não mexe no conteúdo.
+# Retorna 0 se criou ou corrigiu, 1 se já estava certa.
+sync_dir() {
+  local dir=$1 mode=$2 owner=$3
+  if [[ ! -d $dir ]]; then
+    install -d -m "$mode" -o "$owner" -g "$owner" "$dir"
+    log "criado: $dir ($owner $mode)"
+    return 0
+  fi
+  if [[ $(stat -c '%U:%G %a' "$dir") == "$owner:$owner ${mode#0}" ]]; then
+    return 1
+  fi
+  chown "$owner:$owner" "$dir"
+  chmod "$mode" "$dir"
+  log "atualizado: $dir ($owner $mode)"
+}
