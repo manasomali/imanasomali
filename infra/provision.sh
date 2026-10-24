@@ -8,6 +8,8 @@ set -euo pipefail
 INFRA_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=lib/common.sh
 source "$INFRA_DIR/lib/common.sh"
+# shellcheck source=lib/input.sh
+source "$INFRA_DIR/lib/input.sh"
 # shellcheck source=config.env
 source "$INFRA_DIR/config.env"
 # shellcheck source=lib/swap.sh
@@ -33,44 +35,9 @@ touch "$LOG_FILE"
 chmod 0640 "$LOG_FILE"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-declare -A INPUT=()
 CREDS_CHANGED=0
+SMTP_CHANGED=0
 LITESTREAM_UPDATED=0
-
-# Lê KEY=VALUE do stdin (enviado pelo CI). Só aceita chaves conhecidas; valor vazio mantém o atual.
-read_stdin_config() {
-  local line key value
-  [[ -t 0 ]] && return 0
-  while IFS= read -r line || [[ -n $line ]]; do
-    [[ -z $line ]] && continue
-    key=${line%%=*}
-    value=${line#*=}
-    case $key in
-      LITESTREAM_ACCESS_KEY_ID | LITESTREAM_SECRET_ACCESS_KEY | S3_ENDPOINT | S3_BUCKET | OCI_REGION) ;;
-      *) die "chave desconhecida no stdin: $key" ;;
-    esac
-    [[ -z $value ]] && continue
-    [[ $value =~ ^[A-Za-z0-9._:/+=-]+$ ]] || die "valor com caracteres inesperados em $key"
-    INPUT[$key]=$value
-  done
-}
-
-# Grava KEY=VALUE para as chaves dadas, preferindo o stdin e mantendo o valor atual do arquivo.
-write_env_file() {
-  local dest=$1 mode=$2 key value content=""
-  shift 2
-  for key in "$@"; do
-    value=${INPUT[$key]:-}
-    if [[ -z $value ]]; then
-      value=$(env_get "$dest" "$key")
-    fi
-    if [[ -n $value ]]; then
-      content+="$key=$value"$'\n'
-    fi
-  done
-  [[ -n $content ]] || return 1
-  printf '%s' "$content" | sync_content "$dest" "$mode"
-}
 
 # Scripts que rodam como root via systemd/sudo ficam fora de /opt/infra, que é gravável pelo usuário de deploy.
 install_runtime_files() {
@@ -89,6 +56,10 @@ install_runtime_files() {
     CREDS_CHANGED=1
   fi
   write_env_file "$INFRA_STATE_DIR/s3.env" 0644 S3_ENDPOINT S3_BUCKET OCI_REGION || true
+  # Um provedor e um domínio só: as apps dividem as credenciais (EnvironmentFile= de cada unit)
+  if write_env_file "$INFRA_STATE_DIR/smtp.env" 0600 SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD; then
+    SMTP_CHANGED=1
+  fi
 }
 
 read_stdin_config
