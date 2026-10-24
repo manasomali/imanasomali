@@ -17,7 +17,7 @@ from app.config import ENV_VARS, Settings
 from app.db import write_transaction
 from app.models import AuditLog, User
 from tests.conftest import BACKEND_DIR
-from tests.factories import new_habit, new_user, save
+from tests.factories import count, new_habit, new_user, save
 
 NOW = datetime(2026, 6, 1, 3, 0, tzinfo=UTC)
 DAY = timedelta(days=1)
@@ -98,7 +98,10 @@ def test_cleanup_runs_as_a_module(settings, env):
     assert result.stdout.startswith("cleanup: 0 eventos de auth apagados")
 
 
-@pytest.mark.parametrize("argv", [[], ["nao-existe"], ["cleanup", "--sobra"]])
+@pytest.mark.parametrize(
+    "argv",
+    [[], ["nao-existe"], ["cleanup", "--sobra"], ["create-admin"], ["create-admin", "a", "b"]],
+)
 def test_wrong_usage_exits_with_2(env, argv, capsys):
     with pytest.raises(SystemExit) as raised:
         main(argv, env)
@@ -106,11 +109,13 @@ def test_wrong_usage_exits_with_2(env, argv, capsys):
     assert "usage:" in capsys.readouterr().err
 
 
-def test_help_lists_cleanup(capsys):
+def test_help_lists_the_commands(capsys):
     with pytest.raises(SystemExit) as raised:
         main(["--help"], {})
     assert raised.value.code == 0
-    assert "cleanup" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "cleanup" in out
+    assert "create-admin" in out
 
 
 def test_invalid_config_exits_with_1_without_values(env, capsys):
@@ -157,3 +162,85 @@ def test_unexpected_error_hides_the_message(env, monkeypatch, capsys):
     assert main(["cleanup"], env) == 1
     err = capsys.readouterr().err
     assert re.fullmatch(r"erro: erro inesperado \(RuntimeError em app/cli\.py:\d+\)\n", err)
+
+
+def snapshot(session: Session) -> tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]:
+    """Todas as linhas de `users` e de `audit_log`, para conferir que nada mudou."""
+    session.rollback()
+    users = session.execute(select(User.__table__).order_by(User.id)).all()
+    events = session.execute(select(AuditLog.__table__).order_by(AuditLog.id)).all()
+    return [tuple(row) for row in users], [tuple(row) for row in events]
+
+
+def test_create_admin_promotes_and_records_the_event(db_session, env, ana, capsys):
+    save(db_session, new_user("bia@example.com"))
+
+    with time_machine.travel(NOW, tick=False):
+        assert main(["create-admin", "ana@example.com"], env) == 0
+
+    # A saída identifica a conta pelo id, sem o email
+    assert capsys.readouterr() == (f"create-admin: a conta {ana.id} agora é admin\n", "")
+    db_session.rollback()
+    assert db_session.scalars(select(User.id).where(User.is_admin)).all() == [ana.id]
+    entry = db_session.scalars(select(AuditLog)).one()
+    assert (entry.event, entry.user_id, entry.habit_id, entry.ip, entry.details) == (
+        AuditEvent.ADMIN_CREATED,
+        ana.id,
+        None,
+        None,
+        {"via": "cli"},
+    )
+    assert entry.created_at == NOW
+
+
+def test_create_admin_unknown_email_changes_nothing(db_session, env, ana, capsys):
+    before = snapshot(db_session)
+
+    assert main(["create-admin", "nao-existe@example.com"], env) == 1
+
+    assert capsys.readouterr() == (
+        "",
+        "erro: nenhuma conta com esse email. A pessoa precisa entrar no app uma vez antes\n",
+    )
+    assert snapshot(db_session) == before
+    assert count(db_session, AuditLog) == 0
+
+
+def test_create_admin_twice_changes_nothing_the_second_time(db_session, env, ana, capsys):
+    with time_machine.travel(NOW, tick=False):
+        assert main(["create-admin", "ana@example.com"], env) == 0
+    capsys.readouterr()
+    before = snapshot(db_session)
+
+    with time_machine.travel(NOW + DAY, tick=False):
+        assert main(["create-admin", "ana@example.com"], env) == 0
+
+    assert capsys.readouterr() == (f"create-admin: a conta {ana.id} já é admin; nada mudou\n", "")
+    # Nem evento duplicado nem updated_at novo
+    assert snapshot(db_session) == before
+    assert count(db_session, AuditLog) == 1
+
+
+@pytest.mark.parametrize("typed", ["ANA@Example.COM", "  ana@example.com\t\n", " Ana@EXAMPLE.com "])
+def test_create_admin_normalizes_the_email(db_session, env, ana, typed, capsys):
+    assert main(["create-admin", typed], env) == 0
+
+    assert capsys.readouterr().out == f"create-admin: a conta {ana.id} agora é admin\n"
+    db_session.rollback()
+    assert db_session.scalar(select(User.is_admin).where(User.id == ana.id))
+    assert count(db_session, AuditLog, AuditLog.user_id == ana.id) == 1
+
+
+@pytest.mark.parametrize("is_admin", [False, True])
+def test_create_admin_refuses_a_blocked_account(db_session, env, is_admin, capsys):
+    blocked = new_user(is_active=False, is_admin=is_admin)
+    save(db_session, blocked)
+    before = snapshot(db_session)
+
+    assert main(["create-admin", "ana@example.com"], env) == 1
+
+    assert capsys.readouterr() == (
+        "",
+        f"erro: a conta {blocked.id} está bloqueada (is_active=false); nada mudou\n",
+    )
+    assert snapshot(db_session) == before

@@ -2,7 +2,8 @@
 
 Cada comando lê a mesma configuração do servidor (variáveis de ambiente, `load_settings`) e abre o
 banco de `DATABASE_PATH`, que precisa já existir (migrado com `alembic upgrade head`). Em produção
-roda como `app-ethos`: o `cleanup` pelo timer de hora em hora, os outros à mão.
+roda como `app-ethos`: o `cleanup` pelo timer de hora em hora, os outros à mão. O `create-admin` é
+o único jeito de ligar o `is_admin`: não existe endpoint para isso.
 
 Para acrescentar um comando:
 
@@ -25,13 +26,16 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
+from app import audit
+from app.audit import AuditEvent
 from app.config import ConfigError, Settings, load_settings
 from app.db import create_db_engine, create_session_factory, write_transaction
 from app.logs import configure_logging
-from app.models import utcnow
+from app.models import User, utcnow
 from app.retention import run_cleanup
 
 EXIT_OK = 0
@@ -67,6 +71,41 @@ def _cleanup(context: CommandContext, _args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _create_admin(context: CommandContext, args: argparse.Namespace) -> int:
+    """Liga o `is_admin` de uma conta que já existe e grava `admin_created` no `audit_log`.
+
+    O email é normalizado como no login (strip + lower). A saída identifica a conta pelo id, nunca
+    pelo email. Conta bloqueada (`is_active=false`) é recusada: promover quem não pode entrar não
+    serve para nada e deixaria um admin pronto para quem desbloquear a conta. Rodar de novo numa
+    conta que já é admin não grava nada.
+    """
+    email = _normalize_email(args.email)
+    # A leitura vai dentro da transação de escrita: duas execuções ao mesmo tempo não gravam dois
+    # eventos, porque a segunda só lê depois do commit da primeira (BEGIN IMMEDIATE)
+    with context.session_factory() as session, write_transaction(session):
+        user = session.scalar(select(User).where(User.email == email))
+        if user is None:
+            raise CommandError(
+                "nenhuma conta com esse email. A pessoa precisa entrar no app uma vez antes"
+            )
+        if not user.is_active:
+            raise CommandError(f"a conta {user.id} está bloqueada (is_active=false); nada mudou")
+        user_id, already_admin = user.id, user.is_admin
+        if not already_admin:
+            user.is_admin = True
+            audit.record(session, AuditEvent.ADMIN_CREATED, user_id=user_id, details={"via": "cli"})
+    if already_admin:
+        print(f"create-admin: a conta {user_id} já é admin; nada mudou")
+    else:
+        print(f"create-admin: a conta {user_id} agora é admin")
+    return EXIT_OK
+
+
+def _normalize_email(email: str) -> str:
+    """Mesma normalização do login: o email é salvo em `users` com strip + lower."""
+    return email.strip().lower()
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m app.cli",
@@ -83,6 +122,18 @@ def build_parser() -> argparse.ArgumentParser:
             "auditoria de hábitos e marcações. Pode rodar quantas vezes quiser."
         ),
     ).set_defaults(handler=_cleanup)
+
+    create_admin = commands.add_parser(
+        "create-admin",
+        help="torna admin uma conta que já existe (único jeito de criar admin)",
+        description=(
+            "Liga o is_admin da conta com esse email e grava admin_created na auditoria. A conta "
+            "precisa existir (a pessoa entra no app uma vez antes) e não pode estar bloqueada. "
+            "Rodar de novo numa conta que já é admin não muda nada."
+        ),
+    )
+    create_admin.add_argument("email", help="email da conta (maiúsculas e espaços não importam)")
+    create_admin.set_defaults(handler=_create_admin)
 
     return parser
 
