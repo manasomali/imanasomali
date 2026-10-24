@@ -90,6 +90,8 @@ jobs:
             app/progress/service.py
             app/retention.py
             app/score.py
+            app/sharing/quota.py
+            app/sharing/service.py
         run: |
           for module in $FULL_COVERAGE; do
             uv run --no-sync coverage report --fail-under=100 --show-missing --include="$module"

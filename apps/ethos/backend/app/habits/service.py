@@ -15,8 +15,9 @@ saem como `ApiError` e desfazem a transação.
   descrição, longa, vai só com `{"field": "description"}`); sem mudança, nada é gravado.
 - Apagar: só o dono, inclusive arquivado. O banco apaga em cascata marcações, pausas, membros,
   convites, alertas e a auditoria do hábito. O evento `habit_deleted` vai com `habit_id=None` e
-  o id em `details`, para sobreviver ao CASCADE. Devolve os membros, que recebem o email depois
-  do commit.
+  o id em `details`, para sobreviver ao CASCADE, e com `recent_invites` (os convites do hábito
+  das últimas 24 h, que continuam contando no limite de convites do dono; ver
+  `app/sharing/quota.py`). Devolve os membros, que recebem o email depois do commit.
 - Listar: os hábitos do usuário e os compartilhados com ele, com o papel, numa consulta só. Os
   arquivados saem da lista principal e aparecem só na lista de arquivados.
 
@@ -72,6 +73,7 @@ from app.models import (
     User,
     utcnow,
 )
+from app.sharing.quota import RECENT_INVITES_KEY, habit_recent_invites
 
 # Dias do período usados no teto de N: o menor mês (28) para a meta ser sempre possível
 PERIOD_DAYS = {Period.WEEK: 7, Period.MONTH: 28, Period.YEAR: 365}
@@ -235,6 +237,12 @@ def delete_habit(session: Session, *, user_id: int, habit_id: int, ip: str | Non
             .where(HabitMember.habit_id == habit_id)
             .order_by(User.id)
         ).all()
+        details: dict[str, int] = {"habit_id": habit_id}
+        # Os invite_created do hábito somem no CASCADE: a conta do limite de convites passa
+        # para o habit_deleted (app/sharing/quota.py)
+        recent_invites = habit_recent_invites(session, habit_id, now=utcnow())
+        if recent_invites:
+            details[RECENT_INVITES_KEY] = recent_invites
         session.execute(
             delete(Habit).where(Habit.id == habit_id),
             execution_options={"synchronize_session": False},
@@ -245,7 +253,7 @@ def delete_habit(session: Session, *, user_id: int, habit_id: int, ip: str | Non
             AuditEvent.HABIT_DELETED,
             user_id=user_id,
             ip=ip,
-            details={"habit_id": habit_id},
+            details=details,
         )
     members = tuple(Recipient(email, pick_locale(locale)) for email, locale in rows)
     return DeletedHabit(name=name, members=members)

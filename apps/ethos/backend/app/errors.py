@@ -46,6 +46,14 @@ class ErrorCode(StrEnum):
     MARK_MODE_MISMATCH = "mark_mode_mismatch"
     # O dia (no fuso de quem marca) já tem MAX_MARKS_PER_DAY marcações nesse hábito: 409
     MARK_LIMIT_REACHED = "mark_limit_reached"
+    # O dono já mandou MAX_INVITES_PER_DAY convites nas últimas 24 h, somando todos os hábitos:
+    # 409, igual para qualquer email convidado
+    INVITE_LIMIT_REACHED = "invite_limit_reached"
+    # O hábito já tem MAX_GUESTS_PER_HABIT convidados (membros + convites pendentes): 409
+    GUEST_LIMIT_REACHED = "guest_limit_reached"
+    # Aceitar passaria do MAX_SHARED_HABITS_PER_USER (hábitos de outras pessoas dos quais o
+    # usuário participa); o convite continua pendente: 409
+    SHARED_HABIT_LIMIT_REACHED = "shared_habit_limit_reached"
 
 
 # Código de uma HTTPException pelo status. Status fora da tabela cai no genérico da faixa
