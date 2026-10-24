@@ -1,6 +1,6 @@
 """Matriz de permissões (ETH-24): dono, editor, viewer, estranho e sem sessão em todos os
-endpoints de hábito (ETH-20 a 24), e quem vê o hábito nas listas (`/habits`, `/habits/progress` e
-`/history`, ETH-25).
+endpoints de hábito (ETH-20 a 24 e 26), e quem vê o hábito nas listas (`/habits`,
+`/habits/progress` e `/history`, ETH-25).
 
 Cada caso monta o mesmo cenário (hábito da ana com a bia editora, o caio viewer, a eva viewer,
 uma marcação e um convite pendente; a dani não tem acesso) e chama um endpoint com uma conta.
@@ -81,6 +81,14 @@ CASES = {
     ),
     "remove_member": Case("DELETE", "/habits/{habit}/members/{target}", (204, 403, 403, 404)),
     "leave": Case("POST", "/habits/{habit}/leave", (403, 204, 204, 404)),
+    # ETH-26: viewer não liga alertas
+    "get_alert": Case("GET", "/habits/{habit}/alerts", (200, 200, 403, 404)),
+    "save_alert": Case(
+        "PUT",
+        "/habits/{habit}/alerts",
+        (200, 200, 403, 404),
+        {"goal_enabled": True, "cost_enabled": False, "hour": 8, "frequency": "daily"},
+    ),
 }
 
 

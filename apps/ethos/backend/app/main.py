@@ -6,6 +6,7 @@ from fastapi import APIRouter, FastAPI
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.alerts.routes import router as alerts_router
 from app.auth.origin import OriginCheckMiddleware
 from app.auth.routes import router as auth_router
 from app.config import Settings, load_settings
@@ -78,6 +79,7 @@ def create_app(
     api.include_router(marks_router)
     api.include_router(sharing_router)
     api.include_router(history_router)
+    api.include_router(alerts_router)
     return api
 
 

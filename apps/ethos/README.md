@@ -34,7 +34,7 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deletion.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/history/service.py,app/marks/schemas.py,app/marks/service.py,app/pagination.py,app/progress/service.py,app/retention.py,app/score.py,app/sharing/quota.py,app/sharing/service.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/alerts/service.py,app/audit.py,app/auth/deletion.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/history/service.py,app/marks/schemas.py,app/marks/service.py,app/pagination.py,app/progress/service.py,app/retention.py,app/score.py,app/sharing/quota.py,app/sharing/service.py   # depois do pytest
 ```
 
 Alguns módulos precisam de 100% de cobertura (linhas e ramos). A lista fica na variável `FULL_COVERAGE` do passo "Cobertura de 100% nos módulos críticos" do CI, que confere cada um com o `coverage report` acima.
@@ -80,6 +80,7 @@ uv run --env-file .env alembic check             # modelos e banco batem? (preci
 - Os eventos são uma lista fechada (`AuditEvent`); evento fora dela levanta `AuditError`. Evento novo entra no enum e, se for de auth, em `AUTH_EVENTS`, que define a retenção.
 - `details` é um dict JSON pequeno (até 16 KB, 8 níveis). Valor que não é JSON (datetime, set, bytes, NaN...) e qualquer chave cujo nome contém `code`, `token`, `cookie`, `password`, `secret` etc., em qualquer nível, são recusados. Para registrar a mudança de um campo com esse nome (a sigla `habits.code`), o nome vai como valor: `{"changes": [{"field": "code", "old": "AB", "new": "CD"}]}`. O IP é validado e normalizado.
 - `audit_log.mark_id` é uma coluna gerada (VIRTUAL, migração 0002) com o `details.mark_id` dos eventos de marcação, indexada para o histórico de uma marcação. O app nunca a grava: o SQLite a calcula do `details`.
+- `alerts.last_evaluated_at` (migração 0003) guarda a última avaliação de cada alerta pelo `run-alerts` (ou o último salvar da configuração), para cada ocorrência da hora escolhida ser avaliada uma vez só, com ou sem email (veja "Alertas").
 - `audit_log.habit_id` tem `ON DELETE CASCADE`: apagar o hábito apaga a auditoria dele. O evento que precisa sobreviver ao hábito (`habit_deleted`) vai com `habit_id=None` e o id no `details`; `account_deleted` também leva o id da conta no `details`.
 - `app/retention.py`: a retenção do plano, aplicada pelo `cleanup` (abaixo). Eventos de auth (`AUTH_EVENTS`) saem depois de 90 dias; o IP de todas as linhas do `audit_log` e de `sessions` vira `NULL` depois de 90 dias (pelo `created_at`); sessões vencidas saem; códigos de login vencidos saem 1 dia depois de criados, porque os limites de envio por hora e por dia contam as linhas de `login_codes`. A auditoria de hábitos, marcações, compartilhamento, conta e admin não é apagada (só o IP). `delete_expired_sessions` e `delete_expired_login_codes` servem também para a limpeza ao criar um código.
 
@@ -205,10 +206,34 @@ O pacote `app/history/` (`service.py` com 100% de cobertura, `schemas.py` e `rou
 - Grava `account_deleted` com `user_id` = quem apagou (nulo quando foi a própria conta) e `{"account_id": n, "by_admin": bool}`, sem email nem IP da pessoa. Depois do commit, o log tem só `conta <id> excluída`: depois de restaurar um backup, essas linhas dizem quais exclusões reaplicar.
 - Emails: "conta excluída" para a conta e "você perdeu acesso" para cada membro dos hábitos dela (um por membro, com todos os hábitos), lidos antes de apagar e enviados depois do commit.
 
+### Alertas
+
+O pacote `app/alerts/` (`service.py` com 100% de cobertura, `schemas.py` e `routes.py`) tem os alertas por email: a configuração de cada membro num hábito e a avaliação de hora em hora (`run-alerts`, abaixo).
+
+| Endpoint | Quem | O quê |
+|---|---|---|
+| `GET /habits/{id}/alerts` | dono e editor | A configuração do usuário logado: `{goal_enabled, cost_enabled, hour, frequency, weekday, last_sent_at}`. Sem nada salvo, a padrão: as duas chaves desligadas, `hour` 20, `daily`, `weekday` e `last_sent_at` nulos. Arquivado também lê. |
+| `PUT /habits/{id}/alerts` | dono e editor | Troca a configuração inteira (`{goal_enabled, cost_enabled, hour, frequency, weekday}`) e devolve a nova. Arquivado: 409 `habit_archived` (pausado salva). |
+
+- Viewer: 403 `forbidden` ao ler e ao salvar (quem tem papel de visualização não liga alertas). Sem acesso, 404 `not_found`. Cada membro tem a sua configuração, independente das outras.
+- Validação (422 com o `field`): booleanos e inteiros estritos; `hour` de 0 a 23 (hora cheia, no fuso do usuário); `frequency` `daily` ou `weekly`; `weekday` de 0 (segunda) a 6 (domingo), obrigatório no semanal e proibido no diário; campo desconhecido é recusado.
+- Salvar só grava o que mudou, com `alert_updated` (`{"changes": [{field, old, new}]}`) na auditoria. O evento não aparece no `GET /history`: a configuração é pessoal.
+- Rebaixar um editor para viewer, remover o membro ou ele sair apaga os alertas dele no hábito, na mesma transação (`app/sharing/service.py`).
+
+A avaliação (`run_alerts`):
+
+- Hora: a hora cheia escolhida, no fuso do usuário (`users.timezone`), todo dia (diário) ou só no dia da semana escolhido (semanal). Cada ocorrência é avaliada uma vez, na primeira execução do `run-alerts` a partir dela no mesmo dia local: uma execução atrasada (o timer das 09:00 rodou às 10:05, ou a VM ficou fora umas horas) ainda avalia o alerta das 09:00; o dia que passa inteiro sem execução perde a ocorrência. Avaliação sem nada a avisar não se repete mais tarde no mesmo dia (`alerts.last_evaluated_at`). Salvar a configuração depois da hora de hoje deixa o alerta para a próxima ocorrência.
+- Horário de verão: a hora que não existe (02:00 quando o relógio pula para 03:00) dispara às 03:00; a hora que se repete (01:00 duas vezes) dispara só na primeira.
+- Regras, no período atual e só com a chave ligada: meta pelo `score.evaluate` (`min` atrasado no ritmo, `floor(N × fração do período)` com inteiros; `max` atingiu ou passou de N; `exact` passou ou atrasado); custo pelo `score.check_cost` (aviso a partir de 80% do limite, alerta ao passar). Nada dispara no período em que o hábito foi criado, nem num período com pausa. Hábito pausado ou arquivado e conta bloqueada não são avaliados.
+- No máximo um email por membro e hábito por dia local (`last_sent_at`), juntando meta e custo num email só (`Alert`), no idioma do usuário, com o link para `APP_URL/habits/{id}/alerts`.
+- Sem email duplicado: o alerta é relido e reavaliado dentro de um `BEGIN IMMEDIATE`, que grava `last_evaluated_at` e `last_sent_at` antes do envio; o envio sai depois do commit, fora da trava. Execuções repetidas ou ao mesmo tempo mandam um email só. Se o envio falha, outra transação desfaz a marcação e a próxima execução tenta de novo; se o processo morre entre o commit e o envio, aquele email se perde (um alerta a menos, nunca um repetido).
+- Falha num alerta (SMTP, fuso inválido, erro inesperado) vira uma linha de log com os ids do hábito e do usuário e o tipo do erro (nunca email, nome do hábito ou a mensagem da exceção) e não impede os outros.
+
 ### Comandos de operação (CLI)
 
 ```bash
 uv run --env-file .env python -m app.cli --help      # lista os comandos
+uv run --env-file .env python -m app.cli run-alerts  # avalia os alertas na hora e manda os emails
 uv run --env-file .env python -m app.cli cleanup     # aplica a retenção de dados
 uv run --env-file .env python -m app.cli create-admin voce@example.com   # torna a conta admin
 uv run --env-file .env python -m app.cli seed        # dados de exemplo (só em dev)
@@ -218,6 +243,7 @@ O CLI lê a mesma config do servidor (variáveis de ambiente) e abre o banco de 
 
 | Comando | O quê |
 |---|---|
+| `run-alerts` | Avalia os alertas cuja hora chegou e manda os emails (ver "Alertas"). Imprime quantos alertas avaliou, quantos emails mandou e quantas falhas teve. Sai com 0 mesmo com falha num alerta (SMTP, por exemplo): a falha é logada, não para os outros e é tentada de novo na próxima execução. Só erro geral (config inválida, banco inacessível na leitura inicial) sai com 1, e aí o `OnFailure=` do timer grava a linha de erro no journald. Pode rodar quantas vezes quiser: a segunda seguida não manda nada. Roda de hora em hora pelo `ethos-alerts.timer`, antes do `cleanup`, na mesma unit: se ele sair com 1, o `cleanup` daquela hora não roda. |
 | `cleanup` | Retenção de dados (ver acima), numa transação só. Imprime quantas linhas mudou em cada passo. Pode rodar quantas vezes quiser: a segunda seguida não muda nada. No plano, roda de hora em hora pelo `ethos-alerts.timer`, depois dos alertas. |
 | `create-admin <email>` | Liga o `is_admin` de uma conta que já existe e grava `admin_created` no `audit_log` (`user_id` = a conta promovida, `details` = `{"via": "cli"}`), numa transação só. É o único jeito de criar admin: não existe endpoint para isso. O email é normalizado e validado como no login (`normalize_email`: espaços e maiúsculas não importam; endereço inválido é erro). A saída mostra o id da conta, nunca o email. Email sem conta: erro e nada muda (a pessoa precisa entrar no app uma vez antes, o que cria a conta). Conta bloqueada (`is_active=false`): erro e nada muda; desbloqueie antes. Conta que já é admin: avisa, sai com 0 e não grava nada. |
 | `seed` | Só com `APP_ENV=dev` (fora dele: erro, sai com 1 e não grava nada). Cria, numa transação só, as contas `ana@example.com`, `bia@example.com` e `caio@example.com` (com os termos aceitos; entre pelo login com o email, e o código sai no terminal com `EMAIL_BACKEND=console`), 8 hábitos que variam os tipos (toggle e várias por dia; meta mínima, máxima e exata; duração, observação, pontuação, custo nos dois níveis; ativo, pausado e arquivado; compartilhado com editor e viewer) e as marcações dos últimos 60 dias, pelas mesmas regras e com a mesma auditoria da API. Não duplica: se alguma das contas de exemplo já existe, avisa, sai com 0 e não grava nada. Para recriar, apague o banco de dev e rode `alembic upgrade head` de novo. |

@@ -113,7 +113,7 @@ class AuditEvent(StrEnum):
     MEMBER_ROLE_CHANGED = "member_role_changed"
 
     # --- Alertas (ETH-26) ---
-    # Configuração de alerta do membro salva (habit_id preenchido)
+    # Configuração de alerta do membro salva (habit_id preenchido); {"changes": [...]}
     ALERT_UPDATED = "alert_updated"
 
     # --- Admin (ETH-19, ETH-28): ficam ---
