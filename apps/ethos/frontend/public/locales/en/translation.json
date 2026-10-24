@@ -65,6 +65,7 @@
     "invite_limit_reached": "You have reached the daily invite limit. Try again tomorrow.",
     "guest_limit_reached": "This habit has reached its guest limit.",
     "shared_habit_limit_reached": "You have reached the limit of habits shared with you. Leave one to accept this invite.",
+    "last_admin": "This is the last active administrator account and cannot be deleted. Create another administrator first.",
     "network_error": "No connection to the server. Check your internet and try again.",
     "unknown": "Something went wrong. Try again."
   }

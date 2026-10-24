@@ -65,6 +65,7 @@
     "invite_limit_reached": "Você chegou ao limite de convites por dia. Tente amanhã.",
     "guest_limit_reached": "Este hábito chegou ao limite de convidados.",
     "shared_habit_limit_reached": "Você chegou ao limite de hábitos compartilhados com você. Saia de um para aceitar este convite.",
+    "last_admin": "Esta é a última conta de administrador ativa e não pode ser excluída. Crie outro administrador antes.",
     "network_error": "Sem conexão com o servidor. Confira a internet e tente de novo.",
     "unknown": "Algo deu errado. Tente de novo."
   }
