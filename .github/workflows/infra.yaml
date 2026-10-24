@@ -63,9 +63,22 @@ jobs:
       - name: Instalar, repetir sem baixar nada e recusar checksum errado
         run: sudo bash .github/scripts/test-install-uv.sh
 
+  # provision_databases e provision_apps de verdade: pastas, donos, sudo do deploy e snapshot
+  apps:
+    name: 📁 Pastas das apps
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: sqlite3
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends sqlite3
+
+      - name: Criar pastas, repetir sem mudar nada e conferir donos e sudo
+        run: sudo DEPLOY_USER="$USER" bash .github/scripts/test-provision-apps.sh
+
   deploy:
     name: 🚀 Provisionar VM
-    needs: [lint, uv]
+    needs: [lint, uv, apps]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: production

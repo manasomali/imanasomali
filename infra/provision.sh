@@ -20,6 +20,8 @@ source "$INFRA_DIR/lib/system.sh"
 source "$INFRA_DIR/lib/databases.sh"
 # shellcheck source=lib/backups.sh
 source "$INFRA_DIR/lib/backups.sh"
+# shellcheck source=lib/apps.sh
+source "$INFRA_DIR/lib/apps.sh"
 # shellcheck source=lib/nginx.sh
 source "$INFRA_DIR/lib/nginx.sh"
 
@@ -98,6 +100,7 @@ provision_swap
 provision_packages
 provision_system
 provision_databases
+provision_apps
 provision_backups
 provision_nginx
 

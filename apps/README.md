@@ -9,6 +9,7 @@ O nome segue a regra do `infra/databases.txt`: `^[a-z][a-z0-9-]{1,26}$`.
 | O quê | Onde |
 |---|---|
 | Código (front e back) | `apps/<nome>/`, com `README.md` explicando como rodar localmente |
+| Na VM | código do backend em `/opt/apps/<nome>/` e frontend em `/var/www/<nome>/`, criados pelo provision com dono do usuário de deploy; o `app-<nome>` só lê |
 | Config que roda como root na VM | `infra/apps/<nome>/`: `app.conf` (porta e versão do runtime), `app.env` (config não secreta), units systemd e snippets do nginx |
 | Banco SQLite | linha `<nome>` em [infra/databases.txt](../infra/databases.txt) |
 | Rotas | front em `/<nome>/`, API em `/api/<nome>/` |
