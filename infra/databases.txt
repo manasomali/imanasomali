@@ -2,5 +2,5 @@
 # Cada nome vira /var/lib/sqlite/<nome>/app.db, dono app-<nome>, com backup contínuo no Object Storage.
 # Remover uma linha NÃO apaga os dados: o banco só deixa de ter backup (o provision avisa no log).
 #
-# Banco de teste do pipeline de backup (pode ser removido quando houver um projeto real).
-exemplo
+# O "exemplo" (banco de teste do pipeline de backup) saiu quando o ethos entrou: os dados ficaram na VM, sem backup.
+ethos
