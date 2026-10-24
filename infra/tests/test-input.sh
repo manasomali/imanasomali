@@ -42,6 +42,7 @@ load_input() {
 
 # Valores difíceis e o que precisa sair do outro lado
 user='app@smtp-brevo.com'
+# shellcheck disable=SC2016  # $HOME e as crases são texto da senha, não podem expandir
 password='a b"c'"'"'d$HOME`x`\n\\fim @ #'
 cat > "$tmp/in" <<EOF
 SMTP_HOST=smtp-relay.brevo.com
@@ -59,6 +60,7 @@ assert "4 chaves SMTP_" test "$(grep -c '^SMTP_' "$env_file")" = 4
 assert "valor seguro gravado sem aspas" grep -qx 'SMTP_USER=app@smtp-brevo.com' "$env_file"
 
 # O bash lê aspas duplas com os mesmos escapes do systemd (o restore-test.sh faz source)
+# shellcheck source=/dev/null  # arquivo gerado pelo próprio teste
 got=$(set -a && source "$env_file" && printf '%s' "$SMTP_PASSWORD")
 assert "bash lê a senha igual" test "$got" = "$password"
 
