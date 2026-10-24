@@ -85,6 +85,8 @@ jobs:
             app/habits/access.py
             app/habits/scoring.py
             app/habits/service.py
+            app/marks/schemas.py
+            app/marks/service.py
             app/retention.py
             app/score.py
         run: |
