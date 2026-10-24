@@ -27,13 +27,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: shellcheck
-        run: shellcheck -x infra/provision.sh infra/scripts/*.sh .github/scripts/*.sh
+        run: shellcheck -x infra/provision.sh infra/scripts/*.sh infra/tests/*.sh .github/scripts/*.sh
 
       - name: databases.txt
         run: bash -c 'source infra/lib/common.sh && read_databases infra/databases.txt'
 
       - name: Python do app.conf igual ao .python-version de cada app
         run: bash .github/scripts/check-python-version.sh
+
+      - name: Testes do stdin e dos arquivos de ambiente (infra/tests)
+        run: sudo bash infra/tests/test-input.sh
 
       - name: nginx -t (mesma versão da VM, com certificados falsos)
         run: |
@@ -113,14 +116,21 @@ jobs:
           S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
           S3_BUCKET: ${{ vars.S3_BUCKET }}
           OCI_REGION: ${{ vars.OCI_REGION }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         run: |
-          for name in LITESTREAM_ACCESS_KEY_ID LITESTREAM_SECRET_ACCESS_KEY S3_ENDPOINT S3_BUCKET OCI_REGION; do
+          names=(LITESTREAM_ACCESS_KEY_ID LITESTREAM_SECRET_ACCESS_KEY S3_ENDPOINT S3_BUCKET OCI_REGION
+            SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD)
+          for name in "${names[@]}"; do
             [[ -n ${!name} ]] || echo "::warning::$name está vazio no GitHub (Settings → Secrets and variables → Actions)"
+            # Uma quebra de linha viraria outra linha no stdin. O provision recusa, mas para aqui antes
+            if [[ ${!name} == *$'\n'* || ${!name} == *$'\r'* ]]; then
+              echo "::error::$name tem quebra de linha; cadastre o valor de novo no GitHub"
+              exit 1
+            fi
           done
-          printf '%s\n' \
-            "LITESTREAM_ACCESS_KEY_ID=$LITESTREAM_ACCESS_KEY_ID" \
-            "LITESTREAM_SECRET_ACCESS_KEY=$LITESTREAM_SECRET_ACCESS_KEY" \
-            "S3_ENDPOINT=$S3_ENDPOINT" \
-            "S3_BUCKET=$S3_BUCKET" \
-            "OCI_REGION=$OCI_REGION" \
-            | $SSH "$TARGET" 'sudo -n /opt/infra/provision.sh'
+          for name in "${names[@]}"; do
+            printf '%s=%s\n' "$name" "${!name}"
+          done | $SSH "$TARGET" 'sudo -n /opt/infra/provision.sh'
