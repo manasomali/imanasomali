@@ -33,7 +33,6 @@ Regras (ethos-plan.md, "marcações e fuso horário", "custo", "compartilhamento
   e o que mudou (`details`). O texto da observação nunca vai para a auditoria, só se existe.
 """
 
-import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta
@@ -43,12 +42,12 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import ColumnElement, and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app import audit
+from app import audit, pagination
 from app.audit import AuditEvent
 from app.config import Settings
 from app.db import write_transaction
 from app.errors import ApiError, ErrorCode
-from app.habits.access import MAX_ID, get_habit_access, require_writable
+from app.habits.access import get_habit_access, require_writable
 from app.models import CostLevel, Habit, Mark, User, utcnow
 
 # Tolerância para o relógio de quem marca estar adiantado
@@ -60,11 +59,6 @@ MAX_DAY_LENGTH = timedelta(hours=25)
 MAX_LIST_RANGE = timedelta(days=367)
 # Marcações por página na listagem
 MAX_PAGE_SIZE = 1000
-
-_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
-_MICROSECOND = timedelta(microseconds=1)
-# Cursor da listagem: "<microssegundos de marked_at desde 1970>.<id>" da última marcação vista
-_CURSOR_RE = re.compile(r"(-?[0-9]{1,18})\.([0-9]{1,19})")
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,19 +91,13 @@ def day_bounds(instant: datetime, tz: ZoneInfo) -> tuple[datetime, datetime]:
 
 
 def encode_cursor(mark: Mark) -> str:
-    return f"{(mark.marked_at - _EPOCH) // _MICROSECOND}.{mark.id}"
+    """Cursor da listagem depois de `mark` (`marked_at` e id; formato em `app/pagination.py`)."""
+    return pagination.encode_cursor(mark.marked_at, mark.id)
 
 
 def decode_cursor(value: str) -> tuple[datetime, int]:
     """`marked_at` e id da última marcação vista; cursor inválido dá 422 `cursor`."""
-    match = _CURSOR_RE.fullmatch(value)
-    if match is None or int(match[2]) > MAX_ID:
-        raise _invalid("cursor")
-    try:
-        marked_at = _EPOCH + int(match[1]) * _MICROSECOND
-    except OverflowError:
-        raise _invalid("cursor") from None
-    return marked_at, int(match[2])
+    return pagination.decode_cursor(value)
 
 
 def _writable_habit(session: Session, habit_id: int, user_id: int) -> Habit:

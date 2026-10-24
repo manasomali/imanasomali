@@ -28,6 +28,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     CheckConstraint,
+    Computed,
     DateTime,
     Dialect,
     ForeignKey,
@@ -72,6 +73,8 @@ IP_MAX_LENGTH = 45
 USER_AGENT_MAX_LENGTH = 512
 TERMS_VERSION_MAX_LENGTH = 32
 EVENT_MAX_LENGTH = 64
+# Expressão da coluna calculada `audit_log.mark_id` (igual na migração 0002)
+AUDIT_MARK_ID = "CASE WHEN json_valid(details) THEN json_extract(details, '$.mark_id') END"
 
 
 class CodePurpose(StrEnum):
@@ -277,6 +280,8 @@ class AuditLog(Base):
         Index(None, "user_id"),
         # Histórico do hábito
         Index(None, "habit_id", "created_at"),
+        # Histórico de uma marcação (`GET /history?mark_id=`); só as linhas que têm o mark_id
+        Index(None, "mark_id", sqlite_where=text("mark_id IS NOT NULL")),
         {"sqlite_autoincrement": True},
     )
 
@@ -289,6 +294,11 @@ class AuditLog(Base):
     ip: Mapped[str | None] = mapped_column(String(IP_MAX_LENGTH))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, server_default=text("'{}'"))
+    # `details.mark_id` dos eventos de marcação, calculado pelo SQLite (coluna VIRTUAL: não ocupa
+    # espaço na linha, só no índice) para o histórico de uma marcação. Nunca é gravado pelo app.
+    # O json_valid antes: com JSON inválido, quem recusa a linha é o CHECK `details_json`, não um
+    # erro do json_extract ao calcular o índice
+    mark_id: Mapped[int | None] = mapped_column(Computed(AUDIT_MARK_ID, persisted=False))
 
 
 class Habit(Base):

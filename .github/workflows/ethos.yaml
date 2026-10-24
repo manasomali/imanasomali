@@ -85,8 +85,10 @@ jobs:
             app/habits/access.py
             app/habits/scoring.py
             app/habits/service.py
+            app/history/service.py
             app/marks/schemas.py
             app/marks/service.py
+            app/pagination.py
             app/progress/service.py
             app/retention.py
             app/score.py
