@@ -87,6 +87,7 @@ uv run --env-file .env alembic check             # modelos e banco batem? (preci
 ```bash
 uv run --env-file .env python -m app.cli --help      # lista os comandos
 uv run --env-file .env python -m app.cli cleanup     # aplica a retenção de dados
+uv run --env-file .env python -m app.cli create-admin voce@example.com   # torna a conta admin
 ```
 
 O CLI lê a mesma config do servidor (variáveis de ambiente) e abre o banco de `DATABASE_PATH`, que precisa existir e estar migrado. Em produção roda como `app-ethos`. Código de saída 0 em sucesso, 1 em erro (a mensagem sai no stderr com `erro:`, sem stack trace nem valores) e 2 em uso errado.
@@ -94,6 +95,20 @@ O CLI lê a mesma config do servidor (variáveis de ambiente) e abre o banco de 
 | Comando | O quê |
 |---|---|
 | `cleanup` | Retenção de dados (ver acima), numa transação só. Imprime quantas linhas mudou em cada passo. Pode rodar quantas vezes quiser: a segunda seguida não muda nada. No plano, roda de hora em hora pelo `ethos-alerts.timer`, depois dos alertas. |
+| `create-admin <email>` | Liga o `is_admin` de uma conta que já existe e grava `admin_created` no `audit_log` (`user_id` = a conta promovida, `details` = `{"via": "cli"}`), numa transação só. É o único jeito de criar admin: não existe endpoint para isso. O email é normalizado como no login (espaços e maiúsculas não importam). A saída mostra o id da conta, nunca o email. Email sem conta: erro e nada muda (a pessoa precisa entrar no app uma vez antes, o que cria a conta). Conta bloqueada (`is_active=false`): erro e nada muda; desbloqueie antes. Conta que já é admin: avisa, sai com 0 e não grava nada. |
+
+Na VM, o comando roda com o mesmo usuário, o mesmo ambiente e a mesma `.venv` da unit `app-ethos` ([infra/apps/ethos/app-ethos.service](../../infra/apps/ethos/app-ethos.service)):
+
+```bash
+sudo systemd-run --quiet --pipe --wait --collect \
+  --uid=app-ethos --gid=app-ethos \
+  --working-directory=/opt/apps/ethos \
+  -p EnvironmentFile=/etc/infra/smtp.env \
+  -p EnvironmentFile=/etc/infra/apps/ethos.env \
+  /opt/apps/ethos/.venv/bin/python -m app.cli create-admin voce@example.com
+```
+
+`sudo -u app-ethos` sozinho não basta: o `/etc/infra/smtp.env` é `0600` do root, e com `EMAIL_BACKEND=smtp` a config exige as `SMTP_*`. Pelo `systemd-run`, o systemd lê os dois `EnvironmentFile=` como root, como faz com a unit, e o comando roda como `app-ethos`, que pode escrever em `/var/lib/sqlite/ethos/app.db`. O `--wait` devolve o código de saída do comando. O mesmo vale para qualquer outro comando do CLI (troque `create-admin voce@example.com`). O email digitado fica no histórico do shell e no log do sudo da VM.
 
 Comando novo: um handler `(context: CommandContext, args) -> int` em `app/cli.py`, registrado em `build_parser`. Erro esperado é `raise CommandError("mensagem")`; o docstring do módulo tem o passo a passo.
 
