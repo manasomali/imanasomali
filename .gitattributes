@@ -1,3 +1,8 @@
 # Scripts e configs da VM precisam de LF, mesmo com checkout no Windows
 infra/** text eol=lf
 *.sh text eol=lf
+
+# Aplicações e pacotes compartilhados também em LF. "text=auto" deixa o git
+# reconhecer binários (imagens, fontes) e não converter os bytes deles
+apps/** text=auto eol=lf
+packages/** text=auto eol=lf

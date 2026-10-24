@@ -1,18 +1,39 @@
-# Logs
+# Padrões sem "/" no início valem em qualquer pasta (site/, apps/<nome>/, packages/)
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.local
 logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
 
-# Editor directories and files
+# Bancos SQLite locais
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Variáveis de ambiente locais (o .env.example é versionado)
+.env
+.env.*
+!.env.example
+
+# Editores e sistema (o .claude/launch.json é versionado)
+.claude/settings.local.json
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,27 +43,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# production
-/build
-
-# misc
-.DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
