@@ -33,6 +33,11 @@ compara, marca `used_at`, cria o usuário se for o primeiro acesso e cria a sess
 email vale. Dois verify do mesmo primeiro acesso ao mesmo tempo esperam um pelo outro no BEGIN
 IMMEDIATE: o segundo encontra o código já usado (e o `email` único em `users` segura o resto).
 
+Código de exclusão de conta (`request_delete_code` e `use_delete_code`, ETH-27): o mesmo
+mecanismo, com `purpose=delete_account` e `user_id` preenchido. Os limites de envio contam os
+códigos de todos os propósitos do email; pedir um código de exclusão invalida só os de exclusão.
+As duas rodam dentro do `write_transaction` de `app/auth/deletion.py`, que faz a exclusão.
+
 Código e token nunca vão para log nem para o `audit_log`; no banco ficam só os sha256.
 """
 
@@ -52,6 +57,7 @@ from app.auth.security import generate_code, generate_token, hash_secret, verify
 from app.config import Settings, is_email
 from app.db import require_write_transaction, write_transaction
 from app.mail.catalog import CapWindow, Email, SendCapReached
+from app.mail.catalog import DeleteCode as DeleteCodeEmail
 from app.mail.catalog import LoginCode as LoginCodeEmail
 from app.mail.language import Locale, pick_locale
 from app.models import (
@@ -154,16 +160,9 @@ def request_login_code(
     """
     with write_transaction(session):
         now = utcnow()
-        if _email_limit_reached(session, email, now):
-            return CodeRequestResult(CodeRequestOutcome.RATE_LIMITED)
-        cap = _send_cap_reached(session, settings, now)
-        if cap is not None:
-            window, limit = cap
-            alert = _support_alert(session, settings, window, limit, now)
-            return CodeRequestResult(CodeRequestOutcome.CAP_REACHED, alert)
-
-        delete_expired_login_codes(session, now)
-        delete_expired_sessions(session, now)
+        refused = _check_send_limits(session, settings, email, now)
+        if refused is not None:
+            return refused
         user = _find_user(session, email)
         code = _issue_code(session, email, CodePurpose.LOGIN, now)
         if user is None:
@@ -175,6 +174,67 @@ def request_login_code(
             locale = pick_locale(user.locale, accept_language)
         message = LoginCodeEmail(code=code, valid_minutes=CODE_LIFETIME_MINUTES)
         return CodeRequestResult(CodeRequestOutcome.SENT, (OutgoingEmail(email, locale, message),))
+
+
+def request_delete_code(
+    session: Session, settings: Settings, *, user: User, ip: str | None
+) -> CodeRequestResult:
+    """Cria um código de exclusão de conta para `user` e diz o que responder (202 ou 429).
+
+    Mesmas regras do código de login: limites por email e teto global (contados juntos com os
+    códigos de login), invalidação dos anteriores do mesmo email e propósito, validade e
+    tentativas. O código vai para o email atual da conta, no idioma dela, e fica ligado a ela
+    (`login_codes.user_id`). Exige estar dentro de `write_transaction`: quem chama
+    (`app/auth/deletion.py`) relê o usuário e confere o último admin na mesma transação.
+    """
+    require_write_transaction(session)
+    now = utcnow()
+    refused = _check_send_limits(session, settings, user.email, now)
+    if refused is not None:
+        return refused
+    code = _issue_code(session, user.email, CodePurpose.DELETE_ACCOUNT, now, user_id=user.id)
+    audit.record(session, AuditEvent.DELETE_CODE_REQUESTED, user_id=user.id, ip=ip)
+    message = DeleteCodeEmail(code=code, valid_minutes=CODE_LIFETIME_MINUTES)
+    outgoing = OutgoingEmail(user.email, pick_locale(user.locale), message)
+    return CodeRequestResult(CodeRequestOutcome.SENT, (outgoing,))
+
+
+def use_delete_code(session: Session, *, user: User, code: str) -> bool:
+    """Confere o código de exclusão de `user` e, se certo, o marca como usado.
+
+    Mesmas regras do `verify_login_code`: a tentativa é contada antes de comparar, só o código
+    mais recente do email vale, uma vez só, por `CODE_LIFETIME` e `MAX_CODE_ATTEMPTS`. Código de
+    login (outro propósito) ou de outra conta é recusado. Exige `write_transaction`; quem chama
+    faz o commit da tentativa também quando a resposta é False.
+    """
+    require_write_transaction(session)
+    now = utcnow()
+    login_code = _attempt(
+        session, user.email, CodePurpose.DELETE_ACCOUNT, code, now, user_id=user.id
+    )
+    if login_code is None:
+        return False
+    login_code.used_at = now
+    return True
+
+
+def _check_send_limits(
+    session: Session, settings: Settings, email: str, now: datetime
+) -> CodeRequestResult | None:
+    """O resultado de recusa (429) se um limite de envio bateu; senão None, já com a limpeza.
+
+    Antes do código novo saem os códigos e as sessões vencidos (`app/retention.py`).
+    """
+    if _email_limit_reached(session, email, now):
+        return CodeRequestResult(CodeRequestOutcome.RATE_LIMITED)
+    cap = _send_cap_reached(session, settings, now)
+    if cap is not None:
+        window, limit = cap
+        alert = _support_alert(session, settings, window, limit, now)
+        return CodeRequestResult(CodeRequestOutcome.CAP_REACHED, alert)
+    delete_expired_login_codes(session, now)
+    delete_expired_sessions(session, now)
+    return None
 
 
 def _count_codes(session: Session, *where: object) -> int:
@@ -235,8 +295,18 @@ def _find_user(session: Session, email: str) -> User | None:
     )
 
 
-def _issue_code(session: Session, email: str, purpose: CodePurpose, now: datetime) -> str:
-    """Invalida os códigos anteriores do email e propósito e cria um novo. Devolve o código."""
+def _issue_code(
+    session: Session,
+    email: str,
+    purpose: CodePurpose,
+    now: datetime,
+    *,
+    user_id: int | None = None,
+) -> str:
+    """Invalida os códigos anteriores do email e propósito e cria um novo. Devolve o código.
+
+    `user_id`: vazio no login; a conta, nas ações de uma conta existente (exclusão).
+    """
     session.execute(
         update(LoginCode)
         .where(
@@ -252,6 +322,7 @@ def _issue_code(session: Session, email: str, purpose: CodePurpose, now: datetim
     session.add(
         LoginCode(
             email=email,
+            user_id=user_id,
             purpose=purpose.value,
             code_hash=hash_secret(code),
             expires_at=now + CODE_LIFETIME,
@@ -328,12 +399,19 @@ def verify_login_code(
 
 
 def _attempt(
-    session: Session, email: str, purpose: CodePurpose, code: str, now: datetime
+    session: Session,
+    email: str,
+    purpose: CodePurpose,
+    code: str,
+    now: datetime,
+    *,
+    user_id: int | None = None,
 ) -> LoginCode | None:
     """Conta uma tentativa no código mais recente e o devolve se `code` bate; senão None.
 
     Código usado, vencido ou com as tentativas esgotadas é recusado sem contar outra tentativa,
-    então `attempts` nunca passa de `MAX_CODE_ATTEMPTS`.
+    então `attempts` nunca passa de `MAX_CODE_ATTEMPTS`. Com `user_id`, o código mais recente do
+    email e propósito também precisa ser dessa conta (o email pode ter mudado de dono).
     """
     login_code = session.scalar(
         select(LoginCode)
@@ -344,6 +422,7 @@ def _attempt(
     )
     if (
         login_code is None
+        or (user_id is not None and login_code.user_id != user_id)
         or login_code.used_at is not None
         or login_code.expires_at <= now
         or login_code.attempts >= MAX_CODE_ATTEMPTS

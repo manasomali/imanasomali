@@ -34,10 +34,14 @@ Regras:
   apaga a auditoria dele (decisão do plano). Por isso o evento que precisa sobreviver ao hábito,
   como `habit_deleted`, vai com `habit_id=None` e o id em `details` (`{"habit_id": 7}`). O mesmo
   vale para `account_deleted`: `user_id` é quem apagou (`None` quando foi o próprio usuário, cuja
-  linha já não existe) e o id da conta vai em `details` (`{"account_id": 7}`), sem email.
+  linha já não existe) e o id da conta vai em `details` (`{"account_id": 7, "by_admin": false}`),
+  sem email.
 
 Nunca ponha no `details` código, token, cookie nem senha, e evite email: a exclusão de conta
-(ETH-27) precisa tirar email do `details` das linhas que ficam.
+(`app/auth/deletion.py`) tira todo texto com "@" do `details` das linhas que ficam e citam a
+conta. Evento sobre outra conta (de admin) leva o id dela em `details.target_user_id`, que é
+como a exclusão acha a linha; ids de conta em eventos de hábito vão em `author_id` ou
+`member_id`, que a exclusão troca por `null`.
 """
 
 import ipaddress
@@ -79,7 +83,8 @@ class AuditEvent(StrEnum):
     TERMS_ACCEPTED = "terms_accepted"
     # Fuso ou idioma alterado; o que mudou (ETH-18)
     PROFILE_UPDATED = "profile_updated"
-    # Conta apagada; user_id = quem apagou (None se o próprio), {"account_id": n} (ETH-27/28)
+    # Conta apagada; user_id = quem apagou (None se o próprio),
+    # {"account_id": n, "by_admin": bool} (ETH-27/28)
     ACCOUNT_DELETED = "account_deleted"
 
     # --- Hábitos: ficam enquanto o hábito existe (habit_id preenchido) ---
@@ -118,7 +123,8 @@ class AuditEvent(StrEnum):
     ADMIN_VIEWED_HABITS = "admin_viewed_habits"
     USER_BLOCKED = "user_blocked"  # ETH-28
     USER_UNBLOCKED = "user_unblocked"  # ETH-28
-    # Troca de email pelo suporte: email antigo, novo e o admin (ETH-28)
+    # Troca de email pelo suporte: email antigo, novo e o admin, com a conta em
+    # `target_user_id` (ETH-28)
     EMAIL_CHANGED = "email_changed"
     BANNER_CREATED = "banner_created"  # ETH-28
     BANNER_UPDATED = "banner_updated"  # ETH-28
