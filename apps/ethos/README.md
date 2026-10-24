@@ -34,7 +34,7 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/alerts/service.py,app/audit.py,app/auth/deletion.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/history/service.py,app/marks/schemas.py,app/marks/service.py,app/pagination.py,app/progress/service.py,app/retention.py,app/score.py,app/sharing/quota.py,app/sharing/service.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/admin/accounts.py,app/admin/banners.py,app/alerts/service.py,app/audit.py,app/auth/deletion.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/history/service.py,app/marks/schemas.py,app/marks/service.py,app/pagination.py,app/progress/service.py,app/retention.py,app/score.py,app/sharing/quota.py,app/sharing/service.py   # depois do pytest
 ```
 
 Alguns módulos precisam de 100% de cobertura (linhas e ramos). A lista fica na variável `FULL_COVERAGE` do passo "Cobertura de 100% nos módulos críticos" do CI, que confere cada um com o `coverage report` acima.
@@ -228,6 +228,30 @@ A avaliação (`run_alerts`):
 - No máximo um email por membro e hábito por dia local (`last_sent_at`), juntando meta e custo num email só (`Alert`), no idioma do usuário, com o link para `APP_URL/habits/{id}/alerts`.
 - Sem email duplicado: o alerta é relido e reavaliado dentro de um `BEGIN IMMEDIATE`, que grava `last_evaluated_at` e `last_sent_at` antes do envio; o envio sai depois do commit, fora da trava. Execuções repetidas ou ao mesmo tempo mandam um email só. Se o envio falha, outra transação desfaz a marcação e a próxima execução tenta de novo; se o processo morre entre o commit e o envio, aquele email se perde (um alerta a menos, nunca um repetido).
 - Falha num alerta (SMTP, fuso inválido, erro inesperado) vira uma linha de log com os ids do hábito e do usuário e o tipo do erro (nunca email, nome do hábito ou a mensagem da exceção) e não impede os outros.
+
+### Admin e banners
+
+O pacote `app/admin/` (`accounts.py` e `banners.py` com 100% de cobertura, `schemas.py` e `routes.py`) tem o painel de admin. Todo `/admin/...` exige `AdminUser` (a dependência está também no router, então rota nova nunca fica aberta): sem sessão, 401 `unauthorized`; usuário comum, 403 `forbidden`. Cada escrita confere de novo, dentro do `BEGIN IMMEDIATE`, que quem age continua admin ativo (dois admins que se bloqueiam ao mesmo tempo não ficam os dois bloqueados). Conta ou banner que não existe: 404 `not_found`. Listas paginadas por cursor, `limit` de 1 a 200 (padrão 50).
+
+| Endpoint | O quê |
+|---|---|
+| `GET /admin/users` | `{"users": [{id, email, is_active, is_admin, timezone, locale, created_at, last_login_at, habit_count, mark_count}], "next_cursor"}`, das contas mais novas às mais antigas. Filtros: `email` (trecho, sem curingas; espaços e maiúsculas não importam), `status` (`active` ou `blocked`), `created_from`/`created_to` e `last_login_from`/`last_login_to` (datas locais inclusivas no fuso do admin; fim antes do início, 422 no campo do fim). |
+| `GET /admin/users/{id}/habits` | `{"user", "habits", "marks", "next_cursor"}`: a conta, os hábitos de que ela é dona em qualquer status (como no `GET /habits/{id}`, `role` owner, sem `score`) e uma página das marcações deles, de todos os autores, com as observações, das mais recentes às mais antigas. `habit_id` filtra um hábito dela (de outra conta: 404). Cada chamada grava `admin_viewed_habits`, na mesma transação da leitura. |
+| `POST /admin/users/{id}/block` | Desliga o `is_active` e apaga as sessões: a pessoa não recebe código nem entra; os dados ficam. A própria conta: 409 `cannot_block_self`. Devolve a conta. |
+| `POST /admin/users/{id}/unblock` | Liga o `is_active`. Devolve a conta. |
+| `PATCH /admin/users/{id}/email` | Corpo `{new_email}` (normalizado como no login). Email que já tem conta, inclusive o atual: 409 `email_in_use` (field `new_email`), sem mudar nada. Apaga as sessões, vence os códigos pendentes do email antigo e da conta e avisa o email antigo e o novo depois da resposta. Os convites pendentes recebidos continuam (são da conta). Devolve a conta. |
+| `DELETE /admin/users/{id}` | 204: a exclusão de `app/auth/deletion.py` (último admin ativo: 409 `last_admin`), com os avisos depois da resposta. |
+| `GET /admin/banners` | `{"banners": [{id, text_pt, text_en, starts_at, ends_at, created_by, created_at, updated_at}], "next_cursor"}`, todos, dos criados por último aos primeiros. |
+| `POST /admin/banners` | 201. Corpo `{text_pt, text_en, starts_at, ends_at}`. |
+| `PATCH /admin/banners/{id}` | Qualquer parte dos mesmos campos (`null` e campo desconhecido: 422). |
+| `POST /admin/banners/{id}/end` | Fecha a janela agora. Agendado que ainda não começou: nunca aparece (`starts_at` vira 1 µs antes do fim). Já encerrado: nada muda. |
+| `GET /banners/active` | Público, sem sessão nem termos: `{"banner": {id, text_pt, text_en, starts_at, ends_at} \| null}`. |
+
+- Contagens: `habit_count` são os hábitos de que a conta é dona (todos os status) e `mark_count` as marcações que ela fez em qualquer hábito; saem de subconsultas na consulta da página (uma consulta, sem N+1).
+- Último login: a coluna `users.last_login_at`, gravada a cada login por código (nula em quem nunca entrou). Não vem das sessões (somem no logout) nem do evento `login` (apagado depois de 90 dias).
+- Bloquear não tira o último admin ativo: o admin não bloqueia a si mesmo, e quem bloqueia continua admin. Bloquear outro admin é permitido.
+- Banner: texto de 1 a 280 caracteres por idioma, sem espaços nas pontas, uma linha só (controles e quebra de linha: 422), guardado como veio (HTML não é interpretado; o front mostra como texto). Janela `[starts_at, ends_at)` em UTC, com o fim depois do início (senão 422 `ends_at`). Com mais de um na janela, aparece o que começou por último (empate: o criado depois).
+- Auditoria, com `user_id` = o admin e a conta alvo em `details.target_user_id` (é por ele que a exclusão da conta acha a linha e tira os emails): `admin_viewed_habits` `{target_user_id, habit_id?}`; `user_blocked` `{target_user_id, sessions}`; `user_unblocked` `{target_user_id}`; `email_changed` `{target_user_id, old_email, new_email, sessions}`; `account_deleted` (ver "Exclusão de conta"). Banners: `banner_created` `{banner_id, text_pt, text_en, starts_at, ends_at}`, `banner_updated` e `banner_ended` `{banner_id, changes: [{field, old, new}]}`. Ação que não muda nada (bloquear quem já está bloqueado, editar com os mesmos valores) não grava.
 
 ### Comandos de operação (CLI)
 

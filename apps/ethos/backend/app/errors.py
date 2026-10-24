@@ -57,6 +57,11 @@ class ErrorCode(StrEnum):
     # Excluir a conta deixaria o serviço sem nenhum admin ativo (pelo DELETE /auth/me ou pelo
     # admin): 409. Antes, outro admin precisa existir (cli.py create-admin)
     LAST_ADMIN = "last_admin"
+    # Troca de email pelo admin para um email que já tem conta (inclusive o atual da própria
+    # conta): 409 com field `new_email`, sem mudar nada
+    EMAIL_IN_USE = "email_in_use"
+    # Admin tentando bloquear a própria conta (ficaria sem acesso ao painel): 409
+    CANNOT_BLOCK_SELF = "cannot_block_self"
 
 
 # Código de uma HTTPException pelo status. Status fora da tabela cai no genérico da faixa

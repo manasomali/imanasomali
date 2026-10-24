@@ -77,6 +77,8 @@ jobs:
       - name: Cobertura de 100% nos módulos críticos
         env:
           FULL_COVERAGE: |
+            app/admin/accounts.py
+            app/admin/banners.py
             app/alerts/service.py
             app/audit.py
             app/auth/deletion.py
