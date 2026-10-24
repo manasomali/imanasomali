@@ -32,7 +32,7 @@ provision_databases() {
     [[ -d $dir ]] || continue
     name=$(basename "$dir")
     if [[ -z ${wanted[$name]:-} ]]; then
-      warn "$dir não está em databases.txt: dados mantidos, mas SEM backup"
+      warn "${dir%/} não está em databases.txt: dados mantidos, mas SEM backup"
     fi
   done
 }
