@@ -39,6 +39,8 @@ class ErrorCode(StrEnum):
     TERMS_NOT_ACCEPTED = "terms_not_accepted"
     # Criar outro hábito passaria do MAX_HABITS_PER_USER (ativos + pausados do dono): 409
     HABIT_LIMIT_REACHED = "habit_limit_reached"
+    # Escrita num hábito arquivado, que é só leitura (desarquivar e apagar continuam): 409
+    HABIT_ARCHIVED = "habit_archived"
 
 
 # Código de uma HTTPException pelo status. Status fora da tabela cai no genérico da faixa

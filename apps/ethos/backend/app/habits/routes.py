@@ -1,23 +1,32 @@
-"""Endpoints de `/habits`: criar, listar, ver, editar e apagar (ETH-20).
+"""Endpoints de `/habits`: criar, listar, ver, editar, apagar, pausar e arquivar (ETH-20 e 21).
 
 Todos exigem `CurrentUser`. As regras ficam em `app/habits/service.py` e o acesso em
 `app/habits/access.py`; aqui só a entrada, a pontuação da resposta e os emails depois do commit.
 
 - `GET /habits`: `{"habits": [...]}`, os hábitos do usuário e os compartilhados com ele, cada um
-  com o `role` dele (`owner`, `editor`, `viewer`).
+  com o `role` dele (`owner`, `editor`, `viewer`). Por padrão, os ativos e pausados; com
+  `?archived=true`, só os arquivados.
 - `POST /habits`: 201 com o hábito. Limite de hábitos: 409 `habit_limit_reached`.
 - `GET /habits/{id}`: o hábito. Sem acesso (ou id que não existe): 404 `not_found`.
-- `PATCH /habits/{id}`: mudança parcial, só o dono (editor e viewer: 403 `forbidden`).
-- `DELETE /habits/{id}`: 204, só o dono. Os membros recebem o email "hábito apagado".
+- `PATCH /habits/{id}`: mudança parcial, só o dono (editor e viewer: 403 `forbidden`). Arquivado
+  é só leitura: 409 `habit_archived`.
+- `DELETE /habits/{id}`: 204, só o dono, inclusive arquivado. Os membros recebem o email "hábito
+  apagado".
+- `POST /habits/{id}/pause`, `/resume`, `/archive`, `/unarchive`: só o dono, sem corpo; devolvem o
+  hábito. Pedir o estado atual não muda nada. Pausar e retomar um arquivado: 409
+  `habit_archived`. Desarquivar acima do limite de hábitos: 409 `habit_limit_reached`. Regras em
+  `service.py`.
 
 Campo inválido: 422 `validation_error` com o `field`. Pontuação (`score`: `value` e `success`)
 só com `score_enabled`, calculada pelo `score.py` no fuso de quem pede; desligada, a chave nem
 aparece.
 """
 
+from functools import partial
+from typing import Annotated, Protocol
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, BackgroundTasks, Request
+from fastapi import APIRouter, BackgroundTasks, Query, Request
 from sqlalchemy.orm import Session
 
 from app.auth.deps import CurrentUser
@@ -36,7 +45,7 @@ from app.habits.schemas import (
 from app.habits.scoring import evaluate_habits
 from app.mail.catalog import HabitDeleted
 from app.mail.sender import MailerDep, schedule_email
-from app.models import utcnow
+from app.models import User, utcnow
 from app.request_info import client_ip
 
 router = APIRouter(prefix="/habits", tags=["habits"])
@@ -74,8 +83,10 @@ def present(session: Session, accesses: list[HabitAccess], timezone: str) -> lis
 
 
 @router.get("")
-def list_habits(user: CurrentUser, session: SessionDep) -> HabitList:
-    accesses = service.list_habits(session, user.id)
+def list_habits(
+    user: CurrentUser, session: SessionDep, archived: Annotated[bool, Query()] = False
+) -> HabitList:
+    accesses = service.list_habits(session, user.id, archived=archived)
     return HabitList(habits=present(session, accesses, user.timezone))
 
 
@@ -151,3 +162,54 @@ def delete_habit(
             member.locale,
             HabitDeleted(habit_name=deleted.name),
         )
+
+
+class StatusAction(Protocol):
+    """Regra do `service` que muda o status: pausar, retomar, arquivar ou desarquivar."""
+
+    def __call__(
+        self, session: Session, *, user_id: int, habit_id: int, ip: str | None
+    ) -> HabitAccess: ...
+
+
+def _change_status(
+    action: StatusAction, habit_id: int, user: User, request: Request, session: Session
+) -> HabitOut:
+    # O write_transaction expira o usuário: os valores dele são lidos antes
+    user_id, timezone = user.id, user.timezone
+    access = action(session, user_id=user_id, habit_id=habit_id, ip=client_ip(request))
+    [out] = present(session, [access], timezone)
+    return out
+
+
+@router.post("/{habit_id}/pause")
+def pause_habit(
+    habit_id: HabitId, user: CurrentUser, request: Request, session: SessionDep
+) -> HabitOut:
+    return _change_status(service.pause_habit, habit_id, user, request, session)
+
+
+@router.post("/{habit_id}/resume")
+def resume_habit(
+    habit_id: HabitId, user: CurrentUser, request: Request, session: SessionDep
+) -> HabitOut:
+    return _change_status(service.resume_habit, habit_id, user, request, session)
+
+
+@router.post("/{habit_id}/archive")
+def archive_habit(
+    habit_id: HabitId, user: CurrentUser, request: Request, session: SessionDep
+) -> HabitOut:
+    return _change_status(service.archive_habit, habit_id, user, request, session)
+
+
+@router.post("/{habit_id}/unarchive")
+def unarchive_habit(
+    habit_id: HabitId,
+    user: CurrentUser,
+    request: Request,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> HabitOut:
+    action = partial(service.unarchive_habit, settings=settings)
+    return _change_status(action, habit_id, user, request, session)

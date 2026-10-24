@@ -1,4 +1,4 @@
-"""Regras de criar, editar, apagar e listar hábitos (ETH-20).
+"""Regras de criar, editar, apagar, listar, pausar e arquivar hábitos (ETH-20 e ETH-21).
 
 Cada função de escrita abre o próprio `write_transaction` (BEGIN IMMEDIATE) e faz dentro dele as
 leituras que decidem a escrita: acesso, limite de hábitos e a configuração atual. Erros de regra
@@ -8,15 +8,36 @@ saem como `ApiError` e desfazem a transação.
   contam; hábitos dos outros, compartilhados com ele, também não), na mesma transação do INSERT.
   Duas criações em paralelo no limite não passam dele: a segunda espera a trava da primeira e
   conta de novo. Acima do limite: 409 `habit_limit_reached`.
-- Editar: só o dono. A configuração inteira depois da mudança passa por `check_config`. Desligar
-  um recurso não apaga nada (nem no hábito nem nas marcações): o valor fica guardado, é ignorado
-  pela pontuação e volta ao religar. Cada campo que mudou vai para o `audit_log`
-  (`habit_updated`, `{"changes": [{"field", "old", "new"}]}`; a descrição, longa, vai só com
-  `{"field": "description"}`); sem mudança, nada é gravado.
-- Apagar: só o dono. O banco apaga em cascata marcações, pausas, membros, convites, alertas e a
-  auditoria do hábito. O evento `habit_deleted` vai com `habit_id=None` e o id em `details`,
-  para sobreviver ao CASCADE. Devolve os membros, que recebem o email depois do commit.
-- Listar: os hábitos do usuário e os compartilhados com ele, com o papel, numa consulta só.
+- Editar: só o dono, e não num arquivado (409 `habit_archived`). A configuração inteira depois
+  da mudança passa por `check_config`. Desligar um recurso não apaga nada (nem no hábito nem nas
+  marcações): o valor fica guardado, é ignorado pela pontuação e volta ao religar. Cada campo que
+  mudou vai para o `audit_log` (`habit_updated`, `{"changes": [{"field", "old", "new"}]}`; a
+  descrição, longa, vai só com `{"field": "description"}`); sem mudança, nada é gravado.
+- Apagar: só o dono, inclusive arquivado. O banco apaga em cascata marcações, pausas, membros,
+  convites, alertas e a auditoria do hábito. O evento `habit_deleted` vai com `habit_id=None` e
+  o id em `details`, para sobreviver ao CASCADE. Devolve os membros, que recebem o email depois
+  do commit.
+- Listar: os hábitos do usuário e os compartilhados com ele, com o papel, numa consulta só. Os
+  arquivados saem da lista principal e aparecem só na lista de arquivados.
+
+Pausar e arquivar (ethos-plan.md, "pausar e arquivar"), só o dono. Cada ação devolve o hábito e
+grava o evento dela; pedir o estado em que o hábito já está não muda nada nem grava evento
+(idempotente: clique duplo ou duas abas não criam um segundo intervalo de pausa).
+
+- `habits.status` e `habit_pauses` andam juntos: fora do arquivo, `paused` tem exatamente uma
+  pausa aberta (`ended_at` nulo) e `active` nenhuma. O índice único `uq_habit_pauses_open`
+  garante no banco que nunca há duas abertas.
+- Pausar (`active` -> `paused`): abre uma pausa agora. Retomar (`paused` -> `active`): fecha a
+  pausa aberta agora. Pausado continua marcável; a pontuação ignora os períodos com pausa.
+- Arquivar (`active`/`paused` -> `archived`, `archived_at` = agora): a pontuação congela em
+  `archived_at`. A pausa aberta de um hábito pausado continua aberta: ela é o registro de que o
+  hábito estava pausado (não muda a pontuação congelada, que só olha períodos anteriores ao do
+  arquivamento).
+- Desarquivar: respeita `MAX_HABITS_PER_USER` na mesma transação (409 `habit_limit_reached`) e
+  volta ao status de antes. Com a pausa aberta, volta `paused` (a pausa cobre o tempo arquivado).
+  Sem ela, volta `active` e o tempo arquivado vira uma pausa fechada `[archived_at, agora)`: nele
+  não dava para marcar, então esses períodos não podem contar como meta não cumprida.
+- Em arquivado, pausar e retomar dão 409 `habit_archived`; apagar continua permitido.
 """
 
 from collections.abc import Mapping, Set
@@ -31,10 +52,26 @@ from app.audit import AuditEvent
 from app.config import Settings
 from app.db import write_transaction
 from app.errors import ApiError, ErrorCode
-from app.habits.access import HabitAccess, HabitRole, get_habit_access, require_owner
+from app.habits.access import (
+    HabitAccess,
+    HabitRole,
+    get_habit_access,
+    require_owner,
+    require_writable,
+)
 from app.habits.schemas import CONFIG_FIELDS
 from app.mail.language import Locale, pick_locale
-from app.models import CostLevel, GoalType, Habit, HabitMember, HabitStatus, Period, User
+from app.models import (
+    CostLevel,
+    GoalType,
+    Habit,
+    HabitMember,
+    HabitPause,
+    HabitStatus,
+    Period,
+    User,
+    utcnow,
+)
 
 # Dias do período usados no teto de N: o menor mês (28) para a meta ser sempre possível
 PERIOD_DAYS = {Period.WEEK: 7, Period.MONTH: 28, Period.YEAR: 365}
@@ -146,11 +183,12 @@ def update_habit(
 ) -> HabitAccess:
     """Aplica a mudança parcial `values` (só os campos enviados, em valores simples).
 
-    Levanta 404 (sem acesso), 403 (não é o dono) ou 422 (`check_config`).
+    Levanta 404 (sem acesso), 403 (não é o dono), 409 `habit_archived` ou 422 (`check_config`).
     """
     with write_transaction(session):
         access = get_habit_access(session, habit_id, user_id)
-        habit = require_owner(access)
+        require_owner(access)
+        habit = require_writable(access)
         current = _config(habit)
         changed = {name for name, value in values.items() if current[name] != value}
         check_config(current | dict(values), changed, settings)
@@ -213,16 +251,23 @@ def delete_habit(session: Session, *, user_id: int, habit_id: int, ip: str | Non
     return DeletedHabit(name=name, members=members)
 
 
-def list_habits(session: Session, user_id: int) -> list[HabitAccess]:
-    """Hábitos do usuário e os compartilhados com ele, com o papel, em ordem de criação."""
+def list_habits(session: Session, user_id: int, *, archived: bool = False) -> list[HabitAccess]:
+    """Hábitos do usuário e os compartilhados com ele, com o papel, em ordem de criação.
+
+    Por padrão, os ativos e pausados (a lista principal); com `archived`, só os arquivados.
+    """
     shared = select(HabitMember.habit_id).where(HabitMember.user_id == user_id)
+    if archived:
+        status = Habit.status == HabitStatus.ARCHIVED.value
+    else:
+        status = Habit.status != HabitStatus.ARCHIVED.value
     rows = session.execute(
         select(Habit, HabitMember.role)
         .outerjoin(
             HabitMember,
             and_(HabitMember.habit_id == Habit.id, HabitMember.user_id == user_id),
         )
-        .where(or_(Habit.owner_id == user_id, Habit.id.in_(shared)))
+        .where(or_(Habit.owner_id == user_id, Habit.id.in_(shared)), status)
         .order_by(Habit.id)
         .execution_options(populate_existing=True)
     ).all()
@@ -231,3 +276,84 @@ def list_habits(session: Session, user_id: int) -> list[HabitAccess]:
         HabitAccess(habit, HabitRole.OWNER if habit.owner_id == user_id else HabitRole(member_role))
         for habit, member_role in rows
     ]
+
+
+def _open_pause(session: Session, habit_id: int) -> HabitPause | None:
+    """A pausa em andamento do hábito (no máximo uma, pelo índice `uq_habit_pauses_open`)."""
+    return session.scalar(
+        select(HabitPause).where(HabitPause.habit_id == habit_id, HabitPause.ended_at.is_(None))
+    )
+
+
+def _record(
+    session: Session, event: AuditEvent, *, user_id: int, habit_id: int, ip: str | None
+) -> None:
+    audit.record(session, event, user_id=user_id, ip=ip, habit_id=habit_id)
+
+
+def pause_habit(session: Session, *, user_id: int, habit_id: int, ip: str | None) -> HabitAccess:
+    """Pausa o hábito ativo (já pausado: nada muda). Levanta 404, 403 ou 409 `habit_archived`."""
+    with write_transaction(session):
+        access = get_habit_access(session, habit_id, user_id)
+        require_owner(access)
+        habit = require_writable(access)
+        if habit.status != HabitStatus.PAUSED:
+            session.add(HabitPause(habit_id=habit_id, started_at=utcnow()))
+            habit.status = HabitStatus.PAUSED.value
+            _record(session, AuditEvent.HABIT_PAUSED, user_id=user_id, habit_id=habit_id, ip=ip)
+    return access
+
+
+def resume_habit(session: Session, *, user_id: int, habit_id: int, ip: str | None) -> HabitAccess:
+    """Retoma o hábito pausado (já ativo: nada muda). Levanta 404, 403 ou 409 `habit_archived`."""
+    with write_transaction(session):
+        access = get_habit_access(session, habit_id, user_id)
+        require_owner(access)
+        habit = require_writable(access)
+        if habit.status == HabitStatus.PAUSED:
+            pause = _open_pause(session, habit_id)
+            if pause is not None:
+                # Relógio que voltou não pode gerar intervalo negativo (CHECK no banco)
+                pause.ended_at = max(utcnow(), pause.started_at)
+            habit.status = HabitStatus.ACTIVE.value
+            _record(session, AuditEvent.HABIT_RESUMED, user_id=user_id, habit_id=habit_id, ip=ip)
+    return access
+
+
+def archive_habit(session: Session, *, user_id: int, habit_id: int, ip: str | None) -> HabitAccess:
+    """Arquiva o hábito (já arquivado: nada muda, `archived_at` fica). Levanta 404 ou 403."""
+    with write_transaction(session):
+        access = get_habit_access(session, habit_id, user_id)
+        habit = require_owner(access)
+        if habit.status != HabitStatus.ARCHIVED:
+            habit.status = HabitStatus.ARCHIVED.value
+            habit.archived_at = utcnow()
+            _record(session, AuditEvent.HABIT_ARCHIVED, user_id=user_id, habit_id=habit_id, ip=ip)
+    return access
+
+
+def unarchive_habit(
+    session: Session, settings: Settings, *, user_id: int, habit_id: int, ip: str | None
+) -> HabitAccess:
+    """Desarquiva o hábito, de volta ao status de antes (não arquivado: nada muda).
+
+    Levanta 404, 403 ou 409 `habit_limit_reached` (o hábito voltaria a contar no limite).
+    """
+    with write_transaction(session):
+        access = get_habit_access(session, habit_id, user_id)
+        habit = require_owner(access)
+        if habit.status == HabitStatus.ARCHIVED:
+            if count_owned_habits(session, habit.owner_id) >= settings.max_habits_per_user:
+                raise ApiError(409, ErrorCode.HABIT_LIMIT_REACHED)
+            now = utcnow()
+            archived_at = habit.archived_at
+            if _open_pause(session, habit_id) is not None:
+                habit.status = HabitStatus.PAUSED.value
+            else:
+                habit.status = HabitStatus.ACTIVE.value
+                # Sem tempo arquivado (mesmo instante ou relógio que voltou), nada a pausar
+                if now > archived_at:
+                    session.add(HabitPause(habit_id=habit_id, started_at=archived_at, ended_at=now))
+            habit.archived_at = None
+            _record(session, AuditEvent.HABIT_UNARCHIVED, user_id=user_id, habit_id=habit_id, ip=ip)
+    return access

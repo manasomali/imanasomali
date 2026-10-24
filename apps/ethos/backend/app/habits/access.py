@@ -9,10 +9,15 @@ Papéis (ethos-plan.md, "compartilhamento"):
 Quem não é nenhum dos três recebe 404 `not_found`, igual a um id que não existe: a API nunca
 revela que o hábito existe. Quem vê mas não pode fazer a ação recebe 403 `forbidden`.
 
+Hábito arquivado é só leitura (ethos-plan.md, "pausar e arquivar"): toda escrita nele (editar a
+configuração, pausar, retomar, marcar, desmarcar, editar marcação) recebe 409 `habit_archived`.
+Desarquivar e apagar continuam permitidos ao dono. Pausado continua marcável.
+
 Uso num endpoint (vale dentro de um `write_transaction`, onde a leitura fica protegida):
 
     access = get_habit_access(session, habit_id, user_id)  # 404
     habit = require_owner(access)                          # 403 para editor e viewer
+    require_writable(access)                               # 409 se arquivado
 """
 
 from dataclasses import dataclass
@@ -24,7 +29,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.errors import ApiError, ErrorCode
-from app.models import Habit, HabitMember
+from app.models import Habit, HabitMember, HabitStatus
 
 # Maior inteiro do SQLite: um id acima disso daria OverflowError no driver (500), não 404
 MAX_ID = 2**63 - 1
@@ -90,4 +95,15 @@ def require_owner(access: HabitAccess) -> Habit:
     """O hábito, se quem pede é o dono; senão 403 `forbidden` (editor e viewer)."""
     if not access.is_owner:
         raise ApiError(403, ErrorCode.FORBIDDEN)
+    return access.habit
+
+
+def require_writable(access: HabitAccess) -> Habit:
+    """O hábito, se aceita escrita; arquivado (só leitura) dá 409 `habit_archived`.
+
+    Confira o papel antes (`require_owner`, ou `can_mark` nas marcações): quem não pode escrever
+    recebe 403 mesmo num hábito arquivado.
+    """
+    if access.habit.status == HabitStatus.ARCHIVED:
+        raise ApiError(409, ErrorCode.HABIT_ARCHIVED)
     return access.habit
