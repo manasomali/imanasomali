@@ -1,0 +1,45 @@
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: calc(var(--wide-width) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding: clamp(1.5rem, 5vw, 3rem) var(--gutter);
+}
+
+.main:focus {
+  outline: none;
+}
+
+.footer {
+  border-top: 2px solid var(--border);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.footerInner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 2rem;
+  max-width: calc(var(--wide-width) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding: 1rem var(--gutter);
+}
+
+.skipLink {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 200;
+  padding: 0.5rem 1rem;
+  background: var(--fg);
+  color: var(--bg);
+  font-weight: 700;
+  border-radius: var(--radius);
+  transform: translateY(-200%);
+  transition: transform var(--transition);
+}
+
+.skipLink:focus {
+  transform: translateY(0);
+}

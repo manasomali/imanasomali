@@ -1,10 +1,15 @@
-import styles from './App.module.css';
+import { Suspense } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from 'react-router';
 
-// Tela provisória: roteamento, i18n, tema e tokens entram na base do frontend (ETH-29)
-export default function App() {
+// `router` e `queryClient` vêm de createApp (src/bootstrap.js)
+export default function App({ router, queryClient }) {
   return (
-    <main className={styles.main}>
-      <h1>ethos</h1>
-    </main>
+    <QueryClientProvider client={queryClient}>
+      {/* As traduções chegam por HTTP: a primeira renderização espera por elas */}
+      <Suspense fallback={null}>
+        <RouterProvider router={router} />
+      </Suspense>
+    </QueryClientProvider>
   );
 }

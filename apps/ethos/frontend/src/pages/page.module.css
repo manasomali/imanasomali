@@ -1,0 +1,10 @@
+/* Estilos comuns das telas provisórias */
+.title {
+  margin-bottom: 1rem;
+  font-size: var(--text-2xl);
+}
+
+.muted {
+  margin-bottom: 1rem;
+  color: var(--muted);
+}
