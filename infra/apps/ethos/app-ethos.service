@@ -1,0 +1,37 @@
+# API do ethos (manasomali.com/api/ethos/). Instalada pelo provision, com a porta do app.conf.
+# O código e a .venv chegam pelo deploy (.github/workflows/ethos.yaml) em /opt/apps/ethos.
+
+[Unit]
+Description=ethos: API em /api/ethos/
+After=network.target
+# Antes do primeiro deploy não há .venv: a unit fica parada, sem erro
+ConditionPathExists=/opt/apps/ethos/.venv/bin/uvicorn
+# Migração quebrada ou crash em loop: no máximo 5 tentativas em 5 min, depois fica em "failed"
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User=app-ethos
+Group=app-ethos
+WorkingDirectory=/opt/apps/ethos
+EnvironmentFile=/etc/infra/smtp.env
+EnvironmentFile=/etc/infra/apps/ethos.env
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+# Migração quebrada impede o serviço de subir
+ExecStartPre=/opt/apps/ethos/.venv/bin/alembic upgrade head
+# Só em 127.0.0.1: o nginx tira o prefixo /api/ethos e repassa; --root-path devolve o prefixo
+# público às URLs geradas pelo FastAPI
+ExecStart=/opt/apps/ethos/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port __PORTA__ --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1 --root-path /api/ethos
+Restart=on-failure
+RestartSec=5
+
+MemoryMax=150M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/sqlite/ethos
+
+[Install]
+WantedBy=multi-user.target

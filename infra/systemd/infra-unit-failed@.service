@@ -1,0 +1,8 @@
+# Usada com OnFailure=infra-unit-failed@%n.service: grava no journald, com prioridade de erro,
+# qual unit falhou. Para ver: journalctl -t infra -p err
+[Unit]
+Description=Registra a falha de %i
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/logger --priority user.err --tag infra "%i falhou; veja journalctl -u %i"

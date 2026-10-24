@@ -35,6 +35,9 @@ jobs:
       - name: Python do app.conf igual ao .python-version de cada app
         run: bash .github/scripts/check-python-version.sh
 
+      - name: Portas dos app.conf únicas e na tabela do infra/README.md
+        run: bash .github/scripts/check-ports.sh
+
       - name: Testes do stdin e dos arquivos de ambiente (infra/tests)
         run: sudo bash infra/tests/test-input.sh
 
@@ -66,17 +69,18 @@ jobs:
       - name: Instalar, repetir sem baixar nada e recusar checksum errado
         run: sudo bash .github/scripts/test-install-uv.sh
 
-  # provision_databases e provision_apps de verdade: pastas, donos, sudo do deploy e snapshot
+  # provision_databases e provision_apps de verdade, com systemd: pastas, donos, sudo do deploy,
+  # units (systemd-analyze verify, stubs no lugar do código), app removida e snapshot
   apps:
-    name: 📁 Pastas das apps
+    name: 📁 Pastas e units das apps
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: sqlite3
-        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends sqlite3
+      - name: sqlite3 e nginx
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends sqlite3 nginx
 
-      - name: Criar pastas, repetir sem mudar nada e conferir donos e sudo
+      - name: Provisionar as apps, repetir sem mudar nada e conferir pastas, units e remoção
         run: sudo DEPLOY_USER="$USER" bash .github/scripts/test-provision-apps.sh
 
   deploy:

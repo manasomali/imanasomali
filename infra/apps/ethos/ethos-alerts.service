@@ -1,0 +1,25 @@
+# Alertas e limpeza do ethos, disparado pelo ethos-alerts.timer de hora em hora.
+
+[Unit]
+Description=ethos: alertas e limpeza
+ConditionPathExists=/opt/apps/ethos/.venv/bin/python
+# Grava uma linha de erro no journald (journalctl -t infra -p err)
+OnFailure=infra-unit-failed@%n.service
+
+[Service]
+Type=oneshot
+User=app-ethos
+Group=app-ethos
+WorkingDirectory=/opt/apps/ethos
+EnvironmentFile=/etc/infra/smtp.env
+EnvironmentFile=/etc/infra/apps/ethos.env
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/apps/ethos/.venv/bin/python -m app.cli run-alerts
+ExecStart=/opt/apps/ethos/.venv/bin/python -m app.cli cleanup
+
+MemoryMax=150M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/sqlite/ethos
