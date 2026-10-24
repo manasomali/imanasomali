@@ -2,9 +2,15 @@
 
 - `make_settings(**campos)`: Settings validada, com valores de teste e banco em arquivo temporário;
 - `settings`: `make_settings()` sem alterações;
-- `engine`: engine do banco de teste (em WAL, como em produção), descartada no fim;
-- `db_session`: sessão desse banco, da mesma fábrica do app;
-- `app`: app montado com `settings`;
+- `migrated_template`: banco com todas as migrações aplicadas (`alembic upgrade head`), criado uma
+  vez por sessão do pytest. Não escreva nele: os testes usam cópias;
+- `database`: cópia do `migrated_template` em `settings.database_path`, em WAL como em produção.
+  Todo teste que usa `engine`, `db_session`, `app` ou `client` já recebe o schema completo;
+- `engine`: engine desse banco, descartada no fim;
+- `db_session`: sessão desse banco, da mesma fábrica do app (escrita só em `write_transaction`);
+- `app`: app montado com `settings`, sobre o `database`;
+- `make_alembic_config(path)`: Config do Alembic apontando para o banco em `path` (para
+  `alembic.command.upgrade(config, "head")` etc.);
 - `make_client(app, **kwargs)`: TestClient com o lifespan rodando e o root_path de produção,
   fechado no fim do teste (kwargs vão para o TestClient, ex.: raise_server_exceptions=False);
 - `client`: `make_client(app)`;
@@ -16,12 +22,17 @@
   `create_app(settings, mail_backend=smtp_server.backend())`.
 """
 
+import shutil
+import sqlite3
 from collections.abc import Callable, Iterator
-from contextlib import ExitStack
+from contextlib import ExitStack, closing
+from pathlib import Path
 from typing import Any
 
 import pytest
 import trustme
+from alembic import command
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
@@ -34,6 +45,16 @@ from tests.fake_smtp import FakeSmtpServer, start_fake_smtp
 
 # Mesmo prefixo que o uvicorn recebe em produção (--root-path /api/ethos)
 ROOT_PATH = "/api/ethos"
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+
+
+def _alembic_config(database_path: Path) -> Config:
+    config = Config(BACKEND_DIR / "alembic.ini")
+    # O env.py lê o caminho daqui (fora dos testes, da variável DATABASE_PATH)
+    config.attributes["database_path"] = database_path
+    # Sem o fileConfig do alembic.ini, que trocaria os handlers de log no meio dos testes
+    config.attributes["configure_logger"] = False
+    return config
 
 
 @pytest.fixture
@@ -62,15 +83,31 @@ def settings(make_settings) -> Settings:
 
 
 @pytest.fixture
-def engine(settings) -> Iterator[Engine]:
-    engine = create_db_engine(settings.database_path)
-    # Fica gravado no arquivo, como o provision faz no banco de produção. Pela conexão do driver,
-    # porque o journal_mode não muda dentro de transação (e a do SQLAlchemy abriria uma)
-    connection = engine.raw_connection()
-    try:
-        connection.driver_connection.execute("PRAGMA journal_mode=WAL").close()
-    finally:
-        connection.close()
+def make_alembic_config() -> Callable[[Path], Config]:
+    return _alembic_config
+
+
+@pytest.fixture(scope="session")
+def migrated_template(tmp_path_factory) -> Path:
+    path = tmp_path_factory.mktemp("migrated") / "app.db"
+    command.upgrade(_alembic_config(path), "head")
+    return path
+
+
+@pytest.fixture
+def database(settings, migrated_template) -> Path:
+    path = settings.database_path
+    # O modelo fica em journal_mode=DELETE (padrão), então o arquivo sozinho é o banco inteiro
+    shutil.copyfile(migrated_template, path)
+    # Fica gravado no arquivo, como o provision faz no banco de produção
+    with closing(sqlite3.connect(path)) as connection:
+        connection.execute("PRAGMA journal_mode=WAL").close()
+    return path
+
+
+@pytest.fixture
+def engine(database) -> Iterator[Engine]:
+    engine = create_db_engine(database)
     try:
         yield engine
     finally:
@@ -84,7 +121,7 @@ def db_session(engine) -> Iterator[Session]:
 
 
 @pytest.fixture
-def app(settings) -> FastAPI:
+def app(settings, database) -> FastAPI:
     return create_app(settings)
 
 

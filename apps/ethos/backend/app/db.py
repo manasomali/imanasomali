@@ -12,6 +12,10 @@ ele fica sem controle de transação (isolation_level=None) e o BEGIN sai do SQL
 
 Toda escrita do ORM fora do `write_transaction` é recusada (evento before_flush), para essa
 regra não depender de memória.
+
+As migrações (migrations/env.py) usam a mesma engine, por `migration_connection`: chaves
+estrangeiras desligadas durante a mudança de schema e conferidas por `check_foreign_keys` antes do
+commit.
 """
 
 from collections.abc import Iterator
@@ -110,6 +114,39 @@ def write_transaction(session: Session) -> Iterator[Session]:
             yield session
     finally:
         del session.info[_IN_WRITE]
+
+
+@contextmanager
+def migration_connection(engine: Engine) -> Iterator[Connection]:
+    """Conexão para mudar o schema (Alembic): `foreign_keys=OFF` e BEGIN IMMEDIATE.
+
+    O modo batch do Alembic altera uma tabela recriando-a: cria a nova, copia as linhas, faz DROP
+    da antiga e renomeia. Com `foreign_keys=ON`, o DROP de uma tabela referenciada dispara os
+    ON DELETE CASCADE / SET NULL e apaga ou anonimiza os dados das tabelas filhas. Por isso, como
+    no procedimento de ALTER TABLE da documentação do SQLite, as chaves ficam desligadas durante
+    a migração e são conferidas com `check_foreign_keys` antes do commit.
+
+    O PRAGMA não muda dentro de uma transação, então vai direto no driver, antes do BEGIN. No fim
+    a conexão é descartada (nunca volta ao pool com as chaves desligadas). Os outros PRAGMAs
+    (busy_timeout, secure_delete...) continuam os do `create_db_engine`.
+    """
+    with engine.connect() as connection:
+        try:
+            connection.connection.driver_connection.execute("PRAGMA foreign_keys=OFF").close()
+            yield connection.execution_options(**{_BEGIN_OPTION: "IMMEDIATE"})
+        finally:
+            connection.invalidate()
+
+
+def check_foreign_keys(connection: Connection) -> None:
+    """Levanta RuntimeError se alguma linha aponta para uma chave que não existe.
+
+    A mensagem só traz os nomes das tabelas, nunca os valores.
+    """
+    violations = connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
+    if violations:
+        tables = ", ".join(sorted({row[0] for row in violations}))
+        raise RuntimeError(f"chaves estrangeiras quebradas nas tabelas: {tables}")
 
 
 def get_session(request: Request) -> Iterator[Session]:
