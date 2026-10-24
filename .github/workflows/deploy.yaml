@@ -2,15 +2,23 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "infra/**"
-      - ".github/workflows/infra.yaml"
-      - ".github/workflows/backup-verify.yaml"
+    paths:
+      - "site/**"
+      - "packages/**"
+      - ".github/workflows/deploy.yaml"
+  pull_request:
+    paths:
+      - "site/**"
+      - "packages/**"
+      - ".github/workflows/deploy.yaml"
 name: Publish Website
 jobs:
   web-deploy:
     name: 🚀 Deploy Website Every Commit
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
     steps:
     - name: 🚚 Get Latest Code
       uses: actions/checkout@v4
@@ -19,17 +27,23 @@ jobs:
       with:
         node-version: 22
         cache: "npm"
+        cache-dependency-path: site/package-lock.json
     - run: npm ci
+
+    - name: 🔍 Lint
+      run: npm run lint
 
     - name: 🔨 Build
       run: npm run build
 
+    # PRs only check lint and build; publishing happens on push to main
     - name: 📂 Sync Files
+      if: github.event_name == 'push'
       uses: SamKirkland/web-deploy@v1
       with:
         target-server: ${{ secrets.REMOTE_HOST }}
         remote-user: ${{ secrets.REMOTE_USER }}
         private-ssh-key: ${{ secrets.SERVER_SSH_KEY }}
         destination-path: /var/www/html/
-        source-path: ./dist/
+        source-path: ./site/dist/
         rsync-options: --omit-dir-times --archive --verbose --delete --delete-after --compress --human-readable --exclude=node_modules --exclude=src  --exclude=.git* --exclude=.git/ --exclude=README.md --exclude=readme.md --exclude=.gitignore

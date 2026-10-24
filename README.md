@@ -1,20 +1,14 @@
-# manasomali.com
+# imanasomali
 
-Personal website built with React 19, React Router and Vite. Styles are plain CSS Modules over the design tokens in `src/index.css` (light and dark themes); texts live in `public/locales/{pt,en}/translation.json`.
+Monorepo for [manasomali.com](https://manasomali.com): the personal website, the applications it hosts and the provisioning of the VM that serves them all.
 
-```bash
-npm install
-npm run dev     # http://localhost:5173
-npm run lint
-npm run build   # outputs to dist/
-```
+| Folder | What it is | Workflow |
+|---|---|---|
+| [site/](site/README.md) | Personal website (React 19, React Router, Vite), published at `/` | `deploy.yaml` |
+| [apps/](apps/README.md) | Applications served under `/<name>/`, with an API under `/api/<name>/` | `<name>.yaml` |
+| [packages/](packages/README.md) | Code shared by the site and the applications | triggers the workflows that use it |
+| [infra/](infra/README.md) | Bash provisioning of the Oracle VM: nginx, SQLite databases, backups | `infra.yaml`, `backup-verify.yaml` |
 
-- Projects and publications are listed in `src/data/`; their titles and descriptions are translation keys.
+Each area is independent: its own `package.json` and lockfile, no npm workspaces. An application never imports code from the site or from another application; only `packages/` is shared. A push runs only the workflows of the paths it touches, so a push that touches several areas runs several workflows in parallel, in no guaranteed order.
 
-# Deploy
-
-[<img alt="Website Deployed for Free with web deploy" src="https://img.shields.io/badge/Website deployed for free with-web deploy-%3CCOLOR%3E?style=for-the-badge&color=2b9348">](https://github.com/SamKirkland/web-deploy)
-
-# Infra
-
-The VM also hosts SQLite databases for other projects, with automated provisioning and backups. See [infra/README.md](infra/README.md).
+To add an application, follow the convention in [apps/README.md](apps/README.md).
