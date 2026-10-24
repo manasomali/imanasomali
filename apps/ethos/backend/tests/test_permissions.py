@@ -1,5 +1,6 @@
 """Matriz de permissões (ETH-24): dono, editor, viewer, estranho e sem sessão em todos os
-endpoints de hábito (ETH-20 a 24).
+endpoints de hábito (ETH-20 a 24), e quem vê o hábito nas listas (`/habits`, `/habits/progress` e
+`/history`, ETH-25).
 
 Cada caso monta o mesmo cenário (hábito da ana com a bia editora, o caio viewer, a eva viewer,
 uma marcação e um convite pendente; a dani não tem acesso) e chama um endpoint com uma conta.
@@ -192,4 +193,25 @@ def test_progress_shows_habit_to_whoever_has_access(client, db_session, make_acc
     assert response.status_code == 200
     ids = [item["habit"]["id"] for item in response.json()["habits"]]
     assert ids == ([scene.ids["habit"]] if listed else [])
+    assert (anonymous.status_code, anonymous.json()) == (401, UNAUTHORIZED)
+
+
+@pytest.mark.parametrize(
+    ("role", "listed"), [("owner", True), ("editor", True), ("viewer", True), ("stranger", False)]
+)
+def test_history_shows_habit_to_whoever_has_access(client, db_session, make_account, role, listed):
+    # GET /history (ETH-25): eventos de hábito sem acesso não aparecem, nem filtrando por ele
+    scene = build_scene(db_session, make_account, multi=False)
+    habit_id = scene.ids["habit"]
+    owner = scene.accounts["owner"]
+    # O dia já tem a marcação do cenário: o toggle a apaga e grava o mark_deleted dela
+    toggled = client.post(f"/habits/{habit_id}/toggle", json=TOGGLE, headers=owner.headers)
+    assert toggled.json() == {"marked": False, "mark": None}
+
+    for query in ({}, {"habit_id": habit_id}, {"mark_id": scene.ids["mark"]}):
+        response = client.get("/history", params=query, headers=scene.accounts[role].headers)
+        assert response.status_code == 200
+        habits = {event["habit"]["id"] for event in response.json()["events"]}
+        assert habits == ({habit_id} if listed else set())
+    anonymous = client.get("/history", params={"habit_id": habit_id})
     assert (anonymous.status_code, anonymous.json()) == (401, UNAUTHORIZED)

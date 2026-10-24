@@ -34,7 +34,7 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/marks/schemas.py,app/marks/service.py,app/progress/service.py,app/retention.py,app/score.py,app/sharing/quota.py,app/sharing/service.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/history/service.py,app/marks/schemas.py,app/marks/service.py,app/pagination.py,app/progress/service.py,app/retention.py,app/score.py,app/sharing/quota.py,app/sharing/service.py   # depois do pytest
 ```
 
 Alguns módulos precisam de 100% de cobertura (linhas e ramos). A lista fica na variável `FULL_COVERAGE` do passo "Cobertura de 100% nos módulos críticos" do CI, que confere cada um com o `coverage report` acima.
@@ -79,6 +79,7 @@ uv run --env-file .env alembic check             # modelos e banco batem? (preci
 - `app/audit.py`: `audit.record(session, AuditEvent.X, user_id=..., ip=..., habit_id=..., details={...})` grava um evento no `audit_log` dentro do `write_transaction` que faz a mudança (fora dele, `RuntimeError`). Não faz commit: um rollback desfaz a mudança e o evento juntos. `created_at` é a hora atual.
 - Os eventos são uma lista fechada (`AuditEvent`); evento fora dela levanta `AuditError`. Evento novo entra no enum e, se for de auth, em `AUTH_EVENTS`, que define a retenção.
 - `details` é um dict JSON pequeno (até 16 KB, 8 níveis). Valor que não é JSON (datetime, set, bytes, NaN...) e qualquer chave cujo nome contém `code`, `token`, `cookie`, `password`, `secret` etc., em qualquer nível, são recusados. Para registrar a mudança de um campo com esse nome (a sigla `habits.code`), o nome vai como valor: `{"changes": [{"field": "code", "old": "AB", "new": "CD"}]}`. O IP é validado e normalizado.
+- `audit_log.mark_id` é uma coluna gerada (VIRTUAL, migração 0002) com o `details.mark_id` dos eventos de marcação, indexada para o histórico de uma marcação. O app nunca a grava: o SQLite a calcula do `details`.
 - `audit_log.habit_id` tem `ON DELETE CASCADE`: apagar o hábito apaga a auditoria dele. O evento que precisa sobreviver ao hábito (`habit_deleted`) vai com `habit_id=None` e o id no `details`; `account_deleted` também leva o id da conta no `details`.
 - `app/retention.py`: a retenção do plano, aplicada pelo `cleanup` (abaixo). Eventos de auth (`AUTH_EVENTS`) saem depois de 90 dias; o IP de todas as linhas do `audit_log` e de `sessions` vira `NULL` depois de 90 dias (pelo `created_at`); sessões vencidas saem; códigos de login vencidos saem 1 dia depois de criados, porque os limites de envio por hora e por dia contam as linhas de `login_codes`. A auditoria de hábitos, marcações, compartilhamento, conta e admin não é apagada (só o IP). `delete_expired_sessions` e `delete_expired_login_codes` servem também para a limpeza ao criar um código.
 
@@ -179,7 +180,18 @@ Regras (`service.py`):
 - Em hábito arquivado, só convidar é recusado; cancelar, aceitar, recusar, sair, remover e trocar papel continuam.
 - Auditoria (todos com `habit_id`): `invite_created`, `invite_canceled`, `invite_accepted` e `invite_declined` com `{invite_id, role}`; `member_left` com `{role}`; `member_removed` com `{member_id, role}`; `member_role_changed` com `{member_id, changes: [{field: "role", old, new}]}`.
 
-`tests/test_permissions.py` tem a matriz de permissões (dono, editor, viewer, estranho e sem sessão) de todos os endpoints de hábito.
+`tests/test_permissions.py` tem a matriz de permissões (dono, editor, viewer, estranho e sem sessão) de todos os endpoints de hábito, e quem vê o hábito nas listas (`/habits`, `/habits/progress`, `/history`).
+
+### Histórico
+
+O pacote `app/history/` (`service.py` com 100% de cobertura, `schemas.py` e `routes.py`) entrega o histórico dos hábitos, lido do `audit_log`: `GET /history`, do mais recente ao mais antigo. Exige `CurrentUser`; todo papel lê. O cursor das listagens (`"<microssegundos>.<id>"`, opaco para o cliente) fica em `app/pagination.py`, usado também pelas marcações.
+
+- Eventos: só os de hábito (`habit_created`, `habit_updated`, `habit_paused`, `habit_resumed`, `habit_archived`, `habit_unarchived`), de marcação (`mark_*`) e de compartilhamento (`invite_*`, `member_*`), a lista `HistoryEvent`. Nunca os de auth, de conta, de admin nem `alert_updated` (a configuração de alerta é de cada membro). `habit_deleted` (com `habit_id` nulo) não aparece: a auditoria do hábito sai com ele.
+- Acesso: os eventos dos hábitos que o usuário acessa agora (dono, editor ou viewer), inclusive arquivados e inclusive o que aconteceu antes de ele entrar. Quem sai ou é removido deixa de ver na hora. `invite_created`, `invite_canceled` e `invite_declined` só aparecem para o dono, como a lista de convites; `invite_accepted` aparece para todos.
+- Filtros, opcionais e combináveis: `habit_id` (sem acesso ou inexistente: lista vazia, sem revelar nada), `user_id` (quem fez), `event` (repetido: `&event=mark_created&event=mark_deleted`; fora da lista, 422), `mark_id` (os eventos de uma marcação: quem criou, editou e apagou, e quando; usa o índice de `audit_log.mark_id`) e `from`/`to` (datas locais `YYYY-MM-DD`, inclusivas, no fuso de quem pede, como no progresso; `to` antes de `from`, 422).
+- Paginação: `limit` de 1 a 200 (padrão 50), ordem `created_at` desc e `id` desc; com `next_cursor` não nulo, repita com `&cursor=<next_cursor>` e os mesmos filtros. A página seguinte continua depois da última linha vista: eventos novos entre uma página e outra não repetem nem pulam itens.
+- Resposta: `{"events": [{id, event, created_at, habit: {id, label}, author: {id, email} | null, details}], "next_cursor"}`. `author: null` é "usuário removido". `details` sai filtrado por uma lista de chaves por evento (`PUBLIC_DETAILS`): o JSON gravado nunca é repassado inteiro, e o IP nunca sai.
+- Uma consulta por página (hábito e autor em JOIN), sem N+1.
 
 ### Comandos de operação (CLI)
 

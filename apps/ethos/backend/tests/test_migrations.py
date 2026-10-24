@@ -64,6 +64,13 @@ def _normalize(sql: str | None) -> str:
     return re.sub(r"\s+", " ", sql or "").strip()
 
 
+def _computed(computed: dict[str, Any] | None) -> tuple[str, bool | None] | None:
+    # Coluna gerada (ex.: audit_log.mark_id): a expressão e se é STORED
+    if computed is None:
+        return None
+    return _normalize(computed["sqltext"]), computed.get("persisted")
+
+
 def schema_snapshot(path: Path) -> dict[str, Any]:
     """Tudo o que define o schema, em formato comparável e sem depender da ordem do DDL."""
     engine = create_engine(f"sqlite:///{path.as_posix()}")
@@ -78,6 +85,7 @@ def schema_snapshot(path: Path) -> dict[str, Any]:
                         str(column["type"]),
                         column["nullable"],
                         _normalize(column["default"]),
+                        _computed(column.get("computed")),
                     )
                     for column in inspector.get_columns(table)
                 ],
@@ -172,6 +180,42 @@ def test_models_match_migrations_in_full(migrated_template, tmp_path):
     ]["marks"]["foreign_keys"]
     assert any("WHERE ended_at IS NULL" in sql for _name, sql in migrated["indexes"])
     assert "users" in migrated["autoincrement"]
+    audit_columns = {column[0]: column for column in migrated["tables"]["audit_log"]["columns"]}
+    assert audit_columns["mark_id"][4] == (
+        "CASE WHEN json_valid(details) THEN json_extract(details, '$.mark_id') END",
+        False,
+    )
+
+
+def test_0002_mark_id_covers_existing_rows(db_path, make_alembic_config):
+    # A coluna é calculada: as linhas de antes da migração entram no índice sem backfill
+    config = make_alembic_config(db_path)
+    command.upgrade(config, "0001")
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        connection.executemany(
+            "INSERT INTO audit_log (event, created_at, details) VALUES (?, ?, ?)",
+            [
+                ("mark_created", "2026-01-15 12:00:00.000000", '{"mark_id": 7}'),
+                ("login", "2026-01-15 12:00:00.000000", "{}"),
+            ],
+        )
+
+    command.upgrade(config, "head")
+    with closing(sqlite3.connect(db_path)) as connection:
+        rows = connection.execute("SELECT event, mark_id FROM audit_log ORDER BY id").fetchall()
+        indexed = connection.execute(
+            "SELECT event FROM audit_log INDEXED BY ix_audit_log_mark_id WHERE mark_id = 7"
+        ).fetchall()
+    assert rows == [("mark_created", 7), ("login", None)]
+    assert indexed == [("mark_created",)]
+
+    command.downgrade(config, "0001")
+    with closing(sqlite3.connect(db_path)) as connection:
+        # table_xinfo: o table_info não lista colunas geradas
+        columns = [row[1] for row in connection.execute("PRAGMA table_xinfo(audit_log)")]
+        remaining = connection.execute("SELECT count(*) FROM audit_log").fetchone()
+    assert "mark_id" not in columns
+    assert remaining == (2,)
 
 
 def test_single_head():
