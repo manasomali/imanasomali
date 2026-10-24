@@ -41,20 +41,33 @@ jobs:
       - name: Testes do stdin e dos arquivos de ambiente (infra/tests)
         run: sudo bash infra/tests/test-input.sh
 
-      - name: nginx -t (mesma versão da VM, com certificados falsos)
+      - name: nginx -t (mesma versão da VM, com certificados falsos, o site e as rotas das apps)
         run: |
           source infra/config.env
           stub=$(mktemp -d)
-          mkdir -p "$stub/le/live/$SITE_DOMAIN" "$stub/apps.d"
+          mkdir -p "$stub/le/live/$SITE_DOMAIN" "$stub/apps.d" "$stub/conf.d"
           openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=$SITE_DOMAIN" \
             -keyout "$stub/le/live/$SITE_DOMAIN/privkey.pem" \
             -out "$stub/le/live/$SITE_DOMAIN/fullchain.pem" 2>/dev/null
           touch "$stub/le/options-ssl-nginx.conf"
           openssl dhparam -dsaparam -out "$stub/le/ssl-dhparams.pem" 2048 2>/dev/null
-          sed -e 's/__PROJETO__/exemplo/g' -e 's/__PORTA__/3001/g' \
+          cp infra/nginx/site.conf "$stub/conf.d/default.conf"
+          # O modelo genérico e a config de cada app, como o provision instala
+          sed -e 's/__PROJETO__/exemplo/g' -e 's/__PORTA__/3999/g' \
             infra/templates/app-nginx.conf.tmpl > "$stub/apps.d/exemplo.conf"
+          for dir in infra/apps/*/; do
+            name=$(basename "$dir")
+            port=$(sed -n 's/^PORT=//p' "$dir/app.conf" 2>/dev/null | tail -n1)
+            if [[ -f $dir/nginx.conf ]]; then
+              sed "s/__PORTA__/$port/g" "$dir/nginx.conf" > "$stub/apps.d/$name.conf"
+            fi
+            if [[ -f $dir/nginx-http.conf ]]; then
+              sed "s/__PORTA__/$port/g" "$dir/nginx-http.conf" > "$stub/conf.d/$name.conf"
+            fi
+          done
+          ls "$stub/apps.d" "$stub/conf.d"
           docker run --rm \
-            -v "$PWD/infra/nginx/site.conf:/etc/nginx/conf.d/default.conf:ro" \
+            -v "$stub/conf.d:/etc/nginx/conf.d:ro" \
             -v "$stub/le:/etc/letsencrypt:ro" \
             -v "$stub/apps.d:/etc/nginx/apps.d:ro" \
             nginx:1.24 nginx -t
@@ -83,9 +96,23 @@ jobs:
       - name: Provisionar as apps, repetir sem mudar nada e conferir pastas, units e remoção
         run: sudo DEPLOY_USER="$USER" bash .github/scripts/test-provision-apps.sh
 
+  # provision_nginx de verdade no nginx 1.24 do Ubuntu 24.04: site e rotas das apps com curl,
+  # cache, headers de segurança, rate limit do auth e rollback quando o nginx -t falha
+  nginx:
+    name: 🌐 Rotas das apps no nginx
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: nginx
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends nginx
+
+      - name: Instalar as rotas e testar com curl
+        run: sudo bash .github/scripts/test-provision-nginx.sh
+
   deploy:
     name: 🚀 Provisionar VM
-    needs: [lint, uv, apps]
+    needs: [lint, uv, apps, nginx]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: production

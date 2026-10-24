@@ -24,6 +24,11 @@ check() {
 
 owner_is() { [[ $(stat -c %U "$1") == "$2" ]]; }
 sql_is() { [[ $(runuser -u "$1" -- sqlite3 "$2" "$3") == "$4" ]]; }
+site_get() { curl -fsS --max-time 10 --resolve "$SITE_DOMAIN:443:127.0.0.1" "$@"; }
+app_serves_index() { [[ $(site_get "https://$SITE_DOMAIN/$1/") == "$(cat "/var/www/$1/index.html")" ]]; }
+app_health_ok() {
+  [[ $(site_get -o /dev/null -w '%{content_type}' "https://$SITE_DOMAIN/api/$1/health") == application/json* ]]
+}
 uv_is() {
   local v
   v=$(/usr/local/bin/uv --version) && [[ $v == "uv $1" || $v == "uv $1 "* ]]
@@ -54,6 +59,17 @@ for name in "${DATABASES[@]}"; do
       check "$name: $(basename "$f") pertence a $user" owner_is "$f" "$user"
     fi
   done
+done
+
+# Aplicações publicadas (rotas no nginx e frontend no ar). O location / do site devolve o index.html
+# com 200 para qualquer caminho, então não basta o status: o frontend tem de ser o da aplicação e o
+# health tem de responder JSON
+for manifest in "$INFRA_STATE_DIR"/apps/*.units; do
+  [[ -f $manifest ]] || continue
+  name=$(basename "$manifest" .units)
+  [[ -f /etc/nginx/apps.d/$name.conf && -f /var/www/$name/index.html ]] || continue
+  check "$name: /$name/ serve o frontend da aplicação" app_serves_index "$name"
+  check "$name: /api/$name/health responde JSON" app_health_ok "$name"
 done
 
 log "memória: $(free -m | awk '/^Mem:/ {print $7 " MiB disponíveis de " $2}'), swap em uso: $(free -m | awk '/^Swap:/ {print $3}') MiB"
