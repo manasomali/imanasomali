@@ -1,0 +1,103 @@
+{
+  "title": "Termos de uso",
+  "sections": [
+    {
+      "id": "about",
+      "title": "O ethos",
+      "paragraphs": [
+        "O ethos é um aplicativo gratuito para registrar hábitos, disponível em manasomali.com/ethos. É um projeto pessoal, mantido pelo responsável pelo site manasomali.com.",
+        "Ao entrar no ethos, você concorda com estes termos e com a política de privacidade. Se não concordar, não use o serviço."
+      ]
+    },
+    {
+      "id": "account",
+      "title": "Conta e acesso",
+      "paragraphs": [
+        "Não há senha. Para entrar, você recebe por email um código de 6 dígitos, que vale por 10 minutos e uma vez só. Quem controla o seu email controla a sua conta, então proteja o acesso a ele.",
+        "A conta é criada no primeiro acesso, com o email já confirmado pelo código. Cada email tem uma conta só. Você pode encerrar de uma vez as sessões de todos os aparelhos.",
+        "Você é responsável pelo que for feito com a sua conta."
+      ]
+    },
+    {
+      "id": "free-service",
+      "title": "Serviço gratuito",
+      "paragraphs": [
+        "O ethos é gratuito e oferecido como está, sem garantia de disponibilidade: ele pode ficar fora do ar, mudar ou ser encerrado. Há cópias de segurança, mas não há garantia de que nenhum dado se perca. Na medida permitida pela lei, não respondemos por danos causados por indisponibilidade, perda de dados ou uso do serviço.",
+        "No futuro, o ethos pode ter planos pagos, com recursos ou limites diferentes, e anúncios. Antes disso, estes termos e a política de privacidade mudam, e você precisa aceitar a nova versão para continuar usando o serviço."
+      ]
+    },
+    {
+      "id": "acceptable-use",
+      "title": "Uso aceitável",
+      "paragraphs": [
+        "Não é permitido:",
+        [
+          "pedir códigos de acesso para emails que não são seus, ou pedir códigos em excesso;",
+          "mandar convites em massa, para quem você não conhece ou para quem não quer recebê-los;",
+          "usar nomes de hábitos, observações ou convites para mandar mensagens, propaganda ou conteúdo ilegal ou ofensivo a outras pessoas;",
+          "tentar acessar dados de outras pessoas, contornar os limites ou atrapalhar o funcionamento do serviço, por exemplo com acessos automatizados em excesso."
+        ]
+      ]
+    },
+    {
+      "id": "limits",
+      "title": "Limites",
+      "paragraphs": [
+        "Para o serviço continuar gratuito e protegido contra abuso, há limites de uso, entre eles: hábitos ativos ou pausados por pessoa, marcações por dia em cada hábito, tamanho dos textos, convidados por hábito, hábitos de outras pessoas dos quais você participa, convites por dia e códigos de acesso por hora.",
+        "O app avisa quando um limite é atingido. Os limites podem mudar."
+      ]
+    },
+    {
+      "id": "sharing",
+      "title": "Compartilhamento",
+      "paragraphs": [
+        "O dono de um hábito pode convidar pessoas que já têm conta no ethos, com papel de edição (marcam, desmarcam e editam marcações, inclusive as dos outros) ou só de visualização. O dono controla o hábito: só ele muda a configuração, convida, troca papéis, remove membros e apaga o hábito.",
+        "Todos os membros veem todo o conteúdo do hábito: configuração, custos, recompensa, punição, marcações, observações, histórico e os emails de quem participa e de quem marcou.",
+        "Quem sai ou é removido perde o acesso, mas as marcações que fez continuam no hábito. Quando o dono apaga o hábito ou exclui a própria conta, o hábito some com todas as marcações, inclusive as dos convidados, que recebem um email avisando."
+      ]
+    },
+    {
+      "id": "blocking",
+      "title": "Bloqueio e exclusão por abuso",
+      "paragraphs": [
+        "Em caso de abuso ou de descumprimento destes termos, a conta pode ser bloqueada ou excluída, sem aviso prévio. Conta bloqueada não recebe códigos nem entra no app, e os dados dela continuam guardados. Conta excluída perde todos os dados, como explica a política de privacidade, e recebe um email avisando da exclusão."
+      ]
+    },
+    {
+      "id": "email-change",
+      "title": "Troca de email",
+      "paragraphs": [
+        "O email da conta só é trocado pelo suporte. Mande o pedido para {{supportEmail}} a partir do email atual da conta. Antes da troca, pedimos uma resposta enviada do email novo, para confirmar que ele está certo.",
+        "Se você perdeu o acesso ao email atual, podemos pedir informações que só quem usa a conta saberia, e podemos recusar a troca se não houver como confirmar. Depois da troca, todas as sessões são encerradas e os dois emails recebem um aviso."
+      ]
+    },
+    {
+      "id": "your-data",
+      "title": "Seus dados",
+      "paragraphs": [
+        "O que você registra no ethos é seu. Usamos esses dados só para fazer o serviço funcionar. A política de privacidade explica o que guardamos e quem pode ver, inclusive o administrador do serviço."
+      ]
+    },
+    {
+      "id": "not-advice",
+      "title": "Não é aconselhamento",
+      "paragraphs": [
+        "Metas, pontuação, alertas, recompensas e punições são lembretes que você mesmo define. O ethos não dá orientação médica, psicológica nem financeira; para isso, procure um profissional."
+      ]
+    },
+    {
+      "id": "changes",
+      "title": "Mudanças nos termos",
+      "paragraphs": [
+        "Cada versão destes termos e da política de privacidade é identificada por uma data. Quando uma versão nova for publicada, o app pede o seu aceite no próximo acesso. Se não concordar, você pode excluir a conta sem aceitar a versão nova."
+      ]
+    },
+    {
+      "id": "contact",
+      "title": "Contato",
+      "paragraphs": [
+        "Dúvidas, pedidos e denúncias de abuso: {{supportEmail}}."
+      ]
+    }
+  ]
+}

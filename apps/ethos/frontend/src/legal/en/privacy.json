@@ -1,0 +1,166 @@
+{
+  "title": "Privacy policy",
+  "sections": [
+    {
+      "id": "summary",
+      "title": "Summary",
+      "paragraphs": [
+        [
+          "We keep only what ethos needs to work: your email, your preferences and what you record.",
+          "There are no ads, no tracking and no sale of data. The only cookie is the session cookie.",
+          "The members of the habits you share see those habits. The service administrator can see the content of anyone's habits, and every such access is logged.",
+          "You can delete your account whenever you want. Deletion is immediate, and the data is gone from the backups within 8 days."
+        ]
+      ]
+    },
+    {
+      "id": "controller",
+      "title": "Who looks after your data",
+      "paragraphs": [
+        "ethos is a personal project, run by the person behind the manasomali.com website, who decides how the data is processed (the controller, under Brazil's General Data Protection Law, the LGPD). To talk about your data, write to {{supportEmail}}."
+      ]
+    },
+    {
+      "id": "data",
+      "title": "Data we keep",
+      "paragraphs": [
+        [
+          "Account: email, time zone, language, the accepted version of the terms, whether the account is an administrator or is blocked, and the dates of creation and last sign-in.",
+          "What you record: habits and their settings (name, code, description, goal, color, reward, punishment and costs), marks (date and time, duration, cost, note and author), pauses, alerts and invites, with the email of the invited person.",
+          "Sessions: when each one started and was last used, the IP address and the browser used (user agent).",
+          "Sign-in codes: the destination email and the code, stored in a way that cannot be read back (hash).",
+          "Audit log: who did what and when (sign-ins and sign-outs, habit changes, marks, sharing, account changes and administrator actions), with the IP address.",
+          "Web server technical logs: IP address, requested address, date and time and browser of each request."
+        ]
+      ]
+    },
+    {
+      "id": "sensitive",
+      "title": "Sensitive data",
+      "paragraphs": [
+        "Some habits may reveal information about health, addictions or other personal matters. You decide what you record and how you describe each habit. Keep in mind that the members of shared habits and the service administrator can see this content."
+      ]
+    },
+    {
+      "id": "purposes",
+      "title": "What we use it for",
+      "paragraphs": [
+        [
+          "signing you in and keeping you signed in (email, codes and sessions);",
+          "showing your habits, computing scores and progress and sending the alerts you turn on;",
+          "sharing habits with the people you invite;",
+          "protecting the service from abuse and investigating problems (IP, browser, audit log and sending limits);",
+          "handling support requests, such as changing your email or deleting your account."
+        ],
+        "We process this data to do what you ask for when you use ethos (performance of a contract, under the LGPD) and, for the security logs, for the legitimate interest of keeping the service secure. We do not use your data for advertising or profiling."
+      ]
+    },
+    {
+      "id": "storage",
+      "title": "Where the data is kept",
+      "paragraphs": [
+        "The database is on an Oracle Cloud Infrastructure (OCI) server, and the backups are in Oracle's Object Storage.",
+        "ethos emails are sent through Brevo, an email delivery provider, which receives the destination address and the content of each message. Messages to {{supportEmail}} are received by the email service of the manasomali.com domain (Hostinger) and forwarded to the person who runs ethos.",
+        "These providers may process the data outside Brazil."
+      ]
+    },
+    {
+      "id": "who-sees",
+      "title": "Who sees your data",
+      "paragraphs": [
+        [
+          "You see everything that is yours.",
+          "The members of a shared habit see all of its content, including notes, costs and history, and the emails of the people who take part and of who made each mark. Whoever gets an invite sees the habit's name and the email of the person who sent it.",
+          "The service administrator sees the list of accounts (email, dates, status and number of habits and marks) and can open the content of anyone's habits: settings, marks and notes. Every time the administrator opens this content, the access is recorded in the audit log.",
+          "The providers in the previous section, only to store the data and send the emails."
+        ],
+        "We do not sell your data or pass it on to anyone else, unless required by law."
+      ]
+    },
+    {
+      "id": "emails",
+      "title": "Emails we send",
+      "paragraphs": [
+        "ethos only sends emails related to using the service:",
+        [
+          "account and security: sign-in code, account deletion code, account deleted notice and email change notice (to the old and to the new email);",
+          "invites: when someone invites you to a habit;",
+          "shared habits: when the owner deletes a habit you take part in or deletes their own account;",
+          "alerts: the ones you turn on, at most one a day for each habit."
+        ],
+        "We do not send marketing emails or newsletters. Some email apps show an unsubscribe link, added by the delivery provider. If you use it, you may stop getting sign-in codes and be unable to sign in."
+      ]
+    },
+    {
+      "id": "cookies",
+      "title": "Cookies and browser storage",
+      "paragraphs": [
+        "ethos uses a single cookie, the session cookie (__Host-ethos_session), which keeps you signed in. It is required for the service to work, cannot be read by scripts on the page and lasts 60 days, renewed while you use the app.",
+        "The browser's local storage holds only preferences: theme and language (the same as on the manasomali.com website) and the time zone notices you dismissed. They stay in your browser.",
+        "ethos uses no analytics tools, tracking pixels, ads or third-party content: pages, scripts and fonts come from manasomali.com itself."
+      ]
+    },
+    {
+      "id": "retention",
+      "title": "How long we keep it",
+      "paragraphs": [
+        [
+          "Account, preferences and the log of account changes (terms acceptance, time zone, language and email change): while the account exists.",
+          "Habits, marks and each habit's history: while the habit exists.",
+          "Session: until you sign out, or after 60 days without use.",
+          "Sign-in code: valid for 10 minutes, and its record is deleted the next day.",
+          "Access logs (code requests, sign-ins and sign-outs): 90 days.",
+          "IP address in sessions and in the audit log: deleted after 90 days.",
+          "Pending invites: until they are accepted, declined or canceled, or until the habit is deleted.",
+          "Web server technical logs: deleted by the server's automatic log rotation.",
+          "Backups: up to 8 days."
+        ]
+      ]
+    },
+    {
+      "id": "deletion",
+      "title": "Deleting your account",
+      "paragraphs": [
+        "You can delete your account at any time in the app, confirming with a code sent to your email. If the account is blocked, ask support to delete it. Deletion is immediate and cannot be undone.",
+        "What is deleted: the account, its sessions, its codes, the habits you own (with all their marks, including the guests' marks, and their history), your participation in other people's habits, your alerts and invites and the account's access logs.",
+        "What stays, without identifying you:",
+        [
+          "the marks you made in other people's habits, which then show as made by a \"removed user\";",
+          "the history records of those habits and of the administrator's actions on the account, without your email or IP;",
+          "a record that an account, identified only by an internal number, was deleted."
+        ],
+        "Emails already sent stay in their recipients' inboxes.",
+        "Deleted data stays in the backups until they expire: within 8 days, it is gone from everywhere. To redo deletions if a backup ever has to be restored, the server keeps only the internal number of the deleted accounts."
+      ]
+    },
+    {
+      "id": "rights",
+      "title": "Your rights",
+      "paragraphs": [
+        "Under the LGPD, you can ask for confirmation that we process your data, access to it, correction, anonymization, portability, deletion and information about whom it is shared with. You change your time zone and language in the app, and your email through support. For other requests, write to {{supportEmail}} from the account's email.",
+        "You can also file a complaint with Brazil's National Data Protection Authority (ANPD)."
+      ]
+    },
+    {
+      "id": "security",
+      "title": "Security",
+      "paragraphs": [
+        "The connection is always encrypted (HTTPS). Codes and sessions are stored as hashes, the session cookie cannot be read by scripts and the database overwrites deleted data. No system is completely secure: keep access to your email safe, since it is the key to your account."
+      ]
+    },
+    {
+      "id": "changes",
+      "title": "Changes to this policy",
+      "paragraphs": [
+        "Each version of this policy and of the terms of use is identified by a date. When a new version is published, the app asks you to accept it on your next visit."
+      ]
+    },
+    {
+      "id": "contact",
+      "title": "Contact",
+      "paragraphs": [
+        "Questions and requests about your data: {{supportEmail}}."
+      ]
+    }
+  ]
+}
