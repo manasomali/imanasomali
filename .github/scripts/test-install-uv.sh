@@ -4,11 +4,11 @@
 set -euo pipefail
 
 INFRA_DIR=$PWD/infra
-# shellcheck source=../../infra/lib/common.sh
+# shellcheck source=infra/lib/common.sh
 source "$INFRA_DIR/lib/common.sh"
-# shellcheck source=../../infra/config.env
+# shellcheck source=infra/config.env
 source "$INFRA_DIR/config.env"
-# shellcheck source=../../infra/lib/packages.sh
+# shellcheck source=infra/lib/packages.sh
 source "$INFRA_DIR/lib/packages.sh"
 
 require_root
@@ -40,10 +40,11 @@ not_root=$(find "$UV_PYTHON_INSTALL_DIR" ! -user root | head -n5)
 [[ -z $not_root ]] || fail "arquivos sem dono root: $not_root"
 
 echo "--- Python de cada app.conf, rodado por um usuário sem home (como app-<nome>)"
+# Sem home, o uv não cria ~/.cache/uv: UV_NO_CACHE usa um cache temporário
 for conf in "$INFRA_DIR"/apps/*/app.conf; do
   version=$(env_get "$conf" PYTHON_VERSION)
   [[ -n $version ]] || continue
-  python=$(runuser -u nobody -- env UV_PYTHON_INSTALL_DIR="$UV_PYTHON_INSTALL_DIR" UV_NO_CONFIG=1 \
+  python=$(runuser -u nobody -- env UV_PYTHON_INSTALL_DIR="$UV_PYTHON_INSTALL_DIR" UV_NO_CONFIG=1 UV_NO_CACHE=1 \
     /usr/local/bin/uv python find --managed-python --no-python-downloads "$version") \
     || fail "nobody não encontra o Python $version"
   [[ $python == "$UV_PYTHON_INSTALL_DIR"/* ]] || fail "$python fora de $UV_PYTHON_INSTALL_DIR"
@@ -54,7 +55,7 @@ done
 
 echo "--- checksum errado: o provision precisa parar com mensagem clara"
 rm -f /usr/local/bin/uv
-if (UV_SHA256=$(printf '0%.0s' {1..64}) && install_uv) >"$out" 2>&1; then
+if (UV_SHA256=$(printf '0%.0s' {1..64}) install_uv) >"$out" 2>&1; then
   fail "install_uv aceitou um checksum errado"
 fi
 cat "$out"
