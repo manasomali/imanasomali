@@ -5,15 +5,20 @@ description = "API do ethos (manasomali.com/api/ethos/)"
 requires-python = ">=3.14"
 dependencies = [
     "fastapi>=0.162.0",
+    # Base de fusos do zoneinfo onde o sistema não tem uma (Windows); no Linux,
+    # o zoneinfo usa a do sistema primeiro
+    "tzdata>=2026.5",
     "uvicorn>=0.54.0",
 ]
 
 [dependency-groups]
 dev = [
     "httpx2>=2.16.0",
+    "hypothesis>=6.170.9",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.17.2",
+    "time-machine>=3.5.1",
 ]
 
 [tool.ruff]
