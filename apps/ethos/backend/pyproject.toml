@@ -1,0 +1,48 @@
+[project]
+name = "ethos-backend"
+version = "0.1.0"
+description = "API do ethos (manasomali.com/api/ethos/)"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.162.0",
+    "uvicorn>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.16.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.2",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# E/W: pycodestyle, F: pyflakes, I: isort, B: bugbear, UP: pyupgrade,
+# SIM: simplificações, C4: comprehensions, S: bandit, PT: pytest, RUF: ruff
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "S", "PT", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# assert é o jeito do pytest de checar
+"tests/**" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# Cobertura sempre ligada: abaixo de 85% o pytest falha (política de testes do ethos)
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov",
+    "--cov-report=term-missing",
+    "--cov-fail-under=85",
+]
+xfail_strict = true
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
