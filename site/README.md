@@ -1,6 +1,6 @@
 # manasomali.com
 
-Personal website built with React 19, React Router and Vite. Styles are plain CSS Modules over the design tokens in `src/index.css` (light and dark themes); texts live in `public/locales/{pt,en}/translation.json`.
+Personal website built with React 19, React Router and Vite. Styles are plain CSS Modules over the shared design tokens in [`packages/tokens/tokens.css`](../packages/tokens/tokens.css) (light and dark themes); texts live in `public/locales/{pt,en}/translation.json`.
 
 ```bash
 npm install
