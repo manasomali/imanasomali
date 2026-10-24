@@ -1,0 +1,10 @@
+[Unit]
+Description=ethos: alertas e limpeza de hora em hora
+
+[Timer]
+OnCalendar=hourly
+AccuracySec=1min
+Unit=ethos-alerts.service
+
+[Install]
+WantedBy=timers.target
