@@ -19,7 +19,7 @@ from app.db import write_transaction
 from app.main import create_app
 from app.models import AuditLog, User, UserSession, utcnow
 from app.terms import TERMS_VERSION
-from tests.auth_helpers import login, session_token
+from tests.auth_helpers import cookie, login, session_token
 from tests.factories import TERMS_ACCEPTED_AT, count, new_user, save
 
 IP = "203.0.113.7"
@@ -92,11 +92,6 @@ def session_writes() -> Iterator[Callable[[], int]]:
         yield lambda: sum(1 for s in statements if s.lstrip().startswith("UPDATE sessions"))
     finally:
         event.remove(Engine, "before_cursor_execute", listener)
-
-
-def cookie(token: str) -> dict[str, str]:
-    # O cookie é Secure e o TestClient roda em http: vai no header
-    return {"Cookie": f"{SESSION_COOKIE_NAME}={token}"}
 
 
 def stored_session(db_session, token: str) -> UserSession | None:

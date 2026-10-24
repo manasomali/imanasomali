@@ -11,6 +11,7 @@ from app.auth.routes import router as auth_router
 from app.config import Settings, load_settings
 from app.db import SessionDep, create_db_engine, create_session_factory
 from app.errors import ApiError, ErrorCode, install_error_handlers
+from app.habits.routes import router as habits_router
 from app.logs import RequestLogMiddleware, configure_logging
 from app.mail.backends import MailBackend
 from app.mail.sender import Mailer, build_backend
@@ -67,6 +68,7 @@ def create_app(
     install_error_handlers(api)
     api.include_router(router)
     api.include_router(auth_router)
+    api.include_router(habits_router)
     return api
 
 
