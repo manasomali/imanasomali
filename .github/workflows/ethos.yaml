@@ -8,6 +8,9 @@ on:
       - "packages/**"
       - ".github/workflows/ethos.yaml"
       - "infra/apps/ethos/app.conf"
+      # Lidos pelos testes do backend (nomes do .env.example = app.env + smtp.env)
+      - "infra/apps/ethos/app.env"
+      - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
   pull_request:
     paths:
@@ -15,6 +18,9 @@ on:
       - "packages/**"
       - ".github/workflows/ethos.yaml"
       - "infra/apps/ethos/app.conf"
+      # Lidos pelos testes do backend (nomes do .env.example = app.env + smtp.env)
+      - "infra/apps/ethos/app.env"
+      - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
 
 # Só checagens por enquanto; o deploy entra depois, com grupo próprio. Nunca o
