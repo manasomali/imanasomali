@@ -21,11 +21,27 @@ SESSION_COOKIE_NAME = "__Host-ethos_session"
 def set_session_cookie(
     response: Response, token: str, max_age: timedelta = SESSION_LIFETIME
 ) -> None:
-    """Grava o cookie da sessão na resposta (login e, na ETH-18, renovação)."""
+    """Grava o cookie da sessão na resposta (login e renovação)."""
     response.set_cookie(
         SESSION_COOKIE_NAME,
         token,
         max_age=int(max_age.total_seconds()),
+        path="/",
+        domain=None,
+        secure=True,
+        httponly=True,
+        samesite="lax",
+    )
+
+
+def clear_session_cookie(response: Response) -> None:
+    """Apaga o cookie da sessão no navegador (logout).
+
+    Os atributos são os mesmos da gravação: sem `Secure` e `Path=/`, o navegador recusaria o
+    Set-Cookie de um cookie `__Host-`, e o cookie antigo ficaria.
+    """
+    response.delete_cookie(
+        SESSION_COOKIE_NAME,
         path="/",
         domain=None,
         secure=True,

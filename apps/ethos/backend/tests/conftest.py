@@ -11,8 +11,13 @@
 - `app`: app montado com `settings`, sobre o `database`;
 - `make_alembic_config(path)`: Config do Alembic apontando para o banco em `path` (para
   `alembic.command.upgrade(config, "head")` etc.);
-- `make_client(app, **kwargs)`: TestClient com o lifespan rodando e o root_path de produção,
-  fechado no fim do teste (kwargs vão para o TestClient, ex.: raise_server_exceptions=False);
+- `make_client(app, *, origin=True, **kwargs)`: TestClient com o lifespan rodando e o root_path
+  de produção, fechado no fim do teste (kwargs vão para o TestClient, ex.:
+  raise_server_exceptions=False). Como um navegador na página do app, manda em todo request o
+  header `Origin` igual ao `settings.app_origin` do app, que a checagem de CSRF exige nos métodos
+  de escrita (`app/auth/origin.py`). `origin="https://..."` manda esse valor (necessário quando
+  `app` é um middleware em volta do app, sem `.state`); `origin=False` não manda. Um
+  `headers={"Origin": ...}` no request troca o valor só nele;
 - `client`: `make_client(app)`;
 - `make_smtp_server(starttls=True)`: servidor SMTP falso (`tests/fake_smtp.py`) em 127.0.0.1,
   com STARTTLS e login obrigatórios, parado no fim do teste. Guarda em `.received` cada email
@@ -133,8 +138,14 @@ def app(settings, database) -> FastAPI:
 def make_client() -> Iterator[Callable[..., TestClient]]:
     with ExitStack() as stack:
 
-        def build(app: FastAPI, **kwargs: Any) -> TestClient:
-            return stack.enter_context(TestClient(app, root_path=ROOT_PATH, **kwargs))
+        def build(app: Any, *, origin: str | bool = True, **kwargs: Any) -> TestClient:
+            client = stack.enter_context(TestClient(app, root_path=ROOT_PATH, **kwargs))
+            if origin is True:
+                # A config só fica no app.state depois do lifespan (que o enter_context rodou)
+                origin = app.state.settings.app_origin
+            if origin:
+                client.headers["Origin"] = origin
+            return client
 
         yield build
 

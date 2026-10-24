@@ -487,7 +487,7 @@ def test_audit_ip_comes_from_the_nginx_hop(settings, database, make_client, outb
     # Como em produção: uvicorn --proxy-headers --forwarded-allow-ips=127.0.0.1 atrás do nginx,
     # que acrescenta o $remote_addr ao X-Forwarded-For que o cliente mandou (forjado aqui)
     app = ProxyHeadersMiddleware(create_app(settings, mail_backend=outbox), "127.0.0.1")
-    client = make_client(app, client=("127.0.0.1", 50000))
+    client = make_client(app, client=("127.0.0.1", 50000), origin=settings.app_origin)
     save(db_session, new_user(ANA))
 
     response = request_code(client, headers={"X-Forwarded-For": f"198.51.100.9, {IP}"})
