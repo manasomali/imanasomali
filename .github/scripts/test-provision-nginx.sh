@@ -126,6 +126,10 @@ expect "asset corpo" "$(cat "$out")" js
 expect "asset Cache-Control" "$(header Cache-Control)" "public, max-age=31536000, immutable"
 security_headers /ethos/assets/
 expect "asset que não existe é 404" "$(get /ethos/assets/nao-existe.js)" 404
+mv /var/www/ethos/index.html /var/www/ethos/index.html.fora
+expect "sem index.html (antes do primeiro deploy) é 404, não 500" "$(get /ethos/)" 404
+expect "rota do SPA sem index.html é 404" "$(get /ethos/habitos/42)" 404
+mv /var/www/ethos/index.html.fora /var/www/ethos/index.html
 
 echo "--- API do ethos"
 expect "/api/ethos/x status" "$(get '/api/ethos/x?y=1')" 200
