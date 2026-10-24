@@ -2,8 +2,8 @@
 
 Cada comando lê a mesma configuração do servidor (variáveis de ambiente, `load_settings`) e abre o
 banco de `DATABASE_PATH`, que precisa já existir (migrado com `alembic upgrade head`). Em produção
-roda como `app-ethos`: o `cleanup` pelo timer de hora em hora, os outros à mão. O `create-admin` é
-o único jeito de ligar o `is_admin`: não existe endpoint para isso.
+roda como `app-ethos`: o `run-alerts` e o `cleanup` pelo timer de hora em hora, os outros à mão.
+O `create-admin` é o único jeito de ligar o `is_admin`: não existe endpoint para isso.
 
 Para acrescentar um comando:
 
@@ -31,11 +31,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app import audit
+from app.alerts.service import run_alerts
 from app.audit import AuditEvent
 from app.auth.service import normalize_email
 from app.config import ConfigError, Settings, load_settings
 from app.db import create_db_engine, create_session_factory, write_transaction
 from app.logs import configure_logging
+from app.mail.sender import Mailer, build_backend
 from app.models import User, utcnow
 from app.retention import run_cleanup
 from app.seed import seed
@@ -69,6 +71,22 @@ def _cleanup(context: CommandContext, _args: argparse.Namespace) -> int:
         f"{result.sessions_deleted} sessões vencidas apagadas, "
         f"{result.session_ips_cleared} IPs apagados nas sessões, "
         f"{result.login_codes_deleted} códigos vencidos apagados"
+    )
+    return EXIT_OK
+
+
+def _run_alerts(context: CommandContext, _args: argparse.Namespace) -> int:
+    """Avalia os alertas na hora e manda os emails (`app/alerts/service.py`).
+
+    Sai com 0 mesmo que algum alerta falhe (SMTP, por exemplo): a falha vira uma linha de log
+    com os ids, não para os outros e é tentada de novo na próxima execução. Só erro geral (config,
+    banco inacessível) sai com 1, e aí o `OnFailure=` do timer registra.
+    """
+    mailer = Mailer(context.settings, build_backend(context.settings))
+    result = run_alerts(context.session_factory, mailer, now=utcnow())
+    print(
+        f"run-alerts: {result.evaluated} alertas avaliados, {result.sent} emails enviados, "
+        f"{result.failed} falhas"
     )
     return EXIT_OK
 
@@ -145,6 +163,17 @@ def build_parser() -> argparse.ArgumentParser:
             "auditoria de hábitos e marcações. Pode rodar quantas vezes quiser."
         ),
     ).set_defaults(handler=_cleanup)
+
+    commands.add_parser(
+        "run-alerts",
+        help="avalia os alertas que estão na hora e manda os emails",
+        description=(
+            "Avalia os alertas de meta e de custo cuja hora (no fuso de cada usuário) já chegou "
+            "hoje e ainda não foi avaliada, e manda no máximo um email por membro e hábito por "
+            "dia. Falha num alerta é logada e não para os outros nem muda o código de saída. "
+            "Pode rodar quantas vezes quiser: a segunda seguida não manda nada."
+        ),
+    ).set_defaults(handler=_run_alerts)
 
     create_admin = commands.add_parser(
         "create-admin",

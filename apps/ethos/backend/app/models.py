@@ -503,7 +503,11 @@ class Alert(Base):
     hour: Mapped[int]
     frequency: Mapped[str] = mapped_column(String(8))
     weekday: Mapped[int | None]
+    # Último email enviado: no máximo um por dia (no fuso do usuário), juntando meta e custo
     last_sent_at: Mapped[datetime | None]
+    # Última avaliação pelo run-alerts, ou o último salvar da configuração: cada ocorrência da
+    # hora escolhida é avaliada uma vez só, mesmo sem mandar email (app/alerts/service.py)
+    last_evaluated_at: Mapped[datetime | None]
 
 
 class Banner(Base):
