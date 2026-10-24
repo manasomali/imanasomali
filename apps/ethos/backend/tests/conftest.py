@@ -25,6 +25,8 @@
   servidor não oferece STARTTLS;
 - `smtp_server`: `make_smtp_server()`. Para o app enviar por ele:
   `create_app(settings, mail_backend=smtp_server.backend())`;
+- `make_account(email, **campos)`: usuário salvo, com os termos atuais aceitos e uma sessão
+  aberta: `Account(user, headers)` (`tests/habit_helpers.py`), com o cookie em `headers`;
 - `outbox`: backend de email em memória (`tests/auth_helpers.py`), sem rede, para os testes que
   só precisam ler o que o app mandou: `create_app(settings, mail_backend=outbox)`, e as mensagens
   em `outbox.messages`. `auth_helpers.login(client, outbox, email)` faz o login inteiro.
@@ -49,8 +51,11 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db import create_db_engine, create_session_factory
 from app.main import create_app
-from tests.auth_helpers import Outbox
+from app.terms import TERMS_VERSION
+from tests.auth_helpers import Outbox, cookie, open_session
+from tests.factories import new_user, save
 from tests.fake_smtp import FakeSmtpServer, start_fake_smtp
+from tests.habit_helpers import Account
 
 # Mesmo prefixo que o uvicorn recebe em produção (--root-path /api/ethos)
 ROOT_PATH = "/api/ethos"
@@ -180,3 +185,13 @@ def smtp_server(make_smtp_server) -> FakeSmtpServer:
 @pytest.fixture
 def outbox() -> Outbox:
     return Outbox()
+
+
+@pytest.fixture
+def make_account(db_session) -> Callable[..., Account]:
+    def build(email: str, **fields: Any) -> Account:
+        user = new_user(email, **({"terms_version": TERMS_VERSION} | fields))
+        save(db_session, user)
+        return Account(user, cookie(open_session(db_session, user)))
+
+    return build

@@ -3,7 +3,6 @@
 import threading
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -19,33 +18,24 @@ from app.habits import service
 from app.habits.access import MAX_ID, HabitAccess, HabitRole
 from app.habits.scoring import load_marks, load_pauses, to_score_habit
 from app.main import create_app
-from app.models import AuditLog, Habit, HabitMember, HabitPause, Mark, User
-from app.terms import TERMS_VERSION
-from tests.auth_helpers import cookie, open_session
-from tests.factories import count, new_habit, new_mark, new_member, new_pause, new_user, save
+from app.models import AuditLog, Habit, HabitMember, HabitPause, Mark
+from tests.factories import count, new_habit, new_mark, new_member, new_pause, save
+from tests.habit_helpers import (
+    FORBIDDEN,
+    NOT_FOUND,
+    VALID,
+    Account,
+    create,
+    created,
+    events,
+    invalid,
+    share,
+    stored,
+)
 
 IP = "203.0.113.7"
 # Quarta-feira
 NOW = datetime(2026, 3, 25, 12, 0, tzinfo=UTC)
-VALID = {
-    "name": "Exercício",
-    "color": "teal",
-    "goal_type": "min",
-    "goal_count": 3,
-    "goal_period": "week",
-}
-NOT_FOUND = {"error": "not_found", "field": None}
-FORBIDDEN = {"error": "forbidden", "field": None}
-
-
-def invalid(field: str) -> dict:
-    return {"error": "validation_error", "field": field}
-
-
-@dataclass
-class Account:
-    user: User
-    headers: dict[str, str]
 
 
 @pytest.fixture(autouse=True)
@@ -57,16 +47,6 @@ def clock() -> Iterator[time_machine.Traveller]:
 @pytest.fixture
 def client(settings, database, make_client, outbox):
     return make_client(create_app(settings, mail_backend=outbox), client=(IP, 50000))
-
-
-@pytest.fixture
-def make_account(db_session) -> Callable[..., Account]:
-    def build(email: str, **fields) -> Account:
-        user = new_user(email, **({"terms_version": TERMS_VERSION} | fields))
-        save(db_session, user)
-        return Account(user, cookie(open_session(db_session, user)))
-
-    return build
 
 
 @pytest.fixture
@@ -82,33 +62,6 @@ def bia(make_account) -> Account:
 @pytest.fixture
 def caio(make_account) -> Account:
     return make_account("caio@example.com")
-
-
-def create(client, account: Account, **fields):
-    return client.post("/habits", json=VALID | fields, headers=account.headers)
-
-
-def created(client, account: Account, **fields) -> dict:
-    response = create(client, account, **fields)
-    assert response.status_code == 201, response.json()
-    return response.json()
-
-
-def stored(db_session, habit_id: int) -> Habit | None:
-    db_session.rollback()
-    query = select(Habit).where(Habit.id == habit_id).execution_options(populate_existing=True)
-    return db_session.scalar(query)
-
-
-def events(db_session, name: AuditEvent) -> list[AuditLog]:
-    db_session.rollback()
-    query = select(AuditLog).where(AuditLog.event == name.value).order_by(AuditLog.id)
-    return list(db_session.scalars(query.execution_options(populate_existing=True)))
-
-
-def share(db_session, habit_id: int, account: Account, role: str) -> None:
-    habit = stored(db_session, habit_id)
-    save(db_session, new_member(habit, account.user, role))
 
 
 # --- criar ---
@@ -494,7 +447,7 @@ def test_list_empty(client, ana):
     assert response.json() == {"habits": []}
 
 
-def test_list_includes_archived_and_paused(client, ana, db_session):
+def test_list_includes_paused_and_archived_only_on_their_own_list(client, ana, db_session):
     save(
         db_session,
         new_habit(ana.user, status="paused"),
@@ -502,9 +455,11 @@ def test_list_includes_archived_and_paused(client, ana, db_session):
     )
 
     habits = client.get("/habits", headers=ana.headers).json()["habits"]
+    archived = client.get("/habits?archived=true", headers=ana.headers).json()["habits"]
 
-    assert [habit["status"] for habit in habits] == ["paused", "archived"]
-    assert habits[1]["archived_at"] == "2026-03-25T12:00:00Z"
+    assert [habit["status"] for habit in habits] == ["paused"]
+    assert [habit["status"] for habit in archived] == ["archived"]
+    assert archived[0]["archived_at"] == "2026-03-25T12:00:00Z"
 
 
 # --- ver ---
