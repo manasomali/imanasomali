@@ -309,7 +309,6 @@ ls /var/backups/infra/nginx-*-"$old".conf.* >/dev/null || fail "cópia da config
 [[ $(cat "/opt/apps/$old/codigo.txt") == codigo ]] || fail "código de $old foi mexido"
 [[ $(cat "/var/www/$old/index.html") == front ]] || fail "frontend de $old foi mexido"
 log_has "AVISO: $old saiu de infra/apps/" || fail "remoção sem aviso no log"
-systemctl is-active --quiet nginx || fail "nginx parou depois de tirar as rotas"
 run_apps
 if log_has "desligado|removido"; then
   fail "segunda execução depois da remoção mexeu de novo"

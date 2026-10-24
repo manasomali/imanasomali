@@ -20,7 +20,7 @@ for conf in infra/apps/*/app.conf; do
   owner[$port]=$name
 
   # Linha "| <nome> | <porta> | ..." da tabela
-  if ! grep -Eq "^\|[[:space:]]*$name[[:space:]]*\|[[:space:]]*$port[[:space:]]*\|" "$readme"; then
+  if ! grep -Eq "^\|[[:space:]]*${name}[[:space:]]*\|[[:space:]]*${port}[[:space:]]*\|" "$readme"; then
     echo "::error file=$readme::$name usa a porta $port (infra/apps/$name/app.conf), mas a tabela de portas não tem essa linha"
     status=1
   else

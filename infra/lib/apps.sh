@@ -100,6 +100,9 @@ install_app_units() {
   return "$changed"
 }
 
+# is-enabled também sai com 0 para units "static" (sem [Install]), que não se ligam nem desligam
+unit_enabled() { [[ $(systemctl is-enabled "$1" 2>/dev/null || true) == enabled* ]]; }
+
 valid_port() { [[ $1 =~ ^[0-9]{4,5}$ ]] && ((10#$1 >= 1024 && 10#$1 <= 65535)); }
 
 # Liga as units da aplicação. O serviço principal reinicia se estiver rodando e a config ($2=1) ou
@@ -114,7 +117,7 @@ start_app_units() {
     if [[ $unit != *.timer && $unit != "app-$name.service" ]]; then
       continue
     fi
-    if ! systemctl is-enabled --quiet "$unit" 2>/dev/null; then
+    if ! unit_enabled "$unit"; then
       systemctl enable "$unit" >/dev/null 2>&1
       log "ligado: $unit"
     fi
@@ -151,7 +154,7 @@ remove_old_apps() {
 
     while IFS= read -r unit; do
       [[ -n $unit ]] || continue
-      if systemctl is-enabled --quiet "$unit" 2>/dev/null || systemctl is-active --quiet "$unit"; then
+      if unit_enabled "$unit" || systemctl is-active --quiet "$unit"; then
         systemctl disable --now "$unit" >/dev/null 2>&1
         log "desligado: $unit"
       fi
@@ -170,7 +173,10 @@ remove_old_apps() {
 
   if ((nginx_changed)); then
     nginx -t -q || die "nginx -t falhou depois de tirar as rotas de aplicações removidas"
-    systemctl reload nginx
+    # Parado, o nginx lê a config nova ao subir (o provision_nginx sobe)
+    if systemctl is-active --quiet nginx; then
+      systemctl reload nginx
+    fi
   fi
 }
 
