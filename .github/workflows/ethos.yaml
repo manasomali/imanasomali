@@ -64,6 +64,19 @@ jobs:
       - name: pytest (cobertura mínima de 85%)
         run: uv run --no-sync pytest --cov
 
+      # Política de testes: 100% de cobertura (linhas e ramos) nos módulos da lista,
+      # lida do .coverage que o pytest acabou de gravar. Para exigir de outro módulo,
+      # acrescente uma linha. Cada um é conferido sozinho, então um caminho errado
+      # também falha ("No data to report") em vez de passar calado
+      - name: Cobertura de 100% nos módulos críticos
+        env:
+          FULL_COVERAGE: |
+            app/auth/security.py
+        run: |
+          for module in $FULL_COVERAGE; do
+            uv run --no-sync coverage report --fail-under=100 --show-missing --include="$module"
+          done
+
   frontend:
     name: ⚛️ Frontend
     runs-on: ubuntu-latest
