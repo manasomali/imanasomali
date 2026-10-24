@@ -1,14 +1,14 @@
 """API de hábitos: criar, listar, ver, editar e apagar (ETH-20)."""
 
 import threading
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
 import time_machine
-from sqlalchemy import Engine, event, select
+from sqlalchemy import select
 
 from app import score
 from app.audit import AuditEvent
@@ -1039,27 +1039,6 @@ def test_score_uses_timezone_of_who_asks(client, ana, make_account, db_session):
     assert score_of(client, utc_member, habit.id) == {"value": 50, "success": False}
     listed = client.get("/habits", headers=utc_member.headers).json()["habits"]
     assert listed[0]["score"] == {"value": 50, "success": False}
-
-
-@pytest.fixture
-def selects() -> Iterator[Callable[[], int]]:
-    """Quantos SELECT foram executados (em qualquer engine) desde a última chamada."""
-    statements: list[str] = []
-
-    def listener(_conn, _cursor, statement, *_args) -> None:
-        statements.append(statement)
-
-    event.listen(Engine, "before_cursor_execute", listener)
-
-    def take() -> int:
-        total = sum(1 for statement in statements if statement.lstrip().startswith("SELECT"))
-        statements.clear()
-        return total
-
-    try:
-        yield take
-    finally:
-        event.remove(Engine, "before_cursor_execute", listener)
 
 
 def test_list_has_no_n_plus_one(client, ana, bia, db_session, selects):
