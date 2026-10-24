@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "site", "run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "ethos",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps/ethos/frontend", "run", "dev"],
+      "port": 5174
     }
   ]
 }

@@ -1,0 +1,83 @@
+name: Ethos
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/ethos/**"
+      - "packages/**"
+      - ".github/workflows/ethos.yaml"
+  pull_request:
+    paths:
+      - "apps/ethos/**"
+      - "packages/**"
+      - ".github/workflows/ethos.yaml"
+
+# Só checagens por enquanto; o deploy entra depois, com grupo próprio. Nunca o
+# grupo "infra": o GitHub mantém um run pendente por grupo e cancelaria um deploy
+# na fila atrás de um provision. Aqui, um push novo no mesmo PR cancela o anterior
+concurrency:
+  group: ethos-checks-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: 🐍 Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/ethos/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      # O setup-uv não publica mais tags de versão maior (v10), só a versão completa
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          working-directory: apps/ethos/backend
+          enable-cache: true
+          # Relativo ao working-directory acima
+          cache-dependency-glob: uv.lock
+
+      - name: uv.lock em dia com o pyproject.toml
+        run: uv lock --check
+
+      - name: Instalar dependências
+        run: uv sync --frozen
+
+      - name: ruff check
+        run: uv run --no-sync ruff check
+
+      - name: ruff format --check
+        run: uv run --no-sync ruff format --check
+
+      - name: pytest (cobertura mínima de 85%)
+        run: uv run --no-sync pytest --cov
+
+  frontend:
+    name: ⚛️ Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/ethos/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: apps/ethos/frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: 🔍 Lint
+        run: npm run lint
+
+      - name: 🔨 Build
+        run: npm run build
+
+      - name: 🧪 Testes
+        run: npm test
