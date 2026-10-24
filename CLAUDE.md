@@ -20,7 +20,8 @@ npm run preview
 There is no test suite. For the website, check changes with `npm run lint`, `npm run build` (both in `site/`) and by looking at the dev server. For infra, CI runs these checks, and you can run them locally:
 
 ```bash
-shellcheck -x infra/provision.sh infra/scripts/*.sh
+shellcheck -x infra/provision.sh infra/scripts/*.sh .github/scripts/*.sh
+bash .github/scripts/check-python-version.sh
 bash -c 'source infra/lib/common.sh && read_databases infra/databases.txt'
 ```
 
@@ -51,6 +52,7 @@ Docs and comments in `infra/` are in Portuguese. Keep new ones in Portuguese. Re
 - Scripts that run as root (via systemd or sudo) are copied to `/usr/local/lib/infra/`, and config goes to `/etc/infra/`. They are not run from `/opt/infra`, because the deploy user can write there.
 - `databases.txt` lists one SQLite database per line, and each name must match `^[a-z][a-z0-9-]{1,26}$`. Every entry gets a `app-<name>` user, `/var/lib/sqlite/<name>/app.db`, continuous Litestream replication to OCI Object Storage, and daily local snapshots. Removing a line never deletes data.
 - The VM has 1 GB of RAM. Never build or `npm install` on it. Build in CI.
+- `uv` is installed with a fixed version and SHA256 from `config.env`, like Litestream. It installs each app's Python (`PYTHON_VERSION` in `infra/apps/<name>/app.conf`, an exact `3.x.y`) as a prebuilt download into `UV_PYTHON_INSTALL_DIR=/opt/uv/python`, outside `/home` because the app units run with `ProtectHome=true`. That version must equal `apps/<name>/backend/.python-version`: `.github/scripts/check-python-version.sh` checks it in `infra.yaml` and `ethos.yaml`, and the `uv` job in `infra.yaml` runs `.github/scripts/test-install-uv.sh` on Ubuntu 24.04 before any provision.
 - `.gitattributes` forces LF for `infra/**` and `*.sh`, and for text files in `apps/**` and `packages/**` (`text=auto`, so binaries are left alone). Keep it that way: the repo is often edited on Windows.
 - Per-project backends use `templates/app.service.tmpl` and `templates/app-nginx.conf.tmpl` (`__PROJETO__` / `__PORTA__` placeholders, route `/api/<name>/`). Record each port in the table in `infra/README.md`.
 

@@ -6,10 +6,12 @@ on:
     paths:
       - "infra/**"
       - ".github/workflows/infra.yaml"
+      - ".github/scripts/**"
   pull_request:
     paths:
       - "infra/**"
       - ".github/workflows/infra.yaml"
+      - ".github/scripts/**"
   workflow_dispatch:
 
 # Nunca dois provisions (nem um provision e um teste de restauração) ao mesmo tempo
@@ -25,10 +27,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: shellcheck
-        run: shellcheck -x infra/provision.sh infra/scripts/*.sh
+        run: shellcheck -x infra/provision.sh infra/scripts/*.sh .github/scripts/*.sh
 
       - name: databases.txt
         run: bash -c 'source infra/lib/common.sh && read_databases infra/databases.txt'
+
+      - name: Python do app.conf igual ao .python-version de cada app
+        run: bash .github/scripts/check-python-version.sh
 
       - name: nginx -t (mesma versão da VM, com certificados falsos)
         run: |
@@ -48,9 +53,19 @@ jobs:
             -v "$stub/apps.d:/etc/nginx/apps.d:ro" \
             nginx:1.24 nginx -t
 
+  # install_uv e install_pythons de verdade, no mesmo Ubuntu da VM
+  uv:
+    name: 🐍 uv e Python
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar, repetir sem baixar nada e recusar checksum errado
+        run: sudo bash .github/scripts/test-install-uv.sh
+
   deploy:
     name: 🚀 Provisionar VM
-    needs: lint
+    needs: [lint, uv]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: production

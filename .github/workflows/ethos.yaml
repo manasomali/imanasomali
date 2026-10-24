@@ -7,11 +7,15 @@ on:
       - "apps/ethos/**"
       - "packages/**"
       - ".github/workflows/ethos.yaml"
+      - "infra/apps/ethos/app.conf"
+      - ".github/scripts/check-python-version.sh"
   pull_request:
     paths:
       - "apps/ethos/**"
       - "packages/**"
       - ".github/workflows/ethos.yaml"
+      - "infra/apps/ethos/app.conf"
+      - ".github/scripts/check-python-version.sh"
 
 # Só checagens por enquanto; o deploy entra depois, com grupo próprio. Nunca o
 # grupo "infra": o GitHub mantém um run pendente por grupo e cancelaria um deploy
@@ -40,6 +44,10 @@ jobs:
           enable-cache: true
           # Relativo ao working-directory acima
           cache-dependency-glob: uv.lock
+
+      - name: Python igual ao infra/apps/ethos/app.conf
+        working-directory: ${{ github.workspace }}
+        run: bash .github/scripts/check-python-version.sh
 
       - name: uv.lock em dia com o pyproject.toml
         run: uv lock --check

@@ -24,6 +24,10 @@ check() {
 
 owner_is() { [[ $(stat -c %U "$1") == "$2" ]]; }
 sql_is() { [[ $(runuser -u "$1" -- sqlite3 "$2" "$3") == "$4" ]]; }
+uv_is() {
+  local v
+  v=$(/usr/local/bin/uv --version) && [[ $v == "uv $1" || $v == "uv $1 "* ]]
+}
 
 check "swap ativo" grep -q '^/swapfile ' /proc/swaps
 check "nginx ativo" systemctl is-active --quiet nginx
@@ -31,6 +35,7 @@ check "site responde em https://$SITE_DOMAIN/" \
   curl -fsS -o /dev/null --max-time 10 --resolve "$SITE_DOMAIN:443:127.0.0.1" "https://$SITE_DOMAIN/"
 check "timer de snapshot ativo" systemctl is-active --quiet sqlite-snapshot.timer
 check "timer de keep-alive ativo" systemctl is-active --quiet keepalive.timer
+check "uv $UV_VERSION instalado" uv_is "$UV_VERSION"
 
 if ((${#DATABASES[@]})); then
   check "litestream ativo" systemctl is-active --quiet litestream
