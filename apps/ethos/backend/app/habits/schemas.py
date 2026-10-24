@@ -50,7 +50,9 @@ _MULTILINE_CONTROLS = frozenset("\n\t")
 _BIDI_CONTROLS = frozenset(map(chr, [*range(0x202A, 0x202F), *range(0x2066, 0x206A)]))
 
 
-def _check_controls(value: str, *, multiline: bool) -> None:
+def check_controls(value: str, *, multiline: bool) -> None:
+    """Recusa caracteres de controle (com `multiline`, aceita quebra de linha e tab) e os que
+    invertem a direção do texto. Levanta ValueError (vira 422 no validador do pydantic)."""
     allowed = _MULTILINE_CONTROLS if multiline else frozenset()
     for char in value:
         # Cc: controle (\x00, \r, ESC...). Outros invisíveis (ZWJ dos emoji) passam
@@ -67,7 +69,7 @@ def _text(max_length: int, *, multiline: bool = False, required: bool = False) -
             return None
         if len(value) > max_length:
             raise ValueError(f"no máximo {max_length} caracteres")
-        _check_controls(value, multiline=multiline)
+        check_controls(value, multiline=multiline)
         return value
 
     return AfterValidator(validate)

@@ -15,6 +15,7 @@ from app.habits.routes import router as habits_router
 from app.logs import RequestLogMiddleware, configure_logging
 from app.mail.backends import MailBackend
 from app.mail.sender import Mailer, build_backend
+from app.marks.routes import router as marks_router
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,7 @@ def create_app(
     api.include_router(router)
     api.include_router(auth_router)
     api.include_router(habits_router)
+    api.include_router(marks_router)
     return api
 
 

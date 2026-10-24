@@ -38,6 +38,7 @@ from app.db import create_db_engine, create_session_factory, write_transaction
 from app.logs import configure_logging
 from app.models import User, utcnow
 from app.retention import run_cleanup
+from app.seed import seed
 
 EXIT_OK = 0
 EXIT_ERROR = 1
@@ -105,6 +106,29 @@ def _create_admin(context: CommandContext, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _seed(context: CommandContext, _args: argparse.Namespace) -> int:
+    """Cria os dados de exemplo de `app/seed.py`. Só com `APP_ENV=dev`.
+
+    Fora de dev, recusa antes de abrir qualquer transação: nada é gravado. Se as contas de
+    exemplo já existem, avisa e não grava nada (sai com 0).
+    """
+    if not context.settings.is_dev:
+        raise CommandError("seed só roda com APP_ENV=dev; nada foi gravado")
+    with context.session_factory() as session, write_transaction(session):
+        result = seed(session, context.settings, now=utcnow())
+    if result is None:
+        print(
+            "seed: as contas de exemplo já existem; nada mudou "
+            "(para recriar, apague o banco de dev e rode as migrações)"
+        )
+    else:
+        print(
+            f"seed: {result.users} contas, {result.habits} hábitos e "
+            f"{result.marks} marcações criados"
+        )
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m app.cli",
@@ -133,6 +157,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     create_admin.add_argument("email", help="email da conta (maiúsculas e espaços não importam)")
     create_admin.set_defaults(handler=_create_admin)
+
+    commands.add_parser(
+        "seed",
+        help="cria contas, hábitos e marcações de exemplo (só com APP_ENV=dev)",
+        description=(
+            "Cria as contas ana@, bia@ e caio@example.com, hábitos de vários tipos e marcações "
+            "dos últimos 60 dias, numa transação só. Recusa rodar fora de APP_ENV=dev. Se as "
+            "contas de exemplo já existem, não muda nada."
+        ),
+    ).set_defaults(handler=_seed)
 
     return parser
 

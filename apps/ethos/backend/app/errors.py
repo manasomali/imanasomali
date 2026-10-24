@@ -41,6 +41,11 @@ class ErrorCode(StrEnum):
     HABIT_LIMIT_REACHED = "habit_limit_reached"
     # Escrita num hábito arquivado, que é só leitura (desarquivar e apagar continuam): 409
     HABIT_ARCHIVED = "habit_archived"
+    # Endpoint de marcação que não é o do modo do hábito: toggle num hábito com várias por dia
+    # ou POST /marks num hábito toggle (o front deve recarregar a configuração): 409
+    MARK_MODE_MISMATCH = "mark_mode_mismatch"
+    # O dia (no fuso de quem marca) já tem MAX_MARKS_PER_DAY marcações nesse hábito: 409
+    MARK_LIMIT_REACHED = "mark_limit_reached"
 
 
 # Código de uma HTTPException pelo status. Status fora da tabela cai no genérico da faixa

@@ -34,7 +34,7 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/retention.py,app/score.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/marks/schemas.py,app/marks/service.py,app/retention.py,app/score.py   # depois do pytest
 ```
 
 Alguns módulos precisam de 100% de cobertura (linhas e ramos). A lista fica na variável `FULL_COVERAGE` do passo "Cobertura de 100% nos módulos críticos" do CI, que confere cada um com o `coverage report` acima.
@@ -115,12 +115,39 @@ O pacote `app/habits/` tem a configuração dos hábitos e o acesso a eles:
 
 Nos testes, `tests/auth_helpers.py` tem `open_session(session, user)` (sessão direto no banco, sem email) e `cookie(token)`; a fixture `make_account(email, **campos)` cria um usuário com os termos aceitos e uma sessão (`Account(user, headers)`); `tests/habit_helpers.py` tem os atalhos da API de hábitos (`VALID`, `create`, `created`, `stored`, `events`, `share`, `NOT_FOUND`, `FORBIDDEN`, `invalid`); e `tests/factories.py` tem `new_member`, `new_mark` e `new_pause` para montar compartilhamento, marcações e pausas direto no banco.
 
+### Marcações
+
+O pacote `app/marks/` tem as marcações (`schemas.py`, `service.py` com 100% de cobertura, e `routes.py`). Todos os endpoints exigem `CurrentUser` e ficam debaixo do hábito:
+
+| Endpoint | O quê |
+|---|---|
+| `POST /habits/{id}/toggle` | Hábito toggle. Corpo `{day_start, day_end, marked_at}`: o início e o fim do dia clicado no fuso do navegador (o fim é a meia-noite seguinte), e o instante a gravar, dentro do dia (agora, se o dia é hoje; 12:00 local, se é um dia passado). Se o dia já tem marcação (de qualquer membro), apaga todas e responde `{"marked": false, "mark": null}`; senão, cria uma e responde `{"marked": true, "mark": {...}}`. Sempre 200. |
+| `POST /habits/{id}/marks` | Hábito com várias por dia. Corpo `{marked_at, note?, duration_minutes?, cost_cents?}`; 201 com a marcação. |
+| `GET /habits/{id}/marks?from=&to=` | Marcações com `marked_at` em `[from, to)`, por `marked_at` e id: `{"marks": [...], "next_cursor"}`. Intervalo de até 367 dias (um ano do calendário com folga para o fuso). Página de até `limit` marcações (1 a 1000, padrão 1000); com `next_cursor` não nulo, repita com `&cursor=<next_cursor>` e o mesmo intervalo. Todo papel lê, inclusive em arquivado. |
+| `PATCH /habits/{id}/marks/{mark_id}` | Muda só `note`, `duration_minutes` e `cost_cents` (campo ausente não muda; `null` apaga a observação ou o custo). `marked_at` ou qualquer outro campo no corpo: 422, e nada muda. |
+| `DELETE /habits/{id}/marks/{mark_id}` | 204. |
+
+A marcação sai como `{id, habit_id, author, marked_at, duration_minutes, cost_cents, note, created_at, updated_at}`, com datas em UTC (`...Z`). `author` é `{id, email}` de quem criou, ou `null` quando a conta foi apagada: a tela mostra "usuário removido". Os valores de recursos desligados vêm como estão guardados; o front os esconde conforme a configuração do hábito.
+
+Regras (`service.py`):
+
+- Datas com fuso em ISO 8601 (sem fuso, número ou antes de 1900: 422). `marked_at` até 1 minuto no futuro (tolerância de relógio); dias antes da criação do hábito são aceitos (a pontuação os ignora).
+- Toggle: o intervalo do dia tem de 23 h a 25 h (horário de verão), senão 422 `day_end`; `marked_at` fora dele, 422 `marked_at`. A leitura e a escrita vão no mesmo `BEGIN IMMEDIATE`: clique duplo ou dois membros ao mesmo tempo deixam o dia com uma marcação ou nenhuma, nunca duas. A marcação nasce com a duração padrão do hábito (com a duração ligada) e o custo do hábito (com o custo ligado), editáveis depois.
+- Várias por dia: `MAX_MARKS_PER_DAY` conta as marcações do hábito, de todos os membros, no dia de `marked_at` no fuso salvo de quem marca (`users.timezone`), na mesma transação da inserção (409 `mark_limit_reached`).
+- Endpoint do modo errado (toggle num hábito com várias por dia, ou `POST /marks` num toggle): 409 `mark_mode_mismatch`.
+- Observação só com `notes_enabled`, até `MAX_NOTE_LENGTH` caracteres, mesmas regras de texto da descrição do hábito. Duração só com `duration_enabled`, de 1 a 1440 minutos; sem ela, a padrão do hábito. Custo só com `cost_enabled`: no nível hábito é sempre o valor fixo do hábito (mandar outro, na criação ou no PATCH, dá 422); no nível marcação, o valor mandado ou, sem ele, o padrão do hábito. O custo fica gravado na marcação: mudar o do hábito não muda as antigas. Campo de recurso desligado: 422 com o campo.
+- Escrita: dono e editor, em marcações de qualquer pessoa; viewer, 403 `forbidden`; sem acesso, 404 `not_found`; arquivado, 409 `habit_archived` (pausado aceita). A ordem é 404, 403, 409 (arquivado, modo), 422 e 409 (limite).
+- Auditoria: `mark_created`, `mark_updated` e `mark_deleted` com `habit_id`, quem fez (`user_id`), o IP e, no `details`, `{mark_id, author_id, marked_at, duration_minutes, cost_cents, has_note}` (criar e apagar; o toggle que desmarca grava um `mark_deleted` por marcação) ou `{mark_id, changes: [{field, old, new}]}` (editar). O texto da observação nunca vai para a auditoria: só `{"field": "note"}` ou `has_note`.
+
+Nos testes, `tests/test_marks.py` tem os testes de concorrência com threads de verdade contra o banco em arquivo (`run_parallel(engine, chamadas, ação)`, que chama o `service` em sessões separadas, juntas por um `threading.Barrier`).
+
 ### Comandos de operação (CLI)
 
 ```bash
 uv run --env-file .env python -m app.cli --help      # lista os comandos
 uv run --env-file .env python -m app.cli cleanup     # aplica a retenção de dados
 uv run --env-file .env python -m app.cli create-admin voce@example.com   # torna a conta admin
+uv run --env-file .env python -m app.cli seed        # dados de exemplo (só em dev)
 ```
 
 O CLI lê a mesma config do servidor (variáveis de ambiente) e abre o banco de `DATABASE_PATH`, que precisa existir e estar migrado. Em produção roda como `app-ethos`. Código de saída 0 em sucesso, 1 em erro (a mensagem sai no stderr com `erro:`, sem stack trace nem valores) e 2 em uso errado.
@@ -129,6 +156,7 @@ O CLI lê a mesma config do servidor (variáveis de ambiente) e abre o banco de 
 |---|---|
 | `cleanup` | Retenção de dados (ver acima), numa transação só. Imprime quantas linhas mudou em cada passo. Pode rodar quantas vezes quiser: a segunda seguida não muda nada. No plano, roda de hora em hora pelo `ethos-alerts.timer`, depois dos alertas. |
 | `create-admin <email>` | Liga o `is_admin` de uma conta que já existe e grava `admin_created` no `audit_log` (`user_id` = a conta promovida, `details` = `{"via": "cli"}`), numa transação só. É o único jeito de criar admin: não existe endpoint para isso. O email é normalizado e validado como no login (`normalize_email`: espaços e maiúsculas não importam; endereço inválido é erro). A saída mostra o id da conta, nunca o email. Email sem conta: erro e nada muda (a pessoa precisa entrar no app uma vez antes, o que cria a conta). Conta bloqueada (`is_active=false`): erro e nada muda; desbloqueie antes. Conta que já é admin: avisa, sai com 0 e não grava nada. |
+| `seed` | Só com `APP_ENV=dev` (fora dele: erro, sai com 1 e não grava nada). Cria, numa transação só, as contas `ana@example.com`, `bia@example.com` e `caio@example.com` (com os termos aceitos; entre pelo login com o email, e o código sai no terminal com `EMAIL_BACKEND=console`), 8 hábitos que variam os tipos (toggle e várias por dia; meta mínima, máxima e exata; duração, observação, pontuação, custo nos dois níveis; ativo, pausado e arquivado; compartilhado com editor e viewer) e as marcações dos últimos 60 dias, pelas mesmas regras e com a mesma auditoria da API. Não duplica: se alguma das contas de exemplo já existe, avisa, sai com 0 e não grava nada. Para recriar, apague o banco de dev e rode `alembic upgrade head` de novo. |
 
 Na VM, o comando roda com o mesmo usuário, o mesmo ambiente e a mesma `.venv` da unit `app-ethos` ([infra/apps/ethos/app-ethos.service](../../infra/apps/ethos/app-ethos.service)):
 
