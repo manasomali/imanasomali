@@ -1,8 +1,9 @@
 """Fábricas e atalhos de banco compartilhados pelos testes.
 
 - `new_user(email, **campos)` / `new_habit(dono, **campos)`: objetos válidos, ainda não salvos;
-- `new_member(hábito, usuário, papel)`, `new_mark(hábito, marked_at, **campos)` e
-  `new_pause(hábito, started_at, ended_at=None)`: idem, para compartilhamento, marcações e pausas
+- `new_member(hábito, usuário, papel)`, `new_invite(hábito, email, **campos)`,
+  `new_mark(hábito, marked_at, **campos)`, `new_pause(hábito, started_at, ended_at=None)` e
+  `new_alert(hábito, usuário, **campos)`: idem, para compartilhamento, marcações, pausas e alertas
   enquanto a API delas não existe (ou para montar cenários direto no banco);
 - `save(session, *objetos)`: grava num `write_transaction` próprio;
 - `count(session, Modelo, *where)`: quantas linhas batem.
@@ -15,7 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import write_transaction
-from app.models import Habit, HabitMember, HabitPause, Mark, User
+from app.models import Alert, Habit, HabitInvite, HabitMember, HabitPause, Mark, User
 
 TERMS_ACCEPTED_AT = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
 
@@ -45,6 +46,22 @@ def new_habit(owner: User, **fields: Any) -> Habit:
 
 def new_member(habit: Habit, user: User, role: str = "editor", **fields: Any) -> HabitMember:
     return HabitMember(**({"habit_id": habit.id, "user_id": user.id, "role": role} | fields))
+
+
+def new_invite(habit: Habit, email: str, **fields: Any) -> HabitInvite:
+    values: dict[str, Any] = {"habit_id": habit.id, "email": email, "role": "editor"}
+    return HabitInvite(**(values | fields))
+
+
+def new_alert(habit: Habit, user: User, **fields: Any) -> Alert:
+    values: dict[str, Any] = {
+        "habit_id": habit.id,
+        "user_id": user.id,
+        "goal_enabled": True,
+        "hour": 8,
+        "frequency": "daily",
+    }
+    return Alert(**(values | fields))
 
 
 def new_mark(habit: Habit, marked_at: datetime, **fields: Any) -> Mark:

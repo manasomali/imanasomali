@@ -34,12 +34,12 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/marks/schemas.py,app/marks/service.py,app/progress/service.py,app/retention.py,app/score.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/marks/schemas.py,app/marks/service.py,app/progress/service.py,app/retention.py,app/score.py,app/sharing/quota.py,app/sharing/service.py   # depois do pytest
 ```
 
 Alguns módulos precisam de 100% de cobertura (linhas e ramos). A lista fica na variável `FULL_COVERAGE` do passo "Cobertura de 100% nos módulos críticos" do CI, que confere cada um com o `coverage report` acima.
 
-Os testes não precisam de `.env`: as fixtures de `tests/conftest.py` montam a config com um SQLite em arquivo temporário (`settings`, `make_settings`, `engine`, `db_session`, `app`, `client`, `make_client`, `smtp_server`, `make_smtp_server`, `outbox`, `make_account`). O banco de teste já vem com o schema completo: as migrações rodam uma vez por execução do pytest (`migrated_template`) e cada teste recebe uma cópia (`database`). Para testar migrações, `make_alembic_config(caminho)` devolve a config do Alembic apontando para outro banco. `tests/factories.py` tem `new_user`, `new_habit`, `new_member`, `new_mark`, `new_pause`, `save` e `count` para montar dados.
+Os testes não precisam de `.env`: as fixtures de `tests/conftest.py` montam a config com um SQLite em arquivo temporário (`settings`, `make_settings`, `engine`, `db_session`, `app`, `client`, `make_client`, `smtp_server`, `make_smtp_server`, `outbox`, `make_account`). O banco de teste já vem com o schema completo: as migrações rodam uma vez por execução do pytest (`migrated_template`) e cada teste recebe uma cópia (`database`). Para testar migrações, `make_alembic_config(caminho)` devolve a config do Alembic apontando para outro banco. `tests/factories.py` tem `new_user`, `new_habit`, `new_member`, `new_invite`, `new_mark`, `new_pause`, `new_alert`, `save` e `count` para montar dados.
 
 Dependências entram com `uv add <pacote>` (ou `uv add --dev <pacote>`), que atualiza o `pyproject.toml` e o `uv.lock`. Os dois vão juntos no commit.
 
@@ -111,9 +111,9 @@ O pacote `app/habits/` tem a configuração dos hábitos e o acesso a eles:
 - `service.py` (100% de cobertura): as regras. `check_config` confere a configuração inteira depois de cada mudança: N ≥ 1 em `min` e `exact` e N ≥ 0 em `max`, teto de N (dias do período no toggle: 7, 28 ou 365; `MAX_MARKS_PER_DAY` × dias com várias por dia), minutos com a duração ligada, valor do custo no nível hábito, limite de custo e período juntos, e recompensa e punição só com a pontuação ligada. Desligar um recurso não apaga o valor dele, que volta ao religar. `MAX_HABITS_PER_USER` conta os ativos e pausados do dono dentro da transação da criação e do desarquivamento (409 `habit_limit_reached`).
 - Pausar e arquivar (só o dono; pedir o estado atual não muda nada nem grava evento): pausar abre um intervalo em `habit_pauses` e retomar o fecha; fora do arquivo, `paused` tem exatamente uma pausa aberta (o índice único `uq_habit_pauses_open` impede duas). Pausado continua marcável, e a pontuação ignora os períodos com pausa. Arquivar grava `archived_at` (a pontuação congela nessa data) e deixa o hábito só leitura: editar, pausar e retomar dão 409 `habit_archived`; apagar continua. A pausa aberta de um hábito pausado fica aberta no arquivo. Desarquivar volta ao status de antes: `paused` se há pausa aberta; senão `active`, e o tempo arquivado vira a pausa fechada `[archived_at, agora)`, para não contar como meta não cumprida.
 - `routes.py`: `GET /habits` (os do usuário e os compartilhados com ele, com o `role`; ativos e pausados, ou só os arquivados com `?archived=true`), `POST /habits` (201), `GET /habits/{id}`, `PATCH /habits/{id}` (mudança parcial; `null` só nos campos opcionais) `DELETE /habits/{id}` (204) e `POST /habits/{id}/pause`, `/resume`, `/archive` e `/unarchive` (sem corpo, devolvem o hábito). Editar, apagar, pausar e arquivar são só do dono. A pontuação (`score: {value, success}`, `null` em "sem dados") vem só com `score_enabled`, no fuso de quem pede; desligada, a chave nem aparece.
-- Auditoria: `habit_created`, `habit_updated` com `{"changes": [{"field", "old", "new"}]}` (a descrição só com o `field`), `habit_deleted` com `habit_id=None` e `{"habit_id": n}`, e `habit_paused`, `habit_resumed`, `habit_archived` e `habit_unarchived`. Apagar o hábito apaga em cascata as marcações, pausas, membros, convites, alertas e a auditoria dele, e os membros recebem o email `HabitDeleted` depois do commit.
+- Auditoria: `habit_created`, `habit_updated` com `{"changes": [{"field", "old", "new"}]}` (a descrição só com o `field`), `habit_deleted` com `habit_id=None` e `{"habit_id": n}` (mais `recent_invites`, os convites do hábito nas últimas 24 h, que continuam contando no limite de convites do dono), e `habit_paused`, `habit_resumed`, `habit_archived` e `habit_unarchived`. Apagar o hábito apaga em cascata as marcações, pausas, membros, convites, alertas e a auditoria dele, e os membros recebem o email `HabitDeleted` depois do commit.
 
-Nos testes, `tests/auth_helpers.py` tem `open_session(session, user)` (sessão direto no banco, sem email) e `cookie(token)`; a fixture `make_account(email, **campos)` cria um usuário com os termos aceitos e uma sessão (`Account(user, headers)`); `tests/habit_helpers.py` tem os atalhos da API de hábitos (`VALID`, `create`, `created`, `stored`, `events`, `share`, `NOT_FOUND`, `FORBIDDEN`, `invalid`); e `tests/factories.py` tem `new_member`, `new_mark` e `new_pause` para montar compartilhamento, marcações e pausas direto no banco.
+Nos testes, `tests/auth_helpers.py` tem `open_session(session, user)` (sessão direto no banco, sem email) e `cookie(token)`; a fixture `make_account(email, **campos)` cria um usuário com os termos aceitos e uma sessão (`Account(user, headers)`); `tests/habit_helpers.py` tem os atalhos da API de hábitos (`VALID`, `create`, `created`, `stored`, `events`, `share`, `NOT_FOUND`, `FORBIDDEN`, `invalid`); e `tests/factories.py` tem `new_member`, `new_invite`, `new_mark`, `new_pause` e `new_alert` para montar compartilhamento, marcações, pausas e alertas direto no banco.
 
 ### Marcações
 
@@ -151,6 +151,35 @@ O pacote `app/progress/` (`schemas.py`, `service.py` com 100% de cobertura, e `r
 - Cálculos só pelo `score.py`, no fuso de quem pede. `periods` vem do `summarize_periods`: os períodos da meta que tocam o intervalo, inteiros (com o valor e o gasto do período todo), sem filtro de criação ou pausa. A pontuação vem do `evaluate`: é a pontuação atual do hábito, a mesma do `GET /habits`, não recortada pelo intervalo.
 - Gasto (só com `cost_enabled`; desligado, `spend_cents` e `cost_periods` nem aparecem): soma do `cost_cents` gravado em cada marcação, igual nos níveis hábito e marcação. `cost_periods` usa os períodos do limite (`cost_limit_period`, que pode ser diferente da meta); `limit_percent` é o gasto em porcentagem do limite, arredondado meio para cima só com inteiros (pode passar de 100; `null` com limite 0).
 - Sem N+1: hábitos, marcações e pausas são lidos em lote (5 consultas com a sessão, em qualquer número de hábitos). A fixture `selects` do `conftest.py` conta os SELECT nos testes.
+
+### Compartilhamento
+
+O pacote `app/sharing/` tem os convites e os membros (`quota.py` e `service.py` com 100% de cobertura, `schemas.py` e `routes.py`). Papéis: o dono (`habits.owner_id`) configura, convida, troca papel e remove; `editor` marca e edita marcações de qualquer pessoa; `viewer` só vê. Todos os endpoints exigem `CurrentUser`; sem acesso ao hábito, 404 `not_found`; com acesso mas sem o papel, 403 `forbidden`.
+
+| Endpoint | Quem | O quê |
+|---|---|---|
+| `POST /habits/{id}/invites` | dono | Corpo `{email, role}` (`editor` ou `viewer`). Sempre 202 `{"status": "sent"}`: com ou sem conta, a si mesmo, a quem já é membro ou já tem convite pendente (esses três não mudam nada). Arquivado: 409 `habit_archived`. |
+| `GET /habits/{id}/invites` | dono | `{"invites": [{id, email, role, created_at}]}`, os pendentes (sem dizer se o email tem conta). |
+| `DELETE /habits/{id}/invites/{invite_id}` | dono | 204, cancela o pendente. |
+| `GET /habits/{id}/members` | todos | `{"members": [{user: {id, email}, role, joined_at}]}`, o dono primeiro (com a data de criação do hábito). |
+| `PATCH /habits/{id}/members/{user_id}` | dono | Corpo `{role}`; devolve o membro. De editor para viewer, os alertas dele no hábito saem na mesma transação. |
+| `DELETE /habits/{id}/members/{user_id}` | dono | 204. As marcações do membro ficam; os alertas dele no hábito saem. |
+| `POST /habits/{id}/leave` | editor e viewer | 204, como remover. O dono recebe 403 (ele apaga o hábito). |
+| `GET /invites` | convidado | `{"invites": [{id, habit: {id, name, color}, owner: {id, email}, role, created_at}]}`, os pendentes recebidos. |
+| `POST /invites/{invite_id}/accept` | convidado | O hábito, como no `GET /habits/{id}`, com o papel novo. |
+| `POST /invites/{invite_id}/decline` | convidado | 204. |
+
+Regras (`service.py`):
+
+- O convite não expira e não tem status: a linha de `habit_invites` existe enquanto está pendente e sai ao ser aceito, recusado ou cancelado.
+- Email sem conta: o convite fica pendente para sempre, com `invited_user_id` vazio, e nunca é entregue, nem se a conta for criada depois. Aceitar ou recusar um convite que não é do usuário (de outra conta, sem conta ou inexistente) dá o mesmo 404.
+- Para não revelar quem tem conta, os ramos com e sem conta fazem as mesmas consultas e escritas, com o mesmo SQL (há teste), e o email ao convidado sai depois da resposta (`BackgroundTasks`). Conta bloqueada recebe o convite pendente, mas não o email. O `details` da auditoria não leva o email nem o `invited_user_id`.
+- Limites, conferidos dentro do `BEGIN IMMEDIATE` (requests em paralelo não passam deles), todos 409: `MAX_INVITES_PER_DAY` por dono, somando todos os hábitos (`invite_limit_reached`), `MAX_GUESTS_PER_HABIT`, membros + pendentes (`guest_limit_reached`), e `MAX_SHARED_HABITS_PER_USER` ao aceitar (`shared_habit_limit_reached`; o convite continua pendente). O hábito compartilhado conta só no `MAX_HABITS_PER_USER` do dono.
+- `MAX_INVITES_PER_DAY` conta os eventos `invite_created` do dono nas últimas 24 h (janela móvel), porque as linhas de convite somem (`quota.py`). A retenção não apaga esses eventos. Como a auditoria do hábito sai com ele, o `habit_deleted` leva `recent_invites` e a conta soma esse número por 24 h depois da exclusão: apagar o hábito não devolve convites.
+- Em hábito arquivado, só convidar é recusado; cancelar, aceitar, recusar, sair, remover e trocar papel continuam.
+- Auditoria (todos com `habit_id`): `invite_created`, `invite_canceled`, `invite_accepted` e `invite_declined` com `{invite_id, role}`; `member_left` com `{role}`; `member_removed` com `{member_id, role}`; `member_role_changed` com `{member_id, changes: [{field: "role", old, new}]}`.
+
+`tests/test_permissions.py` tem a matriz de permissões (dono, editor, viewer, estranho e sem sessão) de todos os endpoints de hábito.
 
 ### Comandos de operação (CLI)
 

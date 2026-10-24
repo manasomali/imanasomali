@@ -17,6 +17,7 @@ from app.mail.backends import MailBackend
 from app.mail.sender import Mailer, build_backend
 from app.marks.routes import router as marks_router
 from app.progress.routes import router as progress_router
+from app.sharing.routes import router as sharing_router
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,7 @@ def create_app(
     api.include_router(progress_router)
     api.include_router(habits_router)
     api.include_router(marks_router)
+    api.include_router(sharing_router)
     return api
 
 
