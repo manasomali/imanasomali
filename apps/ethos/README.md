@@ -289,16 +289,71 @@ O dev server usa a porta 5174 (o site usa a 5173) e falha se ela estiver ocupada
 
 ```bash
 npm run lint                               # ESLint com jsx-a11y; qualquer aviso falha
-npm test                                   # vitest, roda uma vez e sai
+npm test                                   # vitest com cobertura, roda uma vez e sai
 npm run build                              # gera dist/
 npm run preview                            # serve o dist/ localmente
 ```
 
-Os testes rodam no jsdom, com Testing Library. Todo teste de tela também confere acessibilidade com `vitest-axe`, usando o `axe` de `src/test/axe.js`:
+### Estrutura
+
+| Caminho | O quê |
+|---|---|
+| `index.html` | Carrega `/ethos/theme-init.js` no `<head>`, sem `defer`, antes do app |
+| `public/theme-init.js` | Aplica o tema salvo (`localStorage.theme`) como `data-theme` antes da primeira pintura. É arquivo, não script inline, por causa da CSP (`script-src 'self'`) |
+| `public/locales/{pt,en}/translation.json` | Traduções, baixadas em runtime (não vão no bundle) |
+| `src/main.jsx` | Inicia o i18n, cria o router e o QueryClient (`createApp`) e monta o `App` |
+| `src/bootstrap.js` | `createApp()`: router com `basename="/ethos"` e QueryClient ligados (401 em qualquer chamada leva para o login) |
+| `src/routes.jsx` | Todas as rotas. Tela que exige sessão é filha de `RequireSession`; tela pública (login, termos, privacidade) fica fora |
+| `src/paths.js` | `BASENAME` e `PATHS` (`/`, `/entrar`, `/conta`). Use as constantes, nunca o caminho escrito à mão |
+| `src/i18n.js` | `createI18n()`, `LANGUAGES` e a detecção do idioma (mesma chave do site, `i18nextLng`; `pt-BR` vira `pt`) |
+| `src/index.css` | Estilos globais. Importa as fontes, `@tokens/tokens.css` (alias para `packages/tokens`) e a paleta |
+| `src/styles/palette.css` | As 12 cores dos hábitos (`--habit-<nome>`) nos dois temas |
+| `src/api/auth.js` | `useMe()`/`fetchMe()` (`GET /auth/me`, chave `meQueryKey`), `verifyCode()`, `apiLocale()` |
+| `src/components/` | `Layout` (pular para o conteúdo, menu, `<main>`, rodapé), `Menu` (links, volta ao site, idioma, tema), `RequireSession`, `TimezoneNotice`, `ErrorMessage`, `PageTitle` |
+| `src/pages/` | Telas. Por enquanto só provisórias: `Home`, `Login` (destino do 401), `Account` (destino do aviso de fuso) e `NotFound` |
+| `src/hooks/useTheme.js` | Tema atual e a troca (botão do menu) |
+| `src/lib/` | Utilitários sem React, com cobertura mínima de 80% (abaixo) |
+| `src/test/` | Setup dos testes: MSW (`server`, `api(path)`), `renderApp(path)`, `meFixture()`, `createTestI18n()`, `axe`, `readFrontendFile()` |
+| `tests/` | Testes do build de produção, no Node |
+| `build-targets.js` | Converte o `browserslist` do `package.json` no `build.target` do Vite |
+
+### `src/lib/`
+
+- `api.js`: `apiFetch(path, {method, query, body, signal})` chama `/api/ethos<path>` na mesma origem, com `credentials: 'include'` (o cookie `__Host-ethos_session` é HttpOnly; o front nunca o lê). Erro sempre vira `ApiError {status, code, field}`: o código vem do corpo `{"error", "field"}` da API ou, quando o corpo não é JSON (o nginx responde 429, 502 e 504 em HTML), do status, com o mesmo mapa de `app/errors.py`. Sem resposta: status 0 e código `network_error`.
+- `queryClient.js`: `createQueryClient({onUnauthorized})`. Leitura só repete (até 2 vezes) falha de rede e 5xx; 401, 403 e 429 nunca repetem; escrita nunca repete sozinha. Todo 401, de leitura ou escrita, chama `onUnauthorized`.
+- `session.js`: `redirectToLogin(router)` vai para `/entrar` guardando o caminho atual em `state.from` (no histórico, nunca na URL); `returnPath(location)` devolve esse caminho depois do login, só se for interno.
+- `errors.js`: `errorKey(error, i18n.exists)` dá `errors.<codigo>`, ou `errors.unknown` para código sem tradução e erro que não veio da API. Na tela, use o componente `ErrorMessage` (com `onRetry` opcional).
+- `time.js`: dias locais como `"AAAA-MM-DD"`. `dayBounds(dia, fuso)` dá `{start, end}` (fim exclusivo) em UTC, o que o `POST /habits/{id}/toggle` espera; `pastDayNoon(dia, fuso)` dá 12:00 local em UTC; `markedAtFor(dia, fuso, agora)` dá o `marked_at` (hoje: o instante atual; passado: 12:00 local; futuro: `RangeError`). Também `today`, `localDate`, `addDays`, `parseDate`, `zonedTimeToUtc`, `browserTimezone`, `isValidTimezone`, `sameTimezone`. Hora que não existe ou se repete (horário de verão) segue o backend (`fold=0`).
+- `money.js`: `formatMoney(centavos, idioma)` sem símbolo, com 2 casas (`1.234,50` / `1,234.50`); `parseMoney(texto, idioma)` lê o que a pessoa digitou e devolve centavos ou `null`; `MAX_MONEY_CENTS`.
+- `palette.js`: `HABIT_COLORS` (os 12 nomes de `HabitColor`) e `isHabitColor`. `color.js`: `contrastRatio`, `relativeLuminance` (WCAG), para escolher a cor de um texto sobre a cor de um hábito.
+- `theme.js` e `storage.js`: leitura e escrita da chave `theme` e do `localStorage` sem lançar exceção (modo privado). `timezoneNotice.js`: regra do aviso de fuso.
+
+### Regras para as próximas telas
+
+- **Textos:** todo texto visível entra nos dois `translation.json`. Código de erro novo em `app/errors.py` também: o teste `src/i18n.test.js` lê o `ErrorCode` do backend e falha se faltar a tradução em pt ou en.
+- **Dados:** sempre por TanStack Query sobre `apiFetch`, nunca `fetch` direto. Não trate o 401 na tela (o QueryClient já leva para o login); mostre os outros erros com `ErrorMessage`.
+- **Login (ETH-31):** depois de entrar, volte para `returnPath(location)` e limpe o cache da sessão anterior (`queryClient.clear()`). O fuso e o idioma do navegador só vão no `verifyCode` (primeiro acesso).
+- **Conta (ETH-38):** é o único lugar que chama `PATCH /auth/me`. O aviso de fuso leva para `/conta` com o fuso do navegador em `location.state.suggestedTimezone`, para já vir selecionado. Nada muda o fuso da conta sozinho.
+- **Datas:** a API guarda e devolve UTC; mostre no fuso de quem vê (`me.timezone`), com `src/lib/time.js`. Nunca use os métodos locais de `Date` (`getDate`, `setHours`...), que seguem o fuso do sistema.
+- **Cores:** só tokens (`var(--fg)`, `var(--surface)`...) e a paleta. Para pintar algo com a cor de um hábito: `data-habit-color={habit.color}` no elemento e `var(--habit-color, var(--muted))` no CSS. Sem `style` inline (a CSP só aceita `style-src 'self'`). O teste `src/styles/colors.test.js` falha com hex, `rgb()` e afins fora de `palette.css`.
+- **Tela nova:** `PageTitle` com o título, um `<h1>`, CSS Module ao lado, ícones do `react-icons` em pixels inteiros (`size={20}`), layout a partir de 320 px. Teste com `renderApp(path)` e MSW (`server.use(http.get(api('/...'), ...))`), e `axe` sem violações.
+
+### Tema, idioma e navegadores
+
+- Tema e idioma usam as chaves do site (`theme` e `i18nextLng`, contrato em [packages/tokens/README.md](../../packages/tokens/README.md)): o que a pessoa escolhe no site vale no ethos e vice-versa. A diferença é que o tema é aplicado por `public/theme-init.js`, e não por script inline como no site.
+- Navegadores: o `browserslist` do `package.json` (duas últimas versões de Chrome, Edge, Firefox e Safari, e iOS 16+). O Vite não lê esse campo sozinho, então o `vite.config.js` o converte em `build.target` (`build-targets.js`); o padrão do Vite começaria no iOS 16.4.
+
+### Testes
+
+Os testes rodam no vitest em dois projetos: `app` (jsdom, `src/**/*.test.*`, com MSW, i18n e o setup de `src/test/setup.js`) e `build` (Node, `tests/*.test.js`). `npm test` liga a cobertura e falha abaixo de 80% em `src/lib/`. Toda request sem handler do MSW falha o teste. Todo teste de tela também confere acessibilidade com `vitest-axe`, usando o `axe` de `src/test/axe.js`:
 
 ```jsx
 expect(await axe(container)).toHaveNoViolations();
 ```
+
+O `axe` no jsdom não mede contraste. Por isso `src/styles/palette.test.js` calcula o contraste das 12 cores (mínimo 3:1 contra `--bg` e `--surface` dos dois temas, lidos de `packages/tokens/tokens.css`) e confere que os nomes são os do `HabitColor` de `app/models.py`.
+
+`tests/build.test.js` roda o `vite build` de verdade em pastas temporárias e confere que os tokens de `packages/tokens` entram no CSS do ethos (e que trocar um token, por uma cópia apontada pelo alias `@tokens`, muda o CSS gerado), que o `index.html` carrega o `theme-init.js` no `<head>` sem `defer` e que não há script nem estilo inline.
 
 ## CI
 

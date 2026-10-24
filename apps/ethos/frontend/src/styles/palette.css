@@ -1,0 +1,64 @@
+/* Paleta das 12 cores dos hábitos (nomes de HabitColor em app/models.py e de src/lib/palette.js).
+   Contraste mínimo de 3:1 contra --bg e --surface nos dois temas (src/styles/palette.test.js).
+   Como em packages/tokens/tokens.css, os valores escuros ficam em dois lugares: mude os dois. */
+
+:root {
+  --habit-red: #dc2626;
+  --habit-orange: #c2410c;
+  --habit-amber: #b45309;
+  --habit-yellow: #a16207;
+  --habit-lime: #4d7c0f;
+  --habit-green: #15803d;
+  --habit-teal: #0f766e;
+  --habit-cyan: #0e7490;
+  --habit-blue: #2563eb;
+  --habit-indigo: #4f46e5;
+  --habit-violet: #7c3aed;
+  --habit-pink: #db2777;
+}
+
+:root[data-theme='dark'] {
+  --habit-red: #f87171;
+  --habit-orange: #fb923c;
+  --habit-amber: #fbbf24;
+  --habit-yellow: #fde047;
+  --habit-lime: #a3e635;
+  --habit-green: #4ade80;
+  --habit-teal: #2dd4bf;
+  --habit-cyan: #22d3ee;
+  --habit-blue: #60a5fa;
+  --habit-indigo: #818cf8;
+  --habit-violet: #a78bfa;
+  --habit-pink: #f472b6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --habit-red: #f87171;
+    --habit-orange: #fb923c;
+    --habit-amber: #fbbf24;
+    --habit-yellow: #fde047;
+    --habit-lime: #a3e635;
+    --habit-green: #4ade80;
+    --habit-teal: #2dd4bf;
+    --habit-cyan: #22d3ee;
+    --habit-blue: #60a5fa;
+    --habit-indigo: #818cf8;
+    --habit-violet: #a78bfa;
+    --habit-pink: #f472b6;
+  }
+}
+
+/* data-habit-color="<nome>" define --habit-color para o elemento e os filhos */
+[data-habit-color='red'] { --habit-color: var(--habit-red); }
+[data-habit-color='orange'] { --habit-color: var(--habit-orange); }
+[data-habit-color='amber'] { --habit-color: var(--habit-amber); }
+[data-habit-color='yellow'] { --habit-color: var(--habit-yellow); }
+[data-habit-color='lime'] { --habit-color: var(--habit-lime); }
+[data-habit-color='green'] { --habit-color: var(--habit-green); }
+[data-habit-color='teal'] { --habit-color: var(--habit-teal); }
+[data-habit-color='cyan'] { --habit-color: var(--habit-cyan); }
+[data-habit-color='blue'] { --habit-color: var(--habit-blue); }
+[data-habit-color='indigo'] { --habit-color: var(--habit-indigo); }
+[data-habit-color='violet'] { --habit-color: var(--habit-violet); }
+[data-habit-color='pink'] { --habit-color: var(--habit-pink); }

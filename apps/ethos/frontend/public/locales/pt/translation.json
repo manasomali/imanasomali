@@ -1,0 +1,72 @@
+{
+  "a11y": {
+    "skip_to_content": "Pular para o conteúdo",
+    "open_menu": "Abrir menu",
+    "close_menu": "Fechar menu",
+    "main_navigation": "Navegação principal",
+    "language": "Idioma",
+    "light_theme": "Usar tema claro",
+    "dark_theme": "Usar tema escuro"
+  },
+  "menu": {
+    "habits": "Hábitos",
+    "account": "Conta",
+    "back_to_site": "manasomali.com"
+  },
+  "footer": {
+    "tagline": "ethos: aplicativo para cadastro de hábitos"
+  },
+  "common": {
+    "loading": "Carregando…",
+    "retry": "Tentar de novo",
+    "coming_soon": "Esta tela ainda está em construção."
+  },
+  "pages": {
+    "home": {
+      "title": "Hábitos"
+    },
+    "login": {
+      "title": "Entrar"
+    },
+    "account": {
+      "title": "Conta"
+    },
+    "not_found": {
+      "title": "Página não encontrada",
+      "text": "O endereço não existe ou mudou.",
+      "back_home": "Voltar para os hábitos"
+    }
+  },
+  "timezone_notice": {
+    "label": "Aviso de fuso horário",
+    "text": "Este aparelho está no fuso {{browser}}, mas a sua conta usa {{saved}}. Quer trocar o fuso da conta?",
+    "action": "Trocar na conta",
+    "dismiss": "Agora não"
+  },
+  "errors": {
+    "bad_request": "Não foi possível entender o pedido. Recarregue a página e tente de novo.",
+    "unauthorized": "Sua sessão acabou. Entre de novo.",
+    "forbidden": "Você não tem permissão para fazer isso.",
+    "not_found": "Não encontrado. Pode ter sido apagado ou você perdeu o acesso.",
+    "method_not_allowed": "Esta ação não é permitida.",
+    "conflict": "Isso conflita com outra alteração. Recarregue a página e tente de novo.",
+    "validation_error": "Algum campo está inválido. Confira e tente de novo.",
+    "rate_limited": "Muitas tentativas. Tente mais tarde.",
+    "internal_error": "Algo deu errado do nosso lado. Tente de novo em instantes.",
+    "service_unavailable": "O serviço está indisponível no momento. Tente mais tarde.",
+    "database_unavailable": "O serviço está indisponível no momento. Tente mais tarde.",
+    "invalid_code": "Código inválido ou vencido. Confira o código ou peça outro.",
+    "invalid_timezone": "Fuso horário desconhecido. Escolha outro fuso.",
+    "terms_not_accepted": "Aceite a nova versão dos termos de uso para continuar.",
+    "habit_limit_reached": "Você chegou ao limite de hábitos ativos e pausados. Arquive ou apague um hábito para criar outro.",
+    "habit_archived": "Este hábito está arquivado e só pode ser lido. Desarquive para mudar.",
+    "mark_mode_mismatch": "A configuração deste hábito mudou. Recarregue a página.",
+    "mark_limit_reached": "Este dia chegou ao limite de marcações deste hábito.",
+    "invite_limit_reached": "Você chegou ao limite de convites por dia. Tente amanhã.",
+    "guest_limit_reached": "Este hábito chegou ao limite de convidados.",
+    "shared_habit_limit_reached": "Você chegou ao limite de hábitos compartilhados com você. Saia de um para aceitar este convite.",
+    "last_admin": "Esta é a última conta de administrador ativa e não pode ser excluída. Crie outro administrador antes.",
+    "network_error": "Sem conexão com o servidor. Confira a internet e tente de novo.",
+    "unknown": "Algo deu errado. Tente de novo."
+  }
+}

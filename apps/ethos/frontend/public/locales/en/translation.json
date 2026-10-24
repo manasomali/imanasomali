@@ -1,0 +1,72 @@
+{
+  "a11y": {
+    "skip_to_content": "Skip to content",
+    "open_menu": "Open menu",
+    "close_menu": "Close menu",
+    "main_navigation": "Main navigation",
+    "language": "Language",
+    "light_theme": "Use light theme",
+    "dark_theme": "Use dark theme"
+  },
+  "menu": {
+    "habits": "Habits",
+    "account": "Account",
+    "back_to_site": "manasomali.com"
+  },
+  "footer": {
+    "tagline": "ethos: an app for tracking habits"
+  },
+  "common": {
+    "loading": "Loading…",
+    "retry": "Try again",
+    "coming_soon": "This screen is still under construction."
+  },
+  "pages": {
+    "home": {
+      "title": "Habits"
+    },
+    "login": {
+      "title": "Sign in"
+    },
+    "account": {
+      "title": "Account"
+    },
+    "not_found": {
+      "title": "Page not found",
+      "text": "This address does not exist or has changed.",
+      "back_home": "Back to habits"
+    }
+  },
+  "timezone_notice": {
+    "label": "Time zone notice",
+    "text": "This device is in the {{browser}} time zone, but your account uses {{saved}}. Do you want to change your account's time zone?",
+    "action": "Change in account",
+    "dismiss": "Not now"
+  },
+  "errors": {
+    "bad_request": "The request could not be understood. Reload the page and try again.",
+    "unauthorized": "Your session has ended. Please sign in again.",
+    "forbidden": "You do not have permission to do this.",
+    "not_found": "Not found. It may have been deleted or you lost access.",
+    "method_not_allowed": "This action is not allowed.",
+    "conflict": "This conflicts with another change. Reload the page and try again.",
+    "validation_error": "Some field is invalid. Check it and try again.",
+    "rate_limited": "Too many attempts. Please try again later.",
+    "internal_error": "Something went wrong on our side. Try again in a moment.",
+    "service_unavailable": "The service is unavailable right now. Please try again later.",
+    "database_unavailable": "The service is unavailable right now. Please try again later.",
+    "invalid_code": "Invalid or expired code. Check the code or request a new one.",
+    "invalid_timezone": "Unknown time zone. Choose another one.",
+    "terms_not_accepted": "Accept the new version of the terms of use to continue.",
+    "habit_limit_reached": "You have reached the limit of active and paused habits. Archive or delete a habit to create another.",
+    "habit_archived": "This habit is archived and read-only. Unarchive it to make changes.",
+    "mark_mode_mismatch": "This habit's settings have changed. Reload the page.",
+    "mark_limit_reached": "This day has reached the mark limit for this habit.",
+    "invite_limit_reached": "You have reached the daily invite limit. Try again tomorrow.",
+    "guest_limit_reached": "This habit has reached its guest limit.",
+    "shared_habit_limit_reached": "You have reached the limit of habits shared with you. Leave one to accept this invite.",
+    "last_admin": "This is the last active administrator account and cannot be deleted. Create another administrator first.",
+    "network_error": "No connection to the server. Check your internet and try again.",
+    "unknown": "Something went wrong. Try again."
+  }
+}
