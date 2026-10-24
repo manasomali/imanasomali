@@ -1,7 +1,8 @@
-"""Endpoints do login por código: `POST /auth/code/request` e `POST /auth/code/verify`.
+"""Endpoints de `/auth`: login por código, logout, dados da conta e aceite dos termos.
 
-As regras ficam em `app/auth/service.py`; aqui só a entrada (validação do corpo), a resposta HTTP
-e o agendamento dos emails depois do commit.
+As regras do login ficam em `app/auth/service.py` e as da sessão em `app/auth/deps.py`; aqui só
+a entrada (validação do corpo), a resposta HTTP e o agendamento dos emails depois do commit. Toda
+request de escrita passa antes pela checagem de `Origin` (`app/auth/origin.py`).
 
 - `request`: 202 com o mesmo corpo e os mesmos headers para email com conta, sem conta e de conta
   inativa (que não recebe email). Limite por email e teto global: 429 `rate_limited`, igual para
@@ -10,23 +11,39 @@ e o agendamento dos emails depois do commit.
 - `verify`: 200 com o cookie da sessão (`app/auth/cookies.py`). Código errado, vencido, usado,
   esgotado ou de conta inativa: 400 `invalid_code` (field `code`), sempre igual. Fuso
   desconhecido no primeiro acesso: 422 `invalid_timezone` (field `timezone`).
+- `logout`: apaga a sessão do cookie e o cookie; `logout-all`: apaga todas as sessões do usuário
+  (expulsa um aparelho perdido) e o cookie. 204; sem sessão válida, 401.
+- `GET /me`: os dados da conta e `terms_pending` (precisa aceitar a versão atual dos termos).
+- `PATCH /me`: muda `timezone` (fuso IANA; desconhecido: 422 `invalid_timezone`) e `locale`. É o
+  único jeito de mudar o fuso: o login de conta existente o ignora.
+- `POST /me/terms`: aceita a versão atual dos termos. O corpo traz a versão que a pessoa leu; se
+  ela não for a atual (os termos mudaram com a tela aberta), 409 `conflict` (field
+  `terms_version`), e o front mostra os termos novos.
+
+Logout, `/me` e `/me/terms` funcionam sem os termos atuais aceitos (`CurrentUserAnyTerms`).
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, BackgroundTasks, Request, Response
 from fastapi.responses import JSONResponse
-from pydantic import AfterValidator, BaseModel, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, StringConstraints, field_validator
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
 
+from app import audit
+from app.audit import AuditEvent
 from app.auth import service
-from app.auth.cookies import set_session_cookie
+from app.auth.cookies import clear_session_cookie, set_session_cookie
+from app.auth.deps import CurrentSession, CurrentUserAnyTerms, terms_pending
 from app.config import SettingsDep
-from app.db import SessionDep
+from app.db import SessionDep, write_transaction
 from app.errors import ApiError, ErrorCode, error_response
 from app.mail.language import Locale
 from app.mail.sender import MailerDep, schedule_email
-from app.models import TIMEZONE_MAX_LENGTH
+from app.models import TERMS_VERSION_MAX_LENGTH, TIMEZONE_MAX_LENGTH, User, UserSession, utcnow
 from app.request_info import client_ip, client_user_agent
+from app.terms import TERMS_VERSION
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -111,3 +128,163 @@ def verify_code(
         raise ApiError(400, ErrorCode.INVALID_CODE, field="code")
     set_session_cookie(response, result.token)
     return CodeVerifyResponse(new_account=result.new_account)
+
+
+# --- sessão ---
+
+
+def _delete_sessions(session: Session, *where: Any) -> int:
+    """Apaga as sessões que batem com `where` e devolve quantas eram."""
+    result = session.execute(
+        delete(UserSession).where(*where), execution_options={"synchronize_session": False}
+    )
+    return result.rowcount
+
+
+@router.post("/logout", status_code=204)
+def logout(
+    current: CurrentSession, request: Request, response: Response, session: SessionDep
+) -> None:
+    user_id = current.user.id
+    with write_transaction(session):
+        # 0 só se outro request apagou a sessão no meio (outro logout, logout-all, exclusão)
+        if _delete_sessions(session, UserSession.token_hash == current.token_hash):
+            audit.record(session, AuditEvent.LOGOUT, user_id=user_id, ip=client_ip(request))
+    clear_session_cookie(response)
+
+
+@router.post("/logout-all", status_code=204)
+def logout_all(
+    current: CurrentSession, request: Request, response: Response, session: SessionDep
+) -> None:
+    user_id = current.user.id
+    with write_transaction(session):
+        deleted = _delete_sessions(session, UserSession.user_id == user_id)
+        if deleted:
+            audit.record(
+                session,
+                AuditEvent.LOGOUT_ALL,
+                user_id=user_id,
+                ip=client_ip(request),
+                details={"sessions": deleted},
+            )
+    clear_session_cookie(response)
+
+
+# --- conta ---
+
+
+class MeResponse(BaseModel):
+    id: int
+    email: str
+    timezone: str
+    locale: Locale
+    is_admin: bool
+    # Versão dos termos aceita pela pessoa e a atual; terms_pending: precisa aceitar a atual
+    terms_version: str
+    current_terms_version: str
+    terms_pending: bool
+
+
+def _me(user: User) -> MeResponse:
+    return MeResponse(
+        id=user.id,
+        email=user.email,
+        timezone=user.timezone,
+        locale=Locale(user.locale),
+        is_admin=user.is_admin,
+        terms_version=user.terms_version,
+        current_terms_version=TERMS_VERSION,
+        terms_pending=terms_pending(user),
+    )
+
+
+def _reload_user(session: Session, user_id: int) -> User:
+    """Relê o usuário dentro da transação de escrita; 401 se foi apagado ou bloqueado no meio."""
+    user = session.scalar(
+        select(User).where(User.id == user_id).execution_options(populate_existing=True)
+    )
+    if user is None or not user.is_active:
+        raise ApiError(401, ErrorCode.UNAUTHORIZED)
+    return user
+
+
+@router.get("/me")
+def get_me(user: CurrentUserAnyTerms) -> MeResponse:
+    return _me(user)
+
+
+class ProfileUpdateBody(BaseModel):
+    """Campos ausentes não mudam; `null` e campos desconhecidos são recusados (422)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    timezone: Timezone | None = None
+    locale: Locale | None = None
+
+    @field_validator("timezone", "locale")
+    @classmethod
+    def _not_null(cls, value: str | None) -> str:
+        # Só roda quando o campo veio no corpo: o padrão (ausente) não é validado
+        if value is None:
+            raise ValueError("não pode ser null")
+        return value
+
+
+@router.patch("/me")
+def update_me(
+    body: ProfileUpdateBody, user: CurrentUserAnyTerms, request: Request, session: SessionDep
+) -> MeResponse:
+    if body.timezone is not None and not service.is_valid_timezone(body.timezone):
+        raise ApiError(422, ErrorCode.INVALID_TIMEZONE, field="timezone")
+    requested = {"timezone": body.timezone, "locale": body.locale}
+    if all(value is None for value in requested.values()):
+        return _me(user)
+    user_id = user.id
+    with write_transaction(session):
+        user = _reload_user(session, user_id)
+        changes = []
+        for name, new in requested.items():
+            old = getattr(user, name)
+            if new is not None and new != old:
+                changes.append({"field": name, "old": old, "new": str(new)})
+                setattr(user, name, str(new))
+        if changes:
+            audit.record(
+                session,
+                AuditEvent.PROFILE_UPDATED,
+                user_id=user_id,
+                ip=client_ip(request),
+                details={"changes": changes},
+            )
+    return _me(user)
+
+
+class TermsAcceptBody(BaseModel):
+    # A versão que a pessoa leu e aceitou (a que o front mostrou)
+    terms_version: Annotated[
+        str, StringConstraints(min_length=1, max_length=TERMS_VERSION_MAX_LENGTH)
+    ]
+
+
+@router.post("/me/terms")
+def accept_terms(
+    body: TermsAcceptBody, user: CurrentUserAnyTerms, request: Request, session: SessionDep
+) -> MeResponse:
+    if body.terms_version != TERMS_VERSION:
+        raise ApiError(409, ErrorCode.CONFLICT, field="terms_version")
+    user_id = user.id
+    with write_transaction(session):
+        user = _reload_user(session, user_id)
+        # Aceitar de novo a versão já aceita não muda nada
+        if terms_pending(user):
+            user.terms_version = TERMS_VERSION
+            user.terms_accepted_at = utcnow()
+            audit.record(
+                session,
+                AuditEvent.TERMS_ACCEPTED,
+                user_id=user_id,
+                ip=client_ip(request),
+                details={"terms_version": TERMS_VERSION},
+            )
+    return _me(user)

@@ -79,7 +79,7 @@ EMAIL_SEND_LIMITS = ((timedelta(minutes=1), 1), (timedelta(hours=1), 5))
 SUPPORT_ALERT_INTERVAL = timedelta(hours=1)
 # Idioma do aviso ao suporte (quem opera o serviço)
 SUPPORT_LOCALE = Locale.PT
-# Duração da sessão (o cookie tem o mesmo Max-Age). A renovação com o uso é da ETH-18
+# Duração da sessão desde o último uso (o cookie tem o mesmo Max-Age); renovação em app/auth/deps.py
 SESSION_LIFETIME = timedelta(days=60)
 
 

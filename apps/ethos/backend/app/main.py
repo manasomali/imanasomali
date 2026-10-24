@@ -6,6 +6,7 @@ from fastapi import APIRouter, FastAPI
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.auth.origin import OriginCheckMiddleware
 from app.auth.routes import router as auth_router
 from app.config import Settings, load_settings
 from app.db import SessionDep, create_db_engine, create_session_factory
@@ -60,6 +61,8 @@ def create_app(
     # (/health). O prefixo público é passado ao servidor com `uvicorn --root-path /api/ethos`: o
     # parâmetro root_path do FastAPI() está obsoleto desde o FastAPI 0.162
     api = FastAPI(title="ethos", lifespan=lifespan)
+    # O último adicionado fica por fora: o log registra também o 403 da checagem de Origin
+    api.add_middleware(OriginCheckMiddleware)
     api.add_middleware(RequestLogMiddleware)
     install_error_handlers(api)
     api.include_router(router)

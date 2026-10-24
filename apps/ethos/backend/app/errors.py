@@ -34,6 +34,9 @@ class ErrorCode(StrEnum):
     INVALID_CODE = "invalid_code"
     # Fuso IANA desconhecido no primeiro acesso (conta existente ignora o fuso do verify)
     INVALID_TIMEZONE = "invalid_timezone"
+    # Sessão válida, mas a versão atual dos termos não foi aceita: o front mostra os termos e
+    # chama POST /auth/me/terms (403 nos endpoints do app; /auth/me e o logout funcionam)
+    TERMS_NOT_ACCEPTED = "terms_not_accepted"
 
 
 # Código de uma HTTPException pelo status. Status fora da tabela cai no genérico da faixa
