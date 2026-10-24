@@ -77,7 +77,9 @@ jobs:
       - name: Cobertura de 100% nos módulos críticos
         env:
           FULL_COVERAGE: |
+            app/audit.py
             app/auth/security.py
+            app/retention.py
             app/score.py
         run: |
           for module in $FULL_COVERAGE; do

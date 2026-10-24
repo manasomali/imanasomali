@@ -87,6 +87,15 @@ def create_session_factory(engine: Engine) -> sessionmaker[Session]:
 def _refuse_write_outside_transaction(
     session: Session, _flush_context: Any, _instances: Any
 ) -> None:
+    require_write_transaction(session)
+
+
+def require_write_transaction(session: Session) -> None:
+    """Levanta RuntimeError se a sessão não está dentro de `write_transaction`.
+
+    O before_flush só vê o ORM. Funções que escrevem com `session.execute(update/delete)`, que
+    não passa pelo flush, chamam esta no começo.
+    """
     if not session.info.get(_IN_WRITE):
         raise RuntimeError("escrita no banco fora de write_transaction")
 
