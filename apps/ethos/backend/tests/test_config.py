@@ -282,6 +282,15 @@ def test_app_fails_at_startup_without_config(clean_env):
         pass
 
 
+def test_app_refuses_to_start_with_console_email_in_prod(environ, clean_env):
+    environ["EMAIL_BACKEND"] = "console"
+    for name, value in environ.items():
+        clean_env.setenv(name, value)
+
+    with pytest.raises(ConfigError, match="EMAIL_BACKEND=console"), TestClient(create_app()):
+        pass
+
+
 def test_app_starts_with_config_from_environment(environ, clean_env):
     for name, value in environ.items():
         clean_env.setenv(name, value)
