@@ -5,7 +5,13 @@ from sqlalchemy import Engine, event, select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
-from app.db import create_db_engine, create_session_factory, write_transaction
+from app.db import (
+    check_foreign_keys,
+    create_db_engine,
+    create_session_factory,
+    migration_connection,
+    write_transaction,
+)
 
 WRITERS = 4
 WRITES_PER_THREAD = 25
@@ -16,7 +22,7 @@ class Base(DeclarativeBase):
 
 
 class Item(Base):
-    """Tabela só dos testes: os modelos do app entram na ETH-12."""
+    """Tabela só destes testes, fora dos modelos do app (app/models.py)."""
 
     __tablename__ = "items"
 
@@ -205,3 +211,48 @@ def test_deferred_read_then_write_gets_locked(tables):
     assert errors
     assert all(isinstance(error, OperationalError) for error in errors)
     assert all("database is locked" in str(error) for error in errors)
+
+
+def test_migration_connection_turns_foreign_keys_off_and_begins_immediate(engine, statements):
+    with migration_connection(engine) as connection, connection.begin():
+        assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 0
+        driver_connection = connection.connection.dbapi_connection
+
+    assert [s for s in statements if s.startswith("BEGIN")] == ["BEGIN IMMEDIATE"]
+    # A conexão sem chaves estrangeiras não volta ao pool
+    with engine.connect() as fresh:
+        assert fresh.connection.dbapi_connection is not driver_connection
+        assert fresh.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
+
+
+def test_migration_connection_is_discarded_after_an_error(engine):
+    seen = []
+
+    def fail() -> None:
+        with migration_connection(engine) as connection:
+            seen.append(connection.connection.dbapi_connection)
+            raise LookupError
+
+    with pytest.raises(LookupError):
+        fail()
+
+    [driver_connection] = seen
+    with engine.connect() as fresh:
+        assert fresh.connection.dbapi_connection is not driver_connection
+        assert fresh.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
+
+
+def test_check_foreign_keys_reports_tables_without_values(engine):
+    orphan = text(
+        "INSERT INTO sessions (token_hash, user_id, created_at, expires_at, last_seen_at) "
+        "VALUES (:hash, 4242, '2026-01-01', '2026-01-01', '2026-01-01')"
+    )
+    with migration_connection(engine) as connection, connection.begin() as transaction:
+        check_foreign_keys(connection)
+        # Com as chaves desligadas, a linha órfã entra; a conferência no fim acha
+        connection.execute(orphan, {"hash": "a" * 64})
+
+        with pytest.raises(RuntimeError, match=r"nas tabelas: sessions$") as error:
+            check_foreign_keys(connection)
+        assert "4242" not in str(error.value)
+        transaction.rollback()
