@@ -7,7 +7,13 @@
 - `app`: app montado com `settings`;
 - `make_client(app, **kwargs)`: TestClient com o lifespan rodando e o root_path de produção,
   fechado no fim do teste (kwargs vão para o TestClient, ex.: raise_server_exceptions=False);
-- `client`: `make_client(app)`.
+- `client`: `make_client(app)`;
+- `make_smtp_server(starttls=True)`: servidor SMTP falso (`tests/fake_smtp.py`) em 127.0.0.1,
+  com STARTTLS e login obrigatórios, parado no fim do teste. Guarda em `.received` cada email
+  recebido; `.backend()` devolve um `SmtpBackend` apontado para ele. Com `starttls=False`, o
+  servidor não oferece STARTTLS;
+- `smtp_server`: `make_smtp_server()`. Para o app enviar por ele:
+  `create_app(settings, mail_backend=smtp_server.backend())`.
 """
 
 from collections.abc import Callable, Iterator
@@ -15,6 +21,7 @@ from contextlib import ExitStack
 from typing import Any
 
 import pytest
+import trustme
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
@@ -23,6 +30,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db import create_db_engine, create_session_factory
 from app.main import create_app
+from tests.fake_smtp import FakeSmtpServer, start_fake_smtp
 
 # Mesmo prefixo que o uvicorn recebe em produção (--root-path /api/ethos)
 ROOT_PATH = "/api/ethos"
@@ -93,3 +101,25 @@ def make_client() -> Iterator[Callable[..., TestClient]]:
 @pytest.fixture
 def client(app, make_client) -> TestClient:
     return make_client(app)
+
+
+@pytest.fixture(scope="session")
+def smtp_ca() -> trustme.CA:
+    return trustme.CA()
+
+
+@pytest.fixture
+def make_smtp_server(smtp_ca) -> Iterator[Callable[..., FakeSmtpServer]]:
+    with ExitStack() as stack:
+
+        def build(*, starttls: bool = True) -> FakeSmtpServer:
+            server, stop = start_fake_smtp(smtp_ca, starttls=starttls)
+            stack.callback(stop)
+            return server
+
+        yield build
+
+
+@pytest.fixture
+def smtp_server(make_smtp_server) -> FakeSmtpServer:
+    return make_smtp_server()

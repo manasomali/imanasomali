@@ -10,6 +10,8 @@ from app.config import Settings, load_settings
 from app.db import SessionDep, create_db_engine, create_session_factory
 from app.errors import ApiError, ErrorCode, install_error_handlers
 from app.logs import RequestLogMiddleware, configure_logging
+from app.mail.backends import MailBackend
+from app.mail.sender import Mailer, build_backend
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +29,13 @@ def health(session: SessionDep) -> dict[str, str]:
     return {"status": "ok"}
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None, mail_backend: MailBackend | None = None
+) -> FastAPI:
     """Monta o app. Sem `settings`, a configuração é lida do ambiente na subida.
+
+    Sem `mail_backend`, o envio de email segue o `EMAIL_BACKEND` da config; os testes passam um
+    backend apontado para o servidor SMTP falso.
 
     A leitura fica no lifespan, não no import: config inválida derruba o servidor na subida com
     a lista das variáveis erradas, e os testes importam o módulo sem precisar do ambiente.
@@ -41,6 +48,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         engine = create_db_engine(current.database_path)
         api.state.settings = current
         api.state.session_factory = create_session_factory(engine)
+        backend = build_backend(current) if mail_backend is None else mail_backend
+        api.state.mailer = Mailer(current, backend)
         try:
             yield
         finally:
