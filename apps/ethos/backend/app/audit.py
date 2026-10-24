@@ -69,6 +69,10 @@ class AuditEvent(StrEnum):
     LOGOUT_ALL = "logout_all"
     # Pedido de código para excluir a conta (ETH-27)
     DELETE_CODE_REQUESTED = "delete_code_requested"
+    # Teto global de envio de códigos atingido e aviso mandado ao SUPPORT_EMAIL; evento do
+    # sistema (user_id=None), {"window": "hour" | "day", "limit": n}. A última linha dele é o que
+    # segura o aviso em no máximo 1 por hora (ETH-17)
+    SEND_CAP_REACHED = "send_cap_reached"
 
     # --- Conta: ficam enquanto a conta existe ---
     # Aceite de uma versão nova dos termos; {"terms_version": "..."} (ETH-18)
@@ -131,6 +135,7 @@ AUTH_EVENTS: frozenset[AuditEvent] = frozenset(
         AuditEvent.LOGOUT,
         AuditEvent.LOGOUT_ALL,
         AuditEvent.DELETE_CODE_REQUESTED,
+        AuditEvent.SEND_CAP_REACHED,
     }
 )
 

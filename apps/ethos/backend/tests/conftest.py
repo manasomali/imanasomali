@@ -19,7 +19,10 @@
   recebido; `.backend()` devolve um `SmtpBackend` apontado para ele. Com `starttls=False`, o
   servidor não oferece STARTTLS;
 - `smtp_server`: `make_smtp_server()`. Para o app enviar por ele:
-  `create_app(settings, mail_backend=smtp_server.backend())`.
+  `create_app(settings, mail_backend=smtp_server.backend())`;
+- `outbox`: backend de email em memória (`tests/auth_helpers.py`), sem rede, para os testes que
+  só precisam ler o que o app mandou: `create_app(settings, mail_backend=outbox)`, e as mensagens
+  em `outbox.messages`. `auth_helpers.login(client, outbox, email)` faz o login inteiro.
 """
 
 import shutil
@@ -41,6 +44,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db import create_db_engine, create_session_factory
 from app.main import create_app
+from tests.auth_helpers import Outbox
 from tests.fake_smtp import FakeSmtpServer, start_fake_smtp
 
 # Mesmo prefixo que o uvicorn recebe em produção (--root-path /api/ethos)
@@ -160,3 +164,8 @@ def make_smtp_server(smtp_ca) -> Iterator[Callable[..., FakeSmtpServer]]:
 @pytest.fixture
 def smtp_server(make_smtp_server) -> FakeSmtpServer:
     return make_smtp_server()
+
+
+@pytest.fixture
+def outbox() -> Outbox:
+    return Outbox()

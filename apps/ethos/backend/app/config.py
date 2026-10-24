@@ -52,7 +52,8 @@ _EMAIL_MAX_LENGTH = 254
 _SMTP_FIELDS = ("smtp_host", "smtp_port", "smtp_user", "smtp_password")
 
 
-def _is_email(value: str) -> bool:
+def is_email(value: str) -> bool:
+    """Forma simples de endereço (até 254 caracteres). Usada também pelo login (app/auth)."""
     return len(value) <= _EMAIL_MAX_LENGTH and _EMAIL_RE.fullmatch(value) is not None
 
 
@@ -131,14 +132,14 @@ class Settings(BaseModel):
     @classmethod
     def _check_mail_from(cls, value: str) -> str:
         _, address = parseaddr(value)
-        if "\r" in value or "\n" in value or not _is_email(address):
+        if "\r" in value or "\n" in value or not is_email(address):
             raise ValueError('precisa ser um remetente, ex.: "ethos <no-reply@exemplo.com>"')
         return value
 
     @field_validator("support_email")
     @classmethod
     def _check_support_email(cls, value: str) -> str:
-        if not _is_email(value):
+        if not is_email(value):
             raise ValueError("precisa ser um endereço de email")
         return value
 
