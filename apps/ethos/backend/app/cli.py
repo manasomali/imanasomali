@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app import audit
 from app.audit import AuditEvent
+from app.auth.service import normalize_email
 from app.config import ConfigError, Settings, load_settings
 from app.db import create_db_engine, create_session_factory, write_transaction
 from app.logs import configure_logging
@@ -79,7 +80,10 @@ def _create_admin(context: CommandContext, args: argparse.Namespace) -> int:
     serve para nada e deixaria um admin pronto para quem desbloquear a conta. Rodar de novo numa
     conta que já é admin não grava nada.
     """
-    email = _normalize_email(args.email)
+    # Mesma normalização e validação do login: o email é salvo em `users` com strip + lower
+    email = normalize_email(args.email)
+    if email is None:
+        raise CommandError("email inválido")
     # A leitura vai dentro da transação de escrita: duas execuções ao mesmo tempo não gravam dois
     # eventos, porque a segunda só lê depois do commit da primeira (BEGIN IMMEDIATE)
     with context.session_factory() as session, write_transaction(session):
@@ -99,11 +103,6 @@ def _create_admin(context: CommandContext, args: argparse.Namespace) -> int:
     else:
         print(f"create-admin: a conta {user_id} agora é admin")
     return EXIT_OK
-
-
-def _normalize_email(email: str) -> str:
-    """Mesma normalização do login: o email é salvo em `users` com strip + lower."""
-    return email.strip().lower()
 
 
 def build_parser() -> argparse.ArgumentParser:

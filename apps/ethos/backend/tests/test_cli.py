@@ -206,6 +206,16 @@ def test_create_admin_unknown_email_changes_nothing(db_session, env, ana, capsys
     assert count(db_session, AuditLog) == 0
 
 
+@pytest.mark.parametrize("typed", ["", "ana", "ana@example", "ana @example.com"])
+def test_create_admin_refuses_an_invalid_email(db_session, env, ana, typed, capsys):
+    before = snapshot(db_session)
+
+    assert main(["create-admin", typed], env) == 1
+
+    assert capsys.readouterr() == ("", "erro: email inválido\n")
+    assert snapshot(db_session) == before
+
+
 def test_create_admin_twice_changes_nothing_the_second_time(db_session, env, ana, capsys):
     with time_machine.travel(NOW, tick=False):
         assert main(["create-admin", "ana@example.com"], env) == 0
