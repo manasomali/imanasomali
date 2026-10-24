@@ -72,6 +72,7 @@ jobs:
         env:
           FULL_COVERAGE: |
             app/auth/security.py
+            app/score.py
         run: |
           for module in $FULL_COVERAGE; do
             uv run --no-sync coverage report --fail-under=100 --show-missing --include="$module"
