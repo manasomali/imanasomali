@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 import time_machine
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, select, text, update
 from sqlalchemy.exc import IntegrityError, StatementError
 from sqlalchemy.orm import Session
 
@@ -22,41 +22,10 @@ from app.models import (
     User,
     UserSession,
 )
+from tests.factories import count, new_habit, new_user, save
 
 NOW = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
 HASH = "a" * 64
-
-
-def new_user(email: str = "ana@example.com", **fields: Any) -> User:
-    values: dict[str, Any] = {
-        "email": email,
-        "timezone": "America/Sao_Paulo",
-        "locale": "pt",
-        "terms_version": "2026-01",
-        "terms_accepted_at": NOW,
-    }
-    return User(**(values | fields))
-
-
-def new_habit(owner: User, **fields: Any) -> Habit:
-    values: dict[str, Any] = {
-        "owner_id": owner.id,
-        "name": "Exercício",
-        "color": "teal",
-        "goal_type": "min",
-        "goal_count": 3,
-        "goal_period": "week",
-    }
-    return Habit(**(values | fields))
-
-
-def save(session: Session, *objects: Any) -> None:
-    with write_transaction(session):
-        session.add_all(objects)
-
-
-def count(session: Session, model: Any, *where: Any) -> int:
-    return session.scalar(select(func.count()).select_from(model).where(*where))
 
 
 @pytest.fixture
