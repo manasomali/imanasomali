@@ -34,12 +34,12 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/retention.py,app/score.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/retention.py,app/score.py   # depois do pytest
 ```
 
 Alguns módulos precisam de 100% de cobertura (linhas e ramos). A lista fica na variável `FULL_COVERAGE` do passo "Cobertura de 100% nos módulos críticos" do CI, que confere cada um com o `coverage report` acima.
 
-Os testes não precisam de `.env`: as fixtures de `tests/conftest.py` montam a config com um SQLite em arquivo temporário (`settings`, `make_settings`, `engine`, `db_session`, `app`, `client`, `make_client`, `smtp_server`, `make_smtp_server`, `outbox`). O banco de teste já vem com o schema completo: as migrações rodam uma vez por execução do pytest (`migrated_template`) e cada teste recebe uma cópia (`database`). Para testar migrações, `make_alembic_config(caminho)` devolve a config do Alembic apontando para outro banco. `tests/factories.py` tem `new_user`, `new_habit`, `save` e `count` para montar dados.
+Os testes não precisam de `.env`: as fixtures de `tests/conftest.py` montam a config com um SQLite em arquivo temporário (`settings`, `make_settings`, `engine`, `db_session`, `app`, `client`, `make_client`, `smtp_server`, `make_smtp_server`, `outbox`). O banco de teste já vem com o schema completo: as migrações rodam uma vez por execução do pytest (`migrated_template`) e cada teste recebe uma cópia (`database`). Para testar migrações, `make_alembic_config(caminho)` devolve a config do Alembic apontando para outro banco. `tests/factories.py` tem `new_user`, `new_habit`, `new_member`, `new_mark`, `new_pause`, `save` e `count` para montar dados.
 
 Dependências entram com `uv add <pacote>` (ou `uv add --dev <pacote>`), que atualiza o `pyproject.toml` e o `uv.lock`. Os dois vão juntos no commit.
 
@@ -100,6 +100,19 @@ Nos testes, a fixture `outbox` é um backend de email em memória (`create_app(s
 - Renovação: a sessão vale 60 dias desde o último uso. `last_seen_at` e `expires_at` são gravados no máximo uma vez por dia por sessão (`RENEWAL_INTERVAL`), num `write_transaction` que só abre quando precisa e repete a conferência dentro dele; nessa hora o cookie sai de novo com o `Max-Age` cheio. O cookie renovado só vai na resposta quando o endpoint devolve dados (não um `Response` pronto).
 - `app/auth/origin.py` (100% de cobertura): proteção contra CSRF. Um middleware recusa com 403 `forbidden` toda request que não seja GET, HEAD ou OPTIONS sem exatamente um header `Origin` igual à origem do `APP_URL` (`settings.app_origin`: esquema + host + porta se não for a padrão). Vale para todas as rotas, inclusive as do login, e roda antes de ler o corpo. Nos testes, o `make_client` manda esse `Origin` em todo request; `make_client(app, origin=False)` não manda.
 - Endpoints: `POST /auth/logout` (apaga a sessão atual e o cookie, evento `logout`), `POST /auth/logout-all` (apaga todas as sessões do usuário, evento `logout_all` com `{"sessions": n}`), `GET /auth/me` (id, email, fuso, idioma, `is_admin`, versão dos termos aceita, versão atual e `terms_pending`), `PATCH /auth/me` com `{timezone?, locale?}` (fuso IANA desconhecido: 422 `invalid_timezone`; `null` ou campo desconhecido: 422; evento `profile_updated` com o que mudou) e `POST /auth/me/terms` com `{terms_version}` (a versão que a pessoa leu; diferente da atual: 409 `conflict`; evento `terms_accepted`). O fuso só muda pelo `PATCH /auth/me`.
+
+### Hábitos
+
+O pacote `app/habits/` tem a configuração dos hábitos e o acesso a eles:
+
+- `access.py` (100% de cobertura): `get_habit_access(session, habit_id, user_id)` devolve o hábito e o papel de quem pede (`owner`, `editor` ou `viewer`) ou 404 `not_found`, igual para id que não existe e para hábito de outra pessoa (a API nunca revela que ele existe). `require_owner(access)` dá 403 `forbidden` para editor e viewer. `HabitId` é o id no caminho (1 até o maior inteiro do SQLite; fora disso, 422).
+- `scoring.py` (100% de cobertura): converte os modelos para as dataclasses do `score.py` e lê marcações e pausas em lote. `evaluate_habits(session, hábitos, fuso, now=...)` calcula a pontuação de vários hábitos com duas consultas.
+- `schemas.py`: os tamanhos e formatos do plano. Nome de 1 a 60 caracteres, descrição até 500, recompensa e punição até 140, sigla de 1 a 4 letras (A-Z) ou números salva em maiúsculas, cor da paleta de 12 nomes. Espaços nas pontas saem, texto opcional vazio vira `null`, caracteres de controle e de direção do texto são recusados, booleanos e inteiros são estritos e campo desconhecido é recusado.
+- `service.py` (100% de cobertura): as regras. `check_config` confere a configuração inteira depois de cada mudança: N ≥ 1 em `min` e `exact` e N ≥ 0 em `max`, teto de N (dias do período no toggle: 7, 28 ou 365; `MAX_MARKS_PER_DAY` × dias com várias por dia), minutos com a duração ligada, valor do custo no nível hábito, limite de custo e período juntos, e recompensa e punição só com a pontuação ligada. Desligar um recurso não apaga o valor dele, que volta ao religar. `MAX_HABITS_PER_USER` conta os ativos e pausados do dono dentro da transação da criação (409 `habit_limit_reached`).
+- `routes.py`: `GET /habits` (os do usuário e os compartilhados com ele, com o `role`), `POST /habits` (201), `GET /habits/{id}`, `PATCH /habits/{id}` (mudança parcial; `null` só nos campos opcionais) e `DELETE /habits/{id}` (204). Editar e apagar são só do dono. A pontuação (`score: {value, success}`, `null` em "sem dados") vem só com `score_enabled`, no fuso de quem pede; desligada, a chave nem aparece.
+- Auditoria: `habit_created`, `habit_updated` com `{"changes": [{"field", "old", "new"}]}` (a descrição só com o `field`) e `habit_deleted` com `habit_id=None` e `{"habit_id": n}`. Apagar o hábito apaga em cascata as marcações, pausas, membros, convites, alertas e a auditoria dele, e os membros recebem o email `HabitDeleted` depois do commit.
+
+Nos testes, `tests/auth_helpers.py` tem `open_session(session, user)` (sessão direto no banco, sem email) e `cookie(token)`, e `tests/factories.py` tem `new_member`, `new_mark` e `new_pause` para montar compartilhamento, marcações e pausas direto no banco.
 
 ### Comandos de operação (CLI)
 

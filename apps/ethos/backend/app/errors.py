@@ -37,6 +37,8 @@ class ErrorCode(StrEnum):
     # Sessão válida, mas a versão atual dos termos não foi aceita: o front mostra os termos e
     # chama POST /auth/me/terms (403 nos endpoints do app; /auth/me e o logout funcionam)
     TERMS_NOT_ACCEPTED = "terms_not_accepted"
+    # Criar outro hábito passaria do MAX_HABITS_PER_USER (ativos + pausados do dono): 409
+    HABIT_LIMIT_REACHED = "habit_limit_reached"
 
 
 # Código de uma HTTPException pelo status. Status fora da tabela cai no genérico da faixa
