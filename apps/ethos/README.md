@@ -34,7 +34,7 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/history/service.py,app/marks/schemas.py,app/marks/service.py,app/pagination.py,app/progress/service.py,app/retention.py,app/score.py,app/sharing/quota.py,app/sharing/service.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deletion.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/history/service.py,app/marks/schemas.py,app/marks/service.py,app/pagination.py,app/progress/service.py,app/retention.py,app/score.py,app/sharing/quota.py,app/sharing/service.py   # depois do pytest
 ```
 
 Alguns módulos precisam de 100% de cobertura (linhas e ramos). A lista fica na variável `FULL_COVERAGE` do passo "Cobertura de 100% nos módulos críticos" do CI, que confere cada um com o `coverage report` acima.
@@ -97,7 +97,7 @@ Nos testes, a fixture `outbox` é um backend de email em memória (`create_app(s
 
 ### Sessão, CSRF e conta
 
-- `app/auth/deps.py` (100% de cobertura): quem é o usuário do request. Todo endpoint do app usa `CurrentUser` (sessão válida e a versão atual dos termos aceita; sem o aceite, 403 `terms_not_accepted`); rota de admin usa `AdminUser` (`is_admin`, lido do banco a cada request; usuário comum leva 403 `forbidden`). `CurrentUserAnyTerms` (sem conferir os termos) é só para `/auth/me` e `/auth/me/terms`, e `CurrentSession` (sem renovar) só para o logout. Sem cookie, token desconhecido, sessão vencida ou conta inativa: 401 `unauthorized`.
+- `app/auth/deps.py` (100% de cobertura): quem é o usuário do request. Todo endpoint do app usa `CurrentUser` (sessão válida e a versão atual dos termos aceita; sem o aceite, 403 `terms_not_accepted`); rota de admin usa `AdminUser` (`is_admin`, lido do banco a cada request; usuário comum leva 403 `forbidden`). `CurrentUserAnyTerms` (sem conferir os termos) é só para `/auth/me`, `/auth/me/terms` e `/auth/me/delete/request`, e `CurrentSession` (sem renovar) só para o logout e o `DELETE /auth/me`. Sem cookie, token desconhecido, sessão vencida ou conta inativa: 401 `unauthorized`.
 - Renovação: a sessão vale 60 dias desde o último uso. `last_seen_at` e `expires_at` são gravados no máximo uma vez por dia por sessão (`RENEWAL_INTERVAL`), num `write_transaction` que só abre quando precisa e repete a conferência dentro dele; nessa hora o cookie sai de novo com o `Max-Age` cheio. O cookie renovado só vai na resposta quando o endpoint devolve dados (não um `Response` pronto).
 - `app/auth/origin.py` (100% de cobertura): proteção contra CSRF. Um middleware recusa com 403 `forbidden` toda request que não seja GET, HEAD ou OPTIONS sem exatamente um header `Origin` igual à origem do `APP_URL` (`settings.app_origin`: esquema + host + porta se não for a padrão). Vale para todas as rotas, inclusive as do login, e roda antes de ler o corpo. Nos testes, o `make_client` manda esse `Origin` em todo request; `make_client(app, origin=False)` não manda.
 - Endpoints: `POST /auth/logout` (apaga a sessão atual e o cookie, evento `logout`), `POST /auth/logout-all` (apaga todas as sessões do usuário, evento `logout_all` com `{"sessions": n}`), `GET /auth/me` (id, email, fuso, idioma, `is_admin`, versão dos termos aceita, versão atual e `terms_pending`), `PATCH /auth/me` com `{timezone?, locale?}` (fuso IANA desconhecido: 422 `invalid_timezone`; `null` ou campo desconhecido: 422; evento `profile_updated` com o que mudou) e `POST /auth/me/terms` com `{terms_version}` (a versão que a pessoa leu; diferente da atual: 409 `conflict`; evento `terms_accepted`). O fuso só muda pelo `PATCH /auth/me`.
@@ -192,6 +192,18 @@ O pacote `app/history/` (`service.py` com 100% de cobertura, `schemas.py` e `rou
 - Paginação: `limit` de 1 a 200 (padrão 50), ordem `created_at` desc e `id` desc; com `next_cursor` não nulo, repita com `&cursor=<next_cursor>` e os mesmos filtros. A página seguinte continua depois da última linha vista: eventos novos entre uma página e outra não repetem nem pulam itens.
 - Resposta: `{"events": [{id, event, created_at, habit: {id, label}, author: {id, email} | null, details}], "next_cursor"}`. `author: null` é "usuário removido". `details` sai filtrado por uma lista de chaves por evento (`PUBLIC_DETAILS`): o JSON gravado nunca é repassado inteiro, e o IP nunca sai.
 - Uma consulta por página (hábito e autor em JOIN), sem N+1.
+
+### Exclusão de conta
+
+`app/auth/deletion.py` (100% de cobertura) apaga uma conta numa transação só (`BEGIN IMMEDIATE`): ou apaga tudo ou nada.
+
+- Pelo usuário: `POST /auth/me/delete/request` manda um código `delete_account` para o email da conta (202; os mesmos limites do código de login, contados junto com ele: 429 `rate_limited`). `DELETE /auth/me` com `{code}` confere o código (10 minutos, uma vez só, 5 tentativas, só o mais recente vale; o de login é recusado) e apaga: 204 e o cookie apagado; código recusado, 400 `invalid_code` (field `code`). Funcionam sem os termos atuais aceitos.
+- Pelo admin (ETH-28): `delete_account(session, account_id=..., actor_id=..., ip=...)`, a mesma exclusão sem código; devolve `AccountDeletion(account_id, emails)`, com os emails a agendar depois do commit.
+- O último admin ativo não é apagado: 409 `last_admin` (no pedido do código, no `DELETE /auth/me` e pelo admin). Admin bloqueado não conta.
+- Apaga: a conta, as sessões, os `login_codes` dela e do email, os hábitos dela (com as marcações dos convidados, pausas, membros, convites enviados, alertas e a auditoria deles), os convites recebidos (pela conta e pelo email), as participações em hábitos de outras pessoas, os alertas e a auditoria da própria conta (auth, `terms_accepted`, `profile_updated`, `admin_created` e os `habit_deleted` dos hábitos dela).
+- Anonimiza: as marcações dela em hábitos de outras pessoas (`user_id` nulo, "usuário removido"); as linhas do `audit_log` que ficam com o `user_id` dela (`user_id` e `ip` nulos); os ids dela em `author_id` e `member_id` dos eventos de hábito (viram `null`, porque o histórico os mostra); e todo texto com "@" no `details` das linhas que citam a conta (pelo `user_id`, pelo email ou por `target_user_id`, a conta alvo dos eventos de admin). `banners.created_by` vira nulo.
+- Grava `account_deleted` com `user_id` = quem apagou (nulo quando foi a própria conta) e `{"account_id": n, "by_admin": bool}`, sem email nem IP da pessoa. Depois do commit, o log tem só `conta <id> excluída`: depois de restaurar um backup, essas linhas dizem quais exclusões reaplicar.
+- Emails: "conta excluída" para a conta e "você perdeu acesso" para cada membro dos hábitos dela (um por membro, com todos os hábitos), lidos antes de apagar e enviados depois do commit.
 
 ### Comandos de operação (CLI)
 

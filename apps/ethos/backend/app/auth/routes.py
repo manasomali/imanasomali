@@ -20,7 +20,15 @@ request de escrita passa antes pela checagem de `Origin` (`app/auth/origin.py`).
   ela não for a atual (os termos mudaram com a tela aberta), 409 `conflict` (field
   `terms_version`), e o front mostra os termos novos.
 
-Logout, `/me` e `/me/terms` funcionam sem os termos atuais aceitos (`CurrentUserAnyTerms`).
+- `POST /me/delete/request`: manda o código de exclusão para o email da conta (202 com o mesmo
+  corpo do `code/request`; limites: 429 `rate_limited`). Último admin: 409 `last_admin`.
+- `DELETE /me` com `{code}`: confere o código e apaga a conta (`app/auth/deletion.py`). 204, sem
+  o cookie; código recusado: 400 `invalid_code` (field `code`), como no `verify`; último admin:
+  409 `last_admin`. Os avisos ("conta excluída", "você perdeu acesso") saem depois do commit.
+
+Logout, `/me`, `/me/terms` e a exclusão da conta funcionam sem os termos atuais aceitos
+(`CurrentUserAnyTerms`; o `DELETE /me`, como o logout, usa `CurrentSession`): quem não aceita a
+versão nova dos termos pode sair e apagar a conta.
 """
 
 from typing import Annotated, Any
@@ -33,7 +41,7 @@ from sqlalchemy.orm import Session
 
 from app import audit
 from app.audit import AuditEvent
-from app.auth import service
+from app.auth import deletion, service
 from app.auth.cookies import clear_session_cookie, set_session_cookie
 from app.auth.deps import CurrentSession, CurrentUserAnyTerms, terms_pending
 from app.config import SettingsDep
@@ -288,3 +296,49 @@ def accept_terms(
                 details={"terms_version": TERMS_VERSION},
             )
     return _me(user)
+
+
+# --- exclusão da conta ---
+
+
+@router.post("/me/delete/request", status_code=202)
+def request_account_deletion(
+    user: CurrentUserAnyTerms,
+    request: Request,
+    session: SessionDep,
+    settings: SettingsDep,
+    mailer: MailerDep,
+    background_tasks: BackgroundTasks,
+) -> JSONResponse:
+    result = deletion.request_account_deletion(
+        session, settings, user_id=user.id, ip=client_ip(request)
+    )
+    # A transação já fechou: o código (ou o aviso do teto ao suporte) sai depois da resposta
+    for outgoing in result.emails:
+        schedule_email(background_tasks, mailer, outgoing.to, outgoing.locale, outgoing.email)
+    if not result.accepted:
+        return error_response(429, ErrorCode.RATE_LIMITED)
+    return JSONResponse(status_code=202, content=CODE_REQUEST_ACCEPTED)
+
+
+class AccountDeleteBody(BaseModel):
+    code: Code
+
+
+@router.delete("/me", status_code=204)
+def delete_me(
+    body: AccountDeleteBody,
+    current: CurrentSession,
+    response: Response,
+    session: SessionDep,
+    mailer: MailerDep,
+    background_tasks: BackgroundTasks,
+) -> None:
+    result = deletion.delete_own_account(session, user_id=current.user.id, code=body.code)
+    # A tentativa já foi gravada (commit no serviço); o erro só monta a resposta
+    if isinstance(result, service.VerifyFailure):
+        raise ApiError(400, ErrorCode.INVALID_CODE, field="code")
+    # Depois do commit: uma exclusão que falhou não avisa ninguém
+    for outgoing in result.emails:
+        schedule_email(background_tasks, mailer, outgoing.to, outgoing.locale, outgoing.email)
+    clear_session_cookie(response)

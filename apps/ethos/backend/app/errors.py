@@ -54,6 +54,9 @@ class ErrorCode(StrEnum):
     # Aceitar passaria do MAX_SHARED_HABITS_PER_USER (hábitos de outras pessoas dos quais o
     # usuário participa); o convite continua pendente: 409
     SHARED_HABIT_LIMIT_REACHED = "shared_habit_limit_reached"
+    # Excluir a conta deixaria o serviço sem nenhum admin ativo (pelo DELETE /auth/me ou pelo
+    # admin): 409. Antes, outro admin precisa existir (cli.py create-admin)
+    LAST_ADMIN = "last_admin"
 
 
 # Código de uma HTTPException pelo status. Status fora da tabela cai no genérico da faixa

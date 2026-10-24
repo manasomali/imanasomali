@@ -5,9 +5,11 @@ Para os endpoints:
 - `CurrentUser`: o padrão de todo endpoint do app. Exige sessão válida e a versão atual dos
   termos aceita (`app/terms.py`); sem aceite, 403 `terms_not_accepted`.
 - `AdminUser`: `CurrentUser` com `is_admin`; usuário comum recebe 403 `forbidden`.
-- `CurrentUserAnyTerms`: sessão válida, com ou sem os termos atuais. Só para `GET/PATCH /auth/me`
-  e `POST /auth/me/terms`, que precisam funcionar antes do aceite.
-- `CurrentSession`: sessão válida, sem renovar. Só para o logout, que apaga a sessão.
+- `CurrentUserAnyTerms`: sessão válida, com ou sem os termos atuais. Só para `GET/PATCH /auth/me`,
+  `POST /auth/me/terms` e `POST /auth/me/delete/request`, que precisam funcionar antes do aceite
+  (quem não aceita os termos novos pode apagar a conta).
+- `CurrentSession`: sessão válida, sem renovar. Só para o logout e o `DELETE /auth/me`, que
+  apagam a sessão.
 
 Sessão (`sessions`): o cookie `__Host-ethos_session` traz o token, e a linha é achada por
 `hash_secret(token)`. Sem cookie, token desconhecido, sessão vencida (`expires_at <= agora`) ou
