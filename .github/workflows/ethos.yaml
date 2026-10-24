@@ -8,8 +8,12 @@ on:
       - "packages/**"
       - ".github/workflows/ethos.yaml"
       - "infra/apps/ethos/app.conf"
-      # Lidos pelos testes do backend (nomes do .env.example = app.env + smtp.env)
+      # Lido pelos testes: nomes do .env.example = app.env + smtp.env (backend) e SUPPORT_EMAIL
+      # dos textos legais (frontend)
       - "infra/apps/ethos/app.env"
+      # Prazos dos backups, conferidos contra a política de privacidade (frontend)
+      - "infra/scripts/snapshot.sh"
+      - "infra/lib/backups.sh"
       - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
   pull_request:
@@ -18,8 +22,12 @@ on:
       - "packages/**"
       - ".github/workflows/ethos.yaml"
       - "infra/apps/ethos/app.conf"
-      # Lidos pelos testes do backend (nomes do .env.example = app.env + smtp.env)
+      # Lido pelos testes: nomes do .env.example = app.env + smtp.env (backend) e SUPPORT_EMAIL
+      # dos textos legais (frontend)
       - "infra/apps/ethos/app.env"
+      # Prazos dos backups, conferidos contra a política de privacidade (frontend)
+      - "infra/scripts/snapshot.sh"
+      - "infra/lib/backups.sh"
       - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
 

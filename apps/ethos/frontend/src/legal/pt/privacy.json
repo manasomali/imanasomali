@@ -1,0 +1,166 @@
+{
+  "title": "Política de privacidade",
+  "sections": [
+    {
+      "id": "summary",
+      "title": "Resumo",
+      "paragraphs": [
+        [
+          "Guardamos só o necessário para o ethos funcionar: o seu email, as suas preferências e o que você registra.",
+          "Não há anúncios, rastreamento nem venda de dados. O único cookie é o da sessão.",
+          "Os membros dos hábitos que você compartilha veem esses hábitos. O administrador do serviço pode ver o conteúdo dos hábitos de qualquer pessoa, e cada acesso fica registrado.",
+          "Você pode excluir a conta quando quiser. A exclusão é imediata, e os dados somem das cópias de segurança em até 8 dias."
+        ]
+      ]
+    },
+    {
+      "id": "controller",
+      "title": "Quem cuida dos seus dados",
+      "paragraphs": [
+        "O ethos é um projeto pessoal, mantido pelo responsável pelo site manasomali.com, que decide como os dados são tratados (o controlador, nos termos da Lei Geral de Proteção de Dados, a LGPD). Para falar sobre os seus dados, escreva para {{supportEmail}}."
+      ]
+    },
+    {
+      "id": "data",
+      "title": "Dados que guardamos",
+      "paragraphs": [
+        [
+          "Conta: email, fuso horário, idioma, a versão dos termos aceita, se a conta é de administrador ou está bloqueada, e as datas de criação e do último login.",
+          "O que você registra: hábitos e a configuração deles (nome, sigla, descrição, meta, cor, recompensa, punição e custos), marcações (data e hora, duração, custo, observação e autor), pausas, alertas e convites, com o email de quem foi convidado.",
+          "Sessões: quando cada uma começou e foi usada pela última vez, o endereço IP e o navegador usado (user agent).",
+          "Códigos de acesso: o email de destino e o código, guardado de um jeito que não permite lê-lo de volta (hash).",
+          "Auditoria: quem fez o quê e quando (entradas e saídas, mudanças nos hábitos, marcações, compartilhamento, mudanças na conta e ações do administrador), com o endereço IP.",
+          "Registros técnicos do servidor web: endereço IP, endereço pedido, data e hora e navegador de cada acesso."
+        ]
+      ]
+    },
+    {
+      "id": "sensitive",
+      "title": "Dados sensíveis",
+      "paragraphs": [
+        "Alguns hábitos podem revelar informações sobre saúde, vícios ou outros assuntos pessoais. Você decide o que registra e como descreve cada hábito. Lembre que os membros dos hábitos compartilhados e o administrador do serviço podem ver esse conteúdo."
+      ]
+    },
+    {
+      "id": "purposes",
+      "title": "Para que usamos",
+      "paragraphs": [
+        [
+          "entrar na conta e manter você conectado (email, códigos e sessões);",
+          "mostrar os seus hábitos, calcular pontuação e progresso e mandar os alertas que você ligar;",
+          "compartilhar hábitos com quem você convidar;",
+          "proteger o serviço contra abuso e investigar problemas (IP, navegador, auditoria e limites de envio);",
+          "atender pedidos de suporte, como troca de email e exclusão de conta."
+        ],
+        "Tratamos esses dados para fazer o que você pede ao usar o ethos (execução de contrato, na LGPD) e, nos registros de segurança, pelo interesse legítimo de manter o serviço seguro. Não usamos os seus dados para publicidade nem para traçar perfis."
+      ]
+    },
+    {
+      "id": "storage",
+      "title": "Onde os dados ficam",
+      "paragraphs": [
+        "O banco de dados fica num servidor da Oracle Cloud Infrastructure (OCI), e as cópias de segurança, no Object Storage da mesma Oracle.",
+        "Os emails do ethos são enviados pela Brevo, provedora de envio de email, que recebe o endereço de destino e o conteúdo de cada mensagem. As mensagens para {{supportEmail}} são recebidas pelo serviço de email do domínio manasomali.com (Hostinger) e encaminhadas ao responsável pelo ethos.",
+        "Esses provedores podem tratar os dados fora do Brasil."
+      ]
+    },
+    {
+      "id": "who-sees",
+      "title": "Quem vê os seus dados",
+      "paragraphs": [
+        [
+          "Você vê tudo o que é seu.",
+          "Os membros de um hábito compartilhado veem todo o conteúdo dele, inclusive observações, custos e histórico, e os emails de quem participa e de quem marcou. Quem recebe um convite vê o nome do hábito e o email de quem convidou.",
+          "O administrador do serviço vê a lista de contas (email, datas, situação e quantidade de hábitos e marcações) e pode abrir o conteúdo dos hábitos de qualquer pessoa: configuração, marcações e observações. Cada vez que ele abre esse conteúdo, o acesso fica registrado na auditoria.",
+          "Os provedores da seção anterior, só para guardar os dados e enviar os emails."
+        ],
+        "Não vendemos os seus dados nem os passamos a mais ninguém, a não ser quando a lei obrigar."
+      ]
+    },
+    {
+      "id": "emails",
+      "title": "Emails que enviamos",
+      "paragraphs": [
+        "O ethos só manda emails ligados ao uso do serviço:",
+        [
+          "conta e segurança: código de acesso, código para excluir a conta, aviso de conta excluída e aviso de troca de email (para o email antigo e para o novo);",
+          "convites: quando alguém convida você para um hábito;",
+          "hábitos compartilhados: quando o dono apaga um hábito de que você participa ou exclui a própria conta;",
+          "alertas: os que você ligar, no máximo um por dia em cada hábito."
+        ],
+        "Não mandamos email de marketing nem newsletter. Alguns programas de email mostram um link de descadastro, colocado pela provedora de envio. Se você usá-lo, pode deixar de receber os códigos de acesso e não conseguir entrar."
+      ]
+    },
+    {
+      "id": "cookies",
+      "title": "Cookies e armazenamento no navegador",
+      "paragraphs": [
+        "O ethos usa um único cookie, o da sessão (__Host-ethos_session), que mantém você conectado. Ele é necessário para o serviço funcionar, não pode ser lido por scripts da página e vale por 60 dias, renovados enquanto você usa o app.",
+        "No armazenamento local do navegador ficam só preferências: tema e idioma (os mesmos do site manasomali.com) e os avisos de fuso horário que você dispensou. Eles ficam só no seu navegador.",
+        "O ethos não usa ferramentas de análise, pixels de rastreamento, anúncios nem conteúdo de terceiros: páginas, scripts e fontes vêm do próprio manasomali.com."
+      ]
+    },
+    {
+      "id": "retention",
+      "title": "Por quanto tempo guardamos",
+      "paragraphs": [
+        [
+          "Conta, preferências e o registro das mudanças na conta (aceite dos termos, fuso, idioma e troca de email): enquanto a conta existir.",
+          "Hábitos, marcações e o histórico de cada hábito: enquanto o hábito existir.",
+          "Sessão: até você sair, ou depois de 60 dias sem uso.",
+          "Código de acesso: vale por 10 minutos, e o registro dele é apagado no dia seguinte.",
+          "Registros de acesso (pedidos de código, entradas e saídas): 90 dias.",
+          "Endereço IP nas sessões e na auditoria: apagado depois de 90 dias.",
+          "Convites pendentes: até serem aceitos, recusados ou cancelados, ou até o hábito ser apagado.",
+          "Registros técnicos do servidor web: apagados pela rotação automática de registros do servidor.",
+          "Cópias de segurança: até 8 dias."
+        ]
+      ]
+    },
+    {
+      "id": "deletion",
+      "title": "Exclusão da conta",
+      "paragraphs": [
+        "Você pode excluir a conta a qualquer momento pelo app, confirmando com um código enviado ao seu email. Se a conta estiver bloqueada, peça a exclusão pelo suporte. A exclusão é imediata e não pode ser desfeita.",
+        "São apagados: a conta, as sessões, os códigos, os hábitos de que você é dono (com todas as marcações, inclusive as dos convidados, e o histórico deles), a sua participação em hábitos de outras pessoas, os seus alertas e convites e os registros de acesso da conta.",
+        "Ficam, sem identificar você:",
+        [
+          "as marcações que você fez em hábitos de outras pessoas, que passam a aparecer como de \"usuário removido\";",
+          "os registros do histórico desses hábitos e das ações do administrador sobre a conta, sem o seu email nem IP;",
+          "um registro de que uma conta, identificada só por um número interno, foi excluída."
+        ],
+        "Emails já enviados continuam nas caixas de quem os recebeu.",
+        "Os dados apagados continuam nas cópias de segurança até elas vencerem: em até 8 dias, eles somem de todo lugar. Para refazer as exclusões se uma cópia de segurança precisar ser restaurada, o servidor guarda só o número interno das contas excluídas."
+      ]
+    },
+    {
+      "id": "rights",
+      "title": "Seus direitos",
+      "paragraphs": [
+        "Pela LGPD, você pode pedir a confirmação de que tratamos os seus dados, o acesso a eles, a correção, a anonimização, a portabilidade, a exclusão e informações sobre com quem eles são compartilhados. Fuso e idioma você muda no app; o email, pelo suporte. Para os outros pedidos, escreva para {{supportEmail}} a partir do email da conta.",
+        "Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD)."
+      ]
+    },
+    {
+      "id": "security",
+      "title": "Segurança",
+      "paragraphs": [
+        "A conexão é sempre cifrada (HTTPS). Códigos e sessões são guardados como hash, o cookie da sessão não pode ser lido por scripts e o banco sobrescreve os dados apagados. Nenhum sistema é totalmente seguro: proteja o acesso ao seu email, que é a chave da sua conta."
+      ]
+    },
+    {
+      "id": "changes",
+      "title": "Mudanças nesta política",
+      "paragraphs": [
+        "Cada versão desta política e dos termos de uso é identificada por uma data. Quando uma versão nova for publicada, o app pede o seu aceite no próximo acesso."
+      ]
+    },
+    {
+      "id": "contact",
+      "title": "Contato",
+      "paragraphs": [
+        "Dúvidas e pedidos sobre os seus dados: {{supportEmail}}."
+      ]
+    }
+  ]
+}

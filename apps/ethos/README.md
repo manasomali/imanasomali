@@ -336,6 +336,7 @@ npm run preview                            # serve o dist/ localmente
 | `src/components/` | `Layout` (pular para o conteúdo, menu, `<main>`, rodapé), `Menu` (links, volta ao site, idioma, tema), `RequireSession`, `TimezoneNotice`, `ErrorMessage`, `PageTitle` |
 | `src/pages/` | Telas. Por enquanto só provisórias: `Home`, `Login` (destino do 401), `Account` (destino do aviso de fuso) e `NotFound` |
 | `src/hooks/useTheme.js` | Tema atual e a troca (botão do menu) |
+| `src/legal/{pt,en}/{terms,privacy}.json` | Textos dos termos de uso e da política de privacidade (abaixo, em "Termos e privacidade") |
 | `src/lib/` | Utilitários sem React, com cobertura mínima de 80% (abaixo) |
 | `src/test/` | Setup dos testes: MSW (`server`, `api(path)`), `renderApp(path)`, `meFixture()`, `createTestI18n()`, `axe`, `readFrontendFile()` |
 | `tests/` | Testes do build de produção, no Node |
@@ -350,17 +351,38 @@ npm run preview                            # serve o dist/ localmente
 - `time.js`: dias locais como `"AAAA-MM-DD"`. `dayBounds(dia, fuso)` dá `{start, end}` (fim exclusivo) em UTC, o que o `POST /habits/{id}/toggle` espera; `pastDayNoon(dia, fuso)` dá 12:00 local em UTC; `markedAtFor(dia, fuso, agora)` dá o `marked_at` (hoje: o instante atual; passado: 12:00 local; futuro: `RangeError`). Também `today`, `localDate`, `addDays`, `parseDate`, `zonedTimeToUtc`, `browserTimezone`, `isValidTimezone`, `sameTimezone`. Hora que não existe ou se repete (horário de verão) segue o backend (`fold=0`).
 - `money.js`: `formatMoney(centavos, idioma)` sem símbolo, com 2 casas (`1.234,50` / `1,234.50`); `parseMoney(texto, idioma)` lê o que a pessoa digitou e devolve centavos ou `null`; `MAX_MONEY_CENTS`.
 - `palette.js`: `HABIT_COLORS` (os 12 nomes de `HabitColor`) e `isHabitColor`. `color.js`: `contrastRatio`, `relativeLuminance` (WCAG), para escolher a cor de um texto sobre a cor de um hábito.
+- `legal.js`: `TERMS_VERSION`, `SUPPORT_EMAIL` e `loadLegalDocument(nome, idioma)` (abaixo, em "Termos e privacidade").
 - `theme.js` e `storage.js`: leitura e escrita da chave `theme` e do `localStorage` sem lançar exceção (modo privado). `timezoneNotice.js`: regra do aviso de fuso.
 
 ### Regras para as próximas telas
 
 - **Textos:** todo texto visível entra nos dois `translation.json`. Código de erro novo em `app/errors.py` também: o teste `src/i18n.test.js` lê o `ErrorCode` do backend e falha se faltar a tradução em pt ou en.
 - **Dados:** sempre por TanStack Query sobre `apiFetch`, nunca `fetch` direto. Não trate o 401 na tela (o QueryClient já leva para o login); mostre os outros erros com `ErrorMessage`.
-- **Login (ETH-31):** depois de entrar, volte para `returnPath(location)` e limpe o cache da sessão anterior (`queryClient.clear()`). O fuso e o idioma do navegador só vão no `verifyCode` (primeiro acesso).
+- **Login (ETH-31):** as páginas legais e o modal de aceite mostram os textos de `loadLegalDocument` (abaixo) e mandam `TERMS_VERSION` no `POST /auth/me/terms`. Depois de entrar, volte para `returnPath(location)` e limpe o cache da sessão anterior (`queryClient.clear()`). O fuso e o idioma do navegador só vão no `verifyCode` (primeiro acesso).
 - **Conta (ETH-38):** é o único lugar que chama `PATCH /auth/me`. O aviso de fuso leva para `/conta` com o fuso do navegador em `location.state.suggestedTimezone`, para já vir selecionado. Nada muda o fuso da conta sozinho.
 - **Datas:** a API guarda e devolve UTC; mostre no fuso de quem vê (`me.timezone`), com `src/lib/time.js`. Nunca use os métodos locais de `Date` (`getDate`, `setHours`...), que seguem o fuso do sistema.
 - **Cores:** só tokens (`var(--fg)`, `var(--surface)`...) e a paleta. Para pintar algo com a cor de um hábito: `data-habit-color={habit.color}` no elemento e `var(--habit-color, var(--muted))` no CSS. Sem `style` inline (a CSP só aceita `style-src 'self'`). O teste `src/styles/colors.test.js` falha com hex, `rgb()` e afins fora de `palette.css`.
 - **Tela nova:** `PageTitle` com o título, um `<h1>`, CSS Module ao lado, ícones do `react-icons` em pixels inteiros (`size={20}`), layout a partir de 320 px. Teste com `renderApp(path)` e MSW (`server.use(http.get(api('/...'), ...))`), e `axe` sem violações.
+
+### Termos e privacidade
+
+Os textos dos termos de uso e da política de privacidade ficam em `src/legal/<idioma>/<documento>.json` (`terms` e `privacy`, em `pt` e `en`). São texto puro, sem HTML nem Markdown, que a tela mostra como texto (o React escapa tudo):
+
+```json
+{ "title": "Termos de uso", "sections": [{ "id": "account", "title": "Conta e acesso", "paragraphs": ["...", ["item", "item"]] }] }
+```
+
+Cada item de `paragraphs` é um parágrafo (texto) ou uma lista (array de textos). O `id` da seção é igual nos dois idiomas e serve de âncora (`/termos#account`). O único marcador é `{{supportEmail}}`.
+
+`src/lib/legal.js`:
+
+- `loadLegalDocument(nome, idioma)` devolve `{name, language, version, title, sections}` com o marcador já trocado pelo email. A região do idioma é ignorada (`pt-BR` vira `pt`); idioma sem texto cai no inglês, e `language` diz qual veio (use no `lang` do conteúdo). Documento desconhecido: `RangeError`. Os JSON não vão no bundle principal: cada um vira um chunk com hash, baixado só quando a tela pede, e uma aba aberta antes de um deploy continua com os textos da versão dela.
+- `TERMS_VERSION`: a versão dos textos, uma data (`AAAA-MM-DD`), igual à de `backend/app/terms.py`.
+- `SUPPORT_EMAIL`: o email de suporte de produção, fixo no build (o backend não o expõe, e as páginas legais abrem sem login). Use a constante em toda tela que mostra o email, como a de conta.
+
+`src/lib/legal.test.js` falha se a versão for diferente da do backend, se o email for diferente do `SUPPORT_EMAIL` de `infra/apps/ethos/app.env`, se pt e en não tiverem as mesmas seções (mesmos ids, na mesma ordem e com a mesma forma), se um texto tiver marcação ou outro marcador, e se os prazos da seção `retention` da política não baterem com os do código (sessão e código em `app/auth/service.py`, auditoria e IP em `app/audit.py`, cópias de segurança em `infra/scripts/snapshot.sh` e `infra/lib/backups.sh`).
+
+Para publicar uma versão nova: mude os textos nos dois idiomas, `TERMS_VERSION` aqui e em `backend/app/terms.py`, no mesmo PR. Quem aceitou a versão anterior aceita a nova no próximo acesso. Os textos são um rascunho técnico, conferido contra o código, e não substituem uma revisão jurídica.
 
 ### Tema, idioma e navegadores
 
@@ -381,7 +403,7 @@ O `axe` no jsdom não mede contraste. Por isso `src/styles/palette.test.js` calc
 
 ## CI
 
-O workflow [ethos.yaml](../../.github/workflows/ethos.yaml) roda em PRs e em push na `main` que tocam `apps/ethos/**`, `packages/**`, o próprio workflow ou os arquivos de infra que os testes conferem (`infra/apps/ethos/app.conf`, `infra/apps/ethos/app.env` e `infra/provision.sh`). Por enquanto só faz checagens, sem deploy:
+O workflow [ethos.yaml](../../.github/workflows/ethos.yaml) roda em PRs e em push na `main` que tocam `apps/ethos/**`, `packages/**`, o próprio workflow ou os arquivos de infra que os testes conferem (`infra/apps/ethos/app.conf`, `infra/apps/ethos/app.env`, `infra/provision.sh`, `infra/scripts/snapshot.sh` e `infra/lib/backups.sh`). Por enquanto só faz checagens, sem deploy:
 
 - backend: `uv lock --check`, `uv sync --frozen`, `ruff check`, `ruff format --check`, `pytest --cov` e 100% de cobertura nos módulos de `FULL_COVERAGE`;
 - frontend: `npm ci`, `npm run lint`, `npm run build` e `npm test`.
