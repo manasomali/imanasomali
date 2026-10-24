@@ -34,7 +34,7 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/marks/schemas.py,app/marks/service.py,app/retention.py,app/score.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/marks/schemas.py,app/marks/service.py,app/progress/service.py,app/retention.py,app/score.py   # depois do pytest
 ```
 
 Alguns módulos precisam de 100% de cobertura (linhas e ramos). A lista fica na variável `FULL_COVERAGE` do passo "Cobertura de 100% nos módulos críticos" do CI, que confere cada um com o `coverage report` acima.
@@ -140,6 +140,17 @@ Regras (`service.py`):
 - Auditoria: `mark_created`, `mark_updated` e `mark_deleted` com `habit_id`, quem fez (`user_id`), o IP e, no `details`, `{mark_id, author_id, marked_at, duration_minutes, cost_cents, has_note}` (criar e apagar; o toggle que desmarca grava um `mark_deleted` por marcação) ou `{mark_id, changes: [{field, old, new}]}` (editar). O texto da observação nunca vai para a auditoria: só `{"field": "note"}` ou `has_note`.
 
 Nos testes, `tests/test_marks.py` tem os testes de concorrência com threads de verdade contra o banco em arquivo (`run_parallel(engine, chamadas, ação)`, que chama o `service` em sessões separadas, juntas por um `threading.Barrier`).
+
+### Progresso (relatório e export)
+
+O pacote `app/progress/` (`schemas.py`, `service.py` com 100% de cobertura, e `routes.py`) entrega os dados do relatório: `GET /habits/progress?from=YYYY-MM-DD&to=YYYY-MM-DD[&habit_ids=1&habit_ids=2]`. Exige `CurrentUser`; todo papel lê. O router é registrado antes do de `/habits` no `create_app`, senão `/habits/progress` cairia em `/habits/{habit_id}` (422).
+
+- `from` e `to`: datas locais (só `YYYY-MM-DD`), inclusivas, no fuso de quem pede (`users.timezone`), de 1900-01-01 a 2999-12-31. O intervalo cobre no máximo 5 anos de dias: de 2021-01-01 vai até 2025-12-31; 2026-01-01 já é "5 anos e 1 dia" (422 `validation_error` em `to`, como `to` antes de `from`). De 29/2, o aniversário num ano não bissexto é 1/3.
+- `habit_ids`: repetido na query, até 100 (ids repetidos contam uma vez). Sem ele, todos os hábitos que o usuário acessa, inclusive os arquivados (eles guardam histórico e entram no "exportar tudo"). Hábito sem acesso, ou que não existe, some da resposta, sem erro: a API não revela que ele existe.
+- Resposta: `{"from", "to", "timezone", "habits": [...]}`, por id. Cada item tem `habit` (o mesmo objeto do `GET /habits/{id}`, com `score: {value, success}` só com a pontuação ligada), `goal_target` (N, ou N × `duration_minutes` com a duração ligada), `periods` (`[{first_day, last_day, value, met, spend_cents}]`) e, só com o custo ligado e um limite, `cost_periods` (`[{first_day, last_day, spend_cents, limit_percent}]`).
+- Cálculos só pelo `score.py`, no fuso de quem pede. `periods` vem do `summarize_periods`: os períodos da meta que tocam o intervalo, inteiros (com o valor e o gasto do período todo), sem filtro de criação ou pausa. A pontuação vem do `evaluate`: é a pontuação atual do hábito, a mesma do `GET /habits`, não recortada pelo intervalo.
+- Gasto (só com `cost_enabled`; desligado, `spend_cents` e `cost_periods` nem aparecem): soma do `cost_cents` gravado em cada marcação, igual nos níveis hábito e marcação. `cost_periods` usa os períodos do limite (`cost_limit_period`, que pode ser diferente da meta); `limit_percent` é o gasto em porcentagem do limite, arredondado meio para cima só com inteiros (pode passar de 100; `null` com limite 0).
+- Sem N+1: hábitos, marcações e pausas são lidos em lote (5 consultas com a sessão, em qualquer número de hábitos). A fixture `selects` do `conftest.py` conta os SELECT nos testes.
 
 ### Comandos de operação (CLI)
 

@@ -16,6 +16,7 @@ from app.logs import RequestLogMiddleware, configure_logging
 from app.mail.backends import MailBackend
 from app.mail.sender import Mailer, build_backend
 from app.marks.routes import router as marks_router
+from app.progress.routes import router as progress_router
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,8 @@ def create_app(
     install_error_handlers(api)
     api.include_router(router)
     api.include_router(auth_router)
+    # Antes do de /habits: lá, /habits/{habit_id} pegaria /habits/progress (e daria 422)
+    api.include_router(progress_router)
     api.include_router(habits_router)
     api.include_router(marks_router)
     return api

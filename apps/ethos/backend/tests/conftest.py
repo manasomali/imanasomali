@@ -29,7 +29,9 @@
   aberta: `Account(user, headers)` (`tests/habit_helpers.py`), com o cookie em `headers`;
 - `outbox`: backend de email em memória (`tests/auth_helpers.py`), sem rede, para os testes que
   só precisam ler o que o app mandou: `create_app(settings, mail_backend=outbox)`, e as mensagens
-  em `outbox.messages`. `auth_helpers.login(client, outbox, email)` faz o login inteiro.
+  em `outbox.messages`. `auth_helpers.login(client, outbox, email)` faz o login inteiro;
+- `selects`: função que devolve quantos SELECT rodaram (em qualquer engine) desde a última
+  chamada, para os testes de N+1.
 """
 
 import shutil
@@ -45,7 +47,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, event
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -195,3 +197,24 @@ def make_account(db_session) -> Callable[..., Account]:
         return Account(user, cookie(open_session(db_session, user)))
 
     return build
+
+
+@pytest.fixture
+def selects() -> Iterator[Callable[[], int]]:
+    """Quantos SELECT foram executados (em qualquer engine) desde a última chamada."""
+    statements: list[str] = []
+
+    def listener(_conn, _cursor, statement, *_args) -> None:
+        statements.append(statement)
+
+    event.listen(Engine, "before_cursor_execute", listener)
+
+    def take() -> int:
+        total = sum(1 for statement in statements if statement.lstrip().startswith("SELECT"))
+        statements.clear()
+        return total
+
+    try:
+        yield take
+    finally:
+        event.remove(Engine, "before_cursor_execute", listener)
