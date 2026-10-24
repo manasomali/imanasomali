@@ -38,7 +38,8 @@ jobs:
         with:
           working-directory: apps/ethos/backend
           enable-cache: true
-          cache-dependency-glob: apps/ethos/backend/uv.lock
+          # Relativo ao working-directory acima
+          cache-dependency-glob: uv.lock
 
       - name: uv.lock em dia com o pyproject.toml
         run: uv lock --check
