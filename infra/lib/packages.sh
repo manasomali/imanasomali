@@ -71,9 +71,10 @@ install_uv() {
   log "uv instalado: $("$bin" --version)"
 }
 
-# uv com a pasta global de Pythons, ignorando uv.toml e pyproject.toml da pasta atual
+# uv com a pasta global de Pythons, rodado a partir de / para não achar .venv, uv.toml nem
+# pyproject.toml da pasta de onde o provision foi chamado
 uv_global() {
-  env UV_PYTHON_INSTALL_DIR="$UV_PYTHON_INSTALL_DIR" UV_NO_CONFIG=1 /usr/local/bin/uv "$@"
+  env -C / UV_PYTHON_INSTALL_DIR="$UV_PYTHON_INSTALL_DIR" UV_NO_CONFIG=1 /usr/local/bin/uv "$@"
 }
 
 # Python de cada aplicação (PYTHON_VERSION em infra/apps/<nome>/app.conf), em UV_PYTHON_INSTALL_DIR.

@@ -40,11 +40,12 @@ not_root=$(find "$UV_PYTHON_INSTALL_DIR" ! -user root | head -n5)
 [[ -z $not_root ]] || fail "arquivos sem dono root: $not_root"
 
 echo "--- Python de cada app.conf, rodado por um usuário sem home (como app-<nome>)"
-# Sem home, o uv não cria ~/.cache/uv: UV_NO_CACHE usa um cache temporário
+# Sem home, o uv não cria ~/.cache/uv: UV_NO_CACHE usa um cache temporário. Rodado a partir de /,
+# porque o uv procura .venv na pasta atual e o usuário do app não lê a pasta de quem chamou
 for conf in "$INFRA_DIR"/apps/*/app.conf; do
   version=$(env_get "$conf" PYTHON_VERSION)
   [[ -n $version ]] || continue
-  python=$(runuser -u nobody -- env UV_PYTHON_INSTALL_DIR="$UV_PYTHON_INSTALL_DIR" UV_NO_CONFIG=1 UV_NO_CACHE=1 \
+  python=$(runuser -u nobody -- env -C / UV_PYTHON_INSTALL_DIR="$UV_PYTHON_INSTALL_DIR" UV_NO_CONFIG=1 UV_NO_CACHE=1 \
     /usr/local/bin/uv python find --managed-python --no-python-downloads "$version") \
     || fail "nobody não encontra o Python $version"
   [[ $python == "$UV_PYTHON_INSTALL_DIR"/* ]] || fail "$python fora de $UV_PYTHON_INSTALL_DIR"
