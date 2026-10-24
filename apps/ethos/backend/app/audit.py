@@ -119,16 +119,21 @@ class AuditEvent(StrEnum):
     # --- Admin (ETH-19, ETH-28): ficam ---
     # is_admin ligado pelo CLI create-admin; user_id = a conta promovida (ETH-19)
     ADMIN_CREATED = "admin_created"
-    # Admin abriu o conteúdo dos hábitos de um usuário; {"target_user_id": n} (ETH-28)
+    # Admin abriu o conteúdo dos hábitos de um usuário; {"target_user_id": n, "habit_id"?: n}
+    # (ETH-28; sem habit_id na coluna)
     ADMIN_VIEWED_HABITS = "admin_viewed_habits"
-    USER_BLOCKED = "user_blocked"  # ETH-28
-    USER_UNBLOCKED = "user_unblocked"  # ETH-28
-    # Troca de email pelo suporte: email antigo, novo e o admin, com a conta em
-    # `target_user_id` (ETH-28)
+    # {"target_user_id": n, "sessions": n apagadas} (ETH-28)
+    USER_BLOCKED = "user_blocked"
+    # {"target_user_id": n} (ETH-28)
+    USER_UNBLOCKED = "user_unblocked"
+    # Troca de email pelo suporte; user_id = o admin,
+    # {"target_user_id", "old_email", "new_email", "sessions"} (ETH-28)
     EMAIL_CHANGED = "email_changed"
-    BANNER_CREATED = "banner_created"  # ETH-28
-    BANNER_UPDATED = "banner_updated"  # ETH-28
-    BANNER_ENDED = "banner_ended"  # ETH-28
+    # {"banner_id", "text_pt", "text_en", "starts_at", "ends_at"} (ETH-28)
+    BANNER_CREATED = "banner_created"
+    # {"banner_id", "changes": [{field, old, new}]} (ETH-28)
+    BANNER_UPDATED = "banner_updated"
+    BANNER_ENDED = "banner_ended"
 
 
 # Eventos de auth: apagados pelo cleanup depois de AUTH_EVENT_RETENTION. Os outros (conta,

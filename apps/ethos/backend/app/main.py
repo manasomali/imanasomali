@@ -6,6 +6,8 @@ from fastapi import APIRouter, FastAPI
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.admin.routes import public_router as banners_router
+from app.admin.routes import router as admin_router
 from app.alerts.routes import router as alerts_router
 from app.auth.origin import OriginCheckMiddleware
 from app.auth.routes import router as auth_router
@@ -80,6 +82,8 @@ def create_app(
     api.include_router(sharing_router)
     api.include_router(history_router)
     api.include_router(alerts_router)
+    api.include_router(admin_router)
+    api.include_router(banners_router)
     return api
 
 
