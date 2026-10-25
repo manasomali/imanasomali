@@ -66,7 +66,7 @@ export default function MemberItem({ habitId, member, isSelf, manage, timeZone, 
   return (
     <li className={styles.item}>
       <p className={styles.itemTitle}>
-        <span>{email}</span>
+        <span className="user-text">{email}</span>
         <span className={styles.badge}>{t(`sharing.role.${member.role}`)}</span>
         {isSelf && <span className={styles.badge}>{t('sharing.members.you')}</span>}
       </p>

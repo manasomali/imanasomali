@@ -48,7 +48,7 @@ export default function OverviewRow({ habit, day, marks, loaded, timeZone }) {
       <div className={styles.rowMain}>
         <Link
           to={habitPath(habit.id, HABIT_SECTION.calendar, { day })}
-          className={styles.habit}
+          className={`${styles.habit} user-text`}
           title={habit.name}
         >
           <span className={styles.swatch} data-habit-color={habit.color} aria-hidden="true" />

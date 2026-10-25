@@ -149,7 +149,7 @@ function ArchivedHabits() {
         <ul className={styles.archivedList}>
           {archived.data.map((habit) => (
             <li key={habit.id}>
-              <Link to={habitPath(habit.id)} className={styles.habit} title={habit.name}>
+              <Link to={habitPath(habit.id)} className={`${styles.habit} user-text`} title={habit.name}>
                 <span className={styles.swatch} data-habit-color={habit.color} aria-hidden="true" />
                 {habit.label}
               </Link>

@@ -12,10 +12,17 @@
   list-style: none;
 }
 
+/* Um nome longo não alarga a linha: a aba encolhe até a largura da tela e o nome ganha reticências */
+.tabs li {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .tab {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  max-width: 100%;
   padding: 0.35rem 0;
   margin-bottom: -2px;
   border-bottom: 2px solid transparent;
@@ -28,6 +35,12 @@
 .tab:hover,
 .active {
   border-bottom-color: var(--fg);
+}
+
+/* Com o foco do teclado, o nome aparece inteiro (o `title` só aparece com o mouse) */
+.tab:focus-visible .label {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .swatch {

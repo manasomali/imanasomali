@@ -97,7 +97,7 @@ export default function AccountCard({ account, isSelf, timeZone, onDone }) {
   return (
     <li className={styles.card}>
       <h3 className={styles.cardTitle}>
-        <span>{account.email}</span>{' '}
+        <span className="user-text">{account.email}</span>{' '}
         <span className={styles.badge}>
           {account.is_active ? t('admin.accounts.status_active') : t('admin.accounts.status_blocked')}
         </span>

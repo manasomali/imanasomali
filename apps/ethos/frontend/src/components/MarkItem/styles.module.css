@@ -31,7 +31,6 @@
 .note dd {
   font-weight: 500;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
 .muted {

@@ -164,7 +164,7 @@ function PendingInvites({ habitId, query, timeZone, headingRef, onCanceled }) {
         {query.data.map((invite) => (
           <li key={invite.id} className={styles.item}>
             <p className={styles.itemTitle}>
-              <span>{invite.email}</span>
+              <span className="user-text">{invite.email}</span>
               <span className={styles.badge}>{t(`sharing.role.${invite.role}`)}</span>
             </p>
             <p className={styles.meta}>

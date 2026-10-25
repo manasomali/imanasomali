@@ -44,12 +44,41 @@ h4 {
   line-height: 1.25;
   margin: 0;
   text-wrap: balance;
-  overflow-wrap: anywhere;
 }
 
 p {
   margin: 0;
+}
+
+/* Texto que pode trazer dado do usuário (email, nome do hábito, observação): uma palavra sem
+   espaço, como um email de 254 caracteres, quebra em qualquer ponto em vez de sair da caixa. O
+   `anywhere` (e não `break-word`) também diminui a largura mínima do conteúdo, então o item de flex
+   ou grid encolhe junto. Fora destes elementos (um <span> ou link com o email, por exemplo), use a
+   classe .user-text, que também zera o min-width de quem é item de flex ou grid */
+h1,
+h2,
+h3,
+h4,
+p,
+dd,
+label {
   overflow-wrap: anywhere;
+}
+
+.user-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Texto de usuário numa linha só, cortado com reticências (ex.: o nome nas abas dos hábitos). O
+   elemento guarda o texto inteiro (o leitor de tela lê tudo), e um ancestral com `title` o mostra ao
+   passar o mouse. Num item de flex, os ancestrais também precisam de `min-width: 0` ou de
+   `max-width: 100%` para a linha poder encolher */
+.truncate {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 img {

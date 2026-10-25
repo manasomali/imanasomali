@@ -197,7 +197,6 @@
   align-items: center;
   gap: 0.5rem;
   font-size: var(--text-lg);
-  overflow-wrap: anywhere;
 }
 
 .badge {
@@ -226,7 +225,6 @@
 
 .details dd {
   margin: 0;
-  overflow-wrap: anywhere;
   white-space: pre-line;
 }
 
