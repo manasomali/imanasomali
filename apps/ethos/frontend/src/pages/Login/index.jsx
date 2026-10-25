@@ -7,7 +7,7 @@ import ErrorMessage from '../../components/ErrorMessage';
 import PageTitle from '../../components/PageTitle';
 import { returnPath } from '../../lib/session';
 import { PATHS } from '../../paths';
-import useCountdown from './useCountdown';
+import useCountdown from '../../hooks/useCountdown';
 import styles from './styles.module.css';
 
 // Espera entre um envio de código e o próximo (a API aceita 1 por minuto por email)
@@ -108,6 +108,12 @@ export default function Login() {
     <div className={styles.page}>
       <PageTitle title={title} />
       <h1 className={styles.title}>{title}</h1>
+      {/* Vindo da exclusão da conta (tela de conta) */}
+      {location.state?.accountDeleted === true && (
+        <p role="status" className={styles.notice}>
+          {t('pages.login.account_deleted')}
+        </p>
+      )}
 
       {step === 'email' ? (
         <form className={styles.form} onSubmit={submitEmail}>

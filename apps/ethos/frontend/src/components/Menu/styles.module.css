@@ -59,6 +59,19 @@
   color: var(--muted);
 }
 
+.signOut {
+  padding-inline: 0;
+  background: none;
+  border-top: 0;
+  border-inline: 0;
+  cursor: pointer;
+}
+
+.signOut:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
 .site:hover {
   color: var(--fg);
 }
