@@ -145,12 +145,38 @@ export async function todayCell(page) {
   return page.locator('[data-day][aria-current="date"]');
 }
 
-/** Clica em hoje (hábito toggle) e espera a API confirmar a marcação ou a desmarcação. */
+/**
+ * Abre a aba do hábito com hoje escolhido no painel do dia (`?day=` na URL, como o link de um dia).
+ * Escolher pela URL, e não clicando no dia, vale tanto com o clique que marca na hora quanto com o
+ * que só escolhe o dia (ETH-54): marcar e desmarcar ficam nos botões do painel, nas duas versões.
+ */
+export async function selectToday(page) {
+  const day = await (await todayCell(page)).getAttribute('data-day');
+  const url = new URL(page.url());
+  url.searchParams.set('day', day);
+  await page.goto(url.href);
+  return todayCell(page);
+}
+
+/**
+ * Marca ou desmarca hoje pelo botão do painel do dia (hábito toggle) e espera a resposta da API.
+ * A tela muda na hora (escrita otimista): sem esperar a resposta, um reload logo depois
+ * cancelaria a escrita.
+ */
 export async function toggleToday(page, { marked }) {
-  const cell = await todayCell(page);
-  await cell.click();
+  const cell = await selectToday(page);
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      /^\/api\/ethos\/habits\/\d+\/toggle$/.test(new URL(response.url()).pathname),
+  );
+  await page.getByRole('button', { name: marked ? 'Marcar este dia' : 'Desmarcar este dia' }).click();
+  const response = await saved;
+  expect(response.status()).toBe(200);
+  expect((await response.json()).marked).toBe(marked);
   await expect(cell).toHaveAccessibleName(marked ? /\. Marcado$/ : /\. Não marcado$/);
   await expect(cell).not.toHaveAttribute('data-pending');
+  await expect(page.getByRole('button', { name: marked ? 'Desmarcar este dia' : 'Marcar este dia' })).toBeVisible();
   return cell;
 }
 

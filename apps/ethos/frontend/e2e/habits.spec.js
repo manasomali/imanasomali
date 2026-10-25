@@ -22,7 +22,8 @@ test('entra pelo código do email, cria um hábito, marca e desmarca hoje', asyn
   await expect(await todayCell(page)).toHaveAccessibleName(/\. Não marcado$/);
   await expectAccessible(page);
 
-  // Hábito toggle: um clique em hoje marca, outro desmarca. Cada um fica gravado (recarregando)
+  // Hábito toggle: hoje no painel do dia, "Marcar este dia" e depois "Desmarcar este dia". Cada
+  // escrita fica gravada (confere recarregando)
   await toggleToday(page, { marked: true });
   await page.reload();
   await expect(await todayCell(page)).toHaveAccessibleName(/\. Marcado$/);

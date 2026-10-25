@@ -529,7 +529,7 @@ Projetos: `desktop-light`, `desktop-dark`, `mobile-light` e `mobile-dark` (Deskt
 
 | Arquivo | O quê |
 |---|---|
-| `habits.spec.js` | Login pelo código do email (e o aceite dos termos, se o modal aparecer: conta nova já nasce com eles aceitos), o cookie da sessão, criar um hábito, marcar e desmarcar hoje no calendário (conferindo depois de recarregar) |
+| `habits.spec.js` | Login pelo código do email (e o aceite dos termos, se o modal aparecer: conta nova já nasce com eles aceitos), o cookie da sessão, criar um hábito, marcar e desmarcar hoje pelos botões do painel do dia, com o dia no calendário (conferindo depois de recarregar) |
 | `sharing.spec.js` | Dois contextos do navegador (`otherPage`): a convidada entra, o dono convida com "Pode marcar", o email do convite chega, ela aceita em Convites, marca hoje, e o dono vê a marcação e o membro |
 | `report.spec.js` | Relatório do ano e o "Baixar CSV": nome do arquivo, BOM, cabeçalho em pt, CRLF e a linha da marcação (com aspas no nome com vírgula) |
 | `account.spec.js` | Exclusão da conta: o que some, o "Exportar tudo (CSV)", o código de exclusão do email e a confirmação; termina no login com o aviso, o email de conta excluída e a sessão encerrada. O backend aceita 1 código por minuto por email (login e exclusão contados juntos), então o teste pede o código de novo a cada 5 s até o minuto passar (`toPass`, com o 429 na tela enquanto isso): cerca de 1 min por projeto |
@@ -537,7 +537,7 @@ Projetos: `desktop-light`, `desktop-dark`, `mobile-light` e `mobile-dark` (Deskt
 
 O axe (`@axe-core/playwright`, WCAG 2.1 A e AA, `expectAccessible`) roda nas telas principais (inicial, aba do hábito, compartilhamento, convites, relatório, exclusão e login) em cada projeto, então mede o contraste nos dois temas, o que o `vitest-axe` no jsdom não faz.
 
-Regras: seletores por papel e nome acessível (`getByRole`, `getByLabel`), com os textos em pt; nada de `waitForTimeout` (espere pelo estado da tela ou da API com `expect`, `expect.poll` ou `toPass`); cada teste cria as próprias contas com `uniqueEmail` e não depende de outro. Os passos comuns ficam em `e2e/support.js` (`login`, `createHabit`, `todayCell`/`toggleToday`, `goByMenu`/`openMenu`, que abre o menu no celular, `inbox`/`codeFromEmail` e `expectAccessible`).
+Regras: seletores por papel e nome acessível (`getByRole`, `getByLabel`), com os textos em pt; nada de `waitForTimeout` (espere pelo estado da tela ou da API com `expect`, `expect.poll` ou `toPass`); cada teste cria as próprias contas com `uniqueEmail` e não depende de outro. Os passos comuns ficam em `e2e/support.js` (`login`, `createHabit`, `todayCell`/`selectToday`/`toggleToday`, `goByMenu`/`openMenu`, que abre o menu no celular, `inbox`/`codeFromEmail` e `expectAccessible`).
 
 ## CI
 
