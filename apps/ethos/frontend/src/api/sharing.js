@@ -21,11 +21,15 @@ export const sharingKeys = Object.freeze({
   received: ['sharing', 'received'],
 });
 
-/** `{members: [{user: {id, email}, role, joined_at}], guest_limit}`, o dono primeiro. */
-export function useMembers(habitId) {
+/**
+ * `{members: [{user: {id, email}, role, joined_at}], guest_limit}`, o dono primeiro. `enabled:
+ * false` não busca (ex.: o filtro do histórico sem hábito escolhido).
+ */
+export function useMembers(habitId, { enabled = true } = {}) {
   return useQuery({
     queryKey: sharingKeys.members(habitId),
     queryFn: ({ signal }) => apiFetch(`/habits/${habitId}/members`, { signal }),
+    enabled,
   });
 }
 

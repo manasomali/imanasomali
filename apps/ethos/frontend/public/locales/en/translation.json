@@ -11,6 +11,7 @@
   "menu": {
     "habits": "Habits",
     "report": "Report",
+    "history": "History",
     "account": "Account",
     "back_to_site": "manasomali.com",
     "admin": "Admin",
@@ -279,7 +280,8 @@
       "calendar": "Calendar",
       "report": "Report",
       "settings": "Settings",
-      "sharing": "Sharing"
+      "sharing": "Sharing",
+      "history": "History"
     },
     "status": {
       "paused": "Paused",
@@ -308,6 +310,160 @@
       "empty": "No archived habits."
     },
     "new_habit": "New habit"
+  },
+  "history": {
+    "title": "History",
+    "filters": {
+      "label": "History filters",
+      "habit": "Habit",
+      "all_habits": "All habits",
+      "archived": "Archived",
+      "habit_unknown": "Habit #{{id}}",
+      "author": "Person",
+      "all_people": "Everyone",
+      "you": "{{email}} (you)",
+      "event": "Event",
+      "all_events": "All events",
+      "custom_events_one": "{{count}} event chosen in the link",
+      "custom_events_other": "{{count}} events chosen in the link",
+      "group_all": {
+        "habit": "All habit events",
+        "marks": "All mark events",
+        "sharing": "All sharing events"
+      },
+      "from": "From",
+      "to": "Until",
+      "dates_hint": "Dates in your time zone ({{timezone}}), both days included.",
+      "people_hint": "The list shows you, the members of the chosen habit and whoever already appears in the history.",
+      "invalid_range": "The end date must be the same as or after the start date.",
+      "apply": "Filter",
+      "clear": "Clear filters"
+    },
+    "groups": {
+      "habit": "Habit",
+      "marks": "Marks",
+      "sharing": "Sharing"
+    },
+    "event_names": {
+      "habit_created": "Habit created",
+      "habit_updated": "Settings changed",
+      "habit_paused": "Habit paused",
+      "habit_resumed": "Habit resumed",
+      "habit_archived": "Habit archived",
+      "habit_unarchived": "Habit unarchived",
+      "mark_created": "Mark added",
+      "mark_updated": "Mark edited",
+      "mark_deleted": "Mark deleted",
+      "invite_created": "Invite sent",
+      "invite_canceled": "Invite canceled",
+      "invite_accepted": "Invite accepted",
+      "invite_declined": "Invite declined",
+      "member_left": "Member left",
+      "member_removed": "Member removed",
+      "member_role_changed": "Role changed"
+    },
+    "results": "Events",
+    "count_one": "{{count}} event shown.",
+    "count_other": "{{count}} events shown.",
+    "empty": "No events found.",
+    "load_more": "Load more",
+    "by": "By {{person}}",
+    "removed_user": "removed user",
+    "someone": "someone",
+    "person": "person #{{id}}",
+    "events": {
+      "habit_created": "Habit created",
+      "habit_updated": "Habit settings changed",
+      "habit_paused": "Habit paused",
+      "habit_resumed": "Habit resumed",
+      "habit_archived": "Habit archived",
+      "habit_unarchived": "Habit unarchived",
+      "mark_created": "Mark added for {{date}}",
+      "mark_created_undated": "Mark added",
+      "mark_updated": "Mark edited",
+      "mark_deleted": "Mark of {{date}} deleted",
+      "mark_deleted_undated": "Mark deleted",
+      "invite_created": "Invite sent with the {{role}} role",
+      "invite_canceled": "Invite with the {{role}} role canceled",
+      "invite_accepted": "Invite accepted: joined with the {{role}} role",
+      "invite_declined": "Invite with the {{role}} role declined",
+      "member_left": "Left the habit (role: {{role}})",
+      "member_removed": "Removed {{person}} from the habit (role: {{role}})",
+      "member_role_changed": "Changed the role of {{person}}",
+      "unknown": "Event {{event}}"
+    },
+    "details": {
+      "mark_author": "Mark made by {{person}}",
+      "duration": "Duration: {{value}}",
+      "cost": "Cost: {{value}}",
+      "has_note": "With a note"
+    },
+    "change": "{{field}}: {{old}} → {{new}}",
+    "change_valueless": "Changed: {{field}}",
+    "fields": {
+      "name": "Name",
+      "code": "Code",
+      "description": "Description",
+      "color": "Color",
+      "goal_type": "Goal type",
+      "goal_count": "Goal",
+      "goal_period": "Goal period",
+      "multi_mark": "Several marks a day",
+      "duration_enabled": "Track duration",
+      "duration_minutes": "Duration",
+      "notes_enabled": "Notes",
+      "score_enabled": "Score",
+      "score_threshold": "Score threshold",
+      "reward": "Reward",
+      "punishment": "Punishment",
+      "cost_enabled": "Track cost",
+      "cost_level": "Where the cost is set",
+      "cost_cents": "Cost",
+      "cost_limit_cents": "Cost limit",
+      "cost_limit_period": "Cost limit period",
+      "note": "Note",
+      "role": "Role"
+    },
+    "values": {
+      "empty": "(empty)",
+      "on": "on",
+      "off": "off",
+      "minutes_one": "{{count}} min",
+      "minutes_other": "{{count}} min",
+      "color": {
+        "red": "red",
+        "orange": "orange",
+        "amber": "amber",
+        "yellow": "yellow",
+        "lime": "lime",
+        "green": "green",
+        "teal": "teal",
+        "cyan": "cyan",
+        "blue": "blue",
+        "indigo": "indigo",
+        "violet": "violet",
+        "pink": "pink"
+      },
+      "goal_type": {
+        "min": "at least",
+        "max": "at most",
+        "exact": "exactly"
+      },
+      "period": {
+        "week": "week",
+        "month": "month",
+        "year": "year"
+      },
+      "cost_level": {
+        "habit": "on the habit",
+        "mark": "on each mark"
+      },
+      "role": {
+        "owner": "owner",
+        "editor": "editor",
+        "viewer": "viewer"
+      }
+    }
   },
   "legal": {
     "version": "Version {{version}}",

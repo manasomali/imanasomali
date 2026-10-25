@@ -11,6 +11,7 @@
   "menu": {
     "habits": "Hábitos",
     "report": "Relatório",
+    "history": "Histórico",
     "account": "Conta",
     "back_to_site": "manasomali.com",
     "admin": "Admin",
@@ -279,7 +280,8 @@
       "calendar": "Calendário",
       "report": "Relatório",
       "settings": "Configuração",
-      "sharing": "Compartilhamento"
+      "sharing": "Compartilhamento",
+      "history": "Histórico"
     },
     "status": {
       "paused": "Pausado",
@@ -308,6 +310,160 @@
       "empty": "Nenhum hábito arquivado."
     },
     "new_habit": "Novo hábito"
+  },
+  "history": {
+    "title": "Histórico",
+    "filters": {
+      "label": "Filtros do histórico",
+      "habit": "Hábito",
+      "all_habits": "Todos os hábitos",
+      "archived": "Arquivados",
+      "habit_unknown": "Hábito nº {{id}}",
+      "author": "Pessoa",
+      "all_people": "Todas as pessoas",
+      "you": "{{email}} (você)",
+      "event": "Evento",
+      "all_events": "Todos os eventos",
+      "custom_events_one": "{{count}} evento escolhido no link",
+      "custom_events_other": "{{count}} eventos escolhidos no link",
+      "group_all": {
+        "habit": "Todos os eventos do hábito",
+        "marks": "Todos os eventos de marcação",
+        "sharing": "Todos os eventos de compartilhamento"
+      },
+      "from": "De",
+      "to": "Até",
+      "dates_hint": "Datas no seu fuso ({{timezone}}), com os dois dias inclusos.",
+      "people_hint": "A lista mostra você, os membros do hábito escolhido e quem já aparece no histórico.",
+      "invalid_range": "A data final precisa ser igual ou posterior à inicial.",
+      "apply": "Filtrar",
+      "clear": "Limpar filtros"
+    },
+    "groups": {
+      "habit": "Hábito",
+      "marks": "Marcações",
+      "sharing": "Compartilhamento"
+    },
+    "event_names": {
+      "habit_created": "Hábito criado",
+      "habit_updated": "Configuração alterada",
+      "habit_paused": "Hábito pausado",
+      "habit_resumed": "Hábito retomado",
+      "habit_archived": "Hábito arquivado",
+      "habit_unarchived": "Hábito desarquivado",
+      "mark_created": "Marcação adicionada",
+      "mark_updated": "Marcação editada",
+      "mark_deleted": "Marcação apagada",
+      "invite_created": "Convite enviado",
+      "invite_canceled": "Convite cancelado",
+      "invite_accepted": "Convite aceito",
+      "invite_declined": "Convite recusado",
+      "member_left": "Membro saiu",
+      "member_removed": "Membro removido",
+      "member_role_changed": "Papel alterado"
+    },
+    "results": "Eventos",
+    "count_one": "{{count}} evento exibido.",
+    "count_other": "{{count}} eventos exibidos.",
+    "empty": "Nenhum evento encontrado.",
+    "load_more": "Carregar mais",
+    "by": "Por {{person}}",
+    "removed_user": "usuário removido",
+    "someone": "alguém",
+    "person": "pessoa nº {{id}}",
+    "events": {
+      "habit_created": "Hábito criado",
+      "habit_updated": "Configuração do hábito alterada",
+      "habit_paused": "Hábito pausado",
+      "habit_resumed": "Hábito retomado",
+      "habit_archived": "Hábito arquivado",
+      "habit_unarchived": "Hábito desarquivado",
+      "mark_created": "Marcação adicionada em {{date}}",
+      "mark_created_undated": "Marcação adicionada",
+      "mark_updated": "Marcação editada",
+      "mark_deleted": "Marcação de {{date}} apagada",
+      "mark_deleted_undated": "Marcação apagada",
+      "invite_created": "Convite enviado com o papel {{role}}",
+      "invite_canceled": "Convite com o papel {{role}} cancelado",
+      "invite_accepted": "Convite aceito: entrou com o papel {{role}}",
+      "invite_declined": "Convite com o papel {{role}} recusado",
+      "member_left": "Saiu do hábito (papel: {{role}})",
+      "member_removed": "Removeu {{person}} do hábito (papel: {{role}})",
+      "member_role_changed": "Mudou o papel de {{person}}",
+      "unknown": "Evento {{event}}"
+    },
+    "details": {
+      "mark_author": "Marcação feita por {{person}}",
+      "duration": "Duração: {{value}}",
+      "cost": "Custo: {{value}}",
+      "has_note": "Com observação"
+    },
+    "change": "{{field}}: {{old}} → {{new}}",
+    "change_valueless": "Alterado: {{field}}",
+    "fields": {
+      "name": "Nome",
+      "code": "Sigla",
+      "description": "Descrição",
+      "color": "Cor",
+      "goal_type": "Tipo de meta",
+      "goal_count": "Meta",
+      "goal_period": "Período da meta",
+      "multi_mark": "Várias marcações por dia",
+      "duration_enabled": "Registrar duração",
+      "duration_minutes": "Duração",
+      "notes_enabled": "Observações",
+      "score_enabled": "Pontuação",
+      "score_threshold": "Limite da pontuação",
+      "reward": "Recompensa",
+      "punishment": "Punição",
+      "cost_enabled": "Registrar custo",
+      "cost_level": "Onde o custo é definido",
+      "cost_cents": "Custo",
+      "cost_limit_cents": "Limite de custo",
+      "cost_limit_period": "Período do limite de custo",
+      "note": "Observação",
+      "role": "Papel"
+    },
+    "values": {
+      "empty": "(vazio)",
+      "on": "ligado",
+      "off": "desligado",
+      "minutes_one": "{{count}} min",
+      "minutes_other": "{{count}} min",
+      "color": {
+        "red": "vermelho",
+        "orange": "laranja",
+        "amber": "âmbar",
+        "yellow": "amarelo",
+        "lime": "lima",
+        "green": "verde",
+        "teal": "verde-azulado",
+        "cyan": "ciano",
+        "blue": "azul",
+        "indigo": "anil",
+        "violet": "violeta",
+        "pink": "rosa"
+      },
+      "goal_type": {
+        "min": "pelo menos",
+        "max": "no máximo",
+        "exact": "exatamente"
+      },
+      "period": {
+        "week": "semana",
+        "month": "mês",
+        "year": "ano"
+      },
+      "cost_level": {
+        "habit": "no hábito",
+        "mark": "em cada marcação"
+      },
+      "role": {
+        "owner": "dono",
+        "editor": "editor",
+        "viewer": "leitor"
+      }
+    }
   },
   "legal": {
     "version": "Versão {{version}}",
