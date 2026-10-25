@@ -59,6 +59,19 @@
   color: var(--muted);
 }
 
+.signOut {
+  padding-inline: 0;
+  background: none;
+  border-top: 0;
+  border-inline: 0;
+  cursor: pointer;
+}
+
+.signOut:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
 .site:hover {
   color: var(--fg);
 }
@@ -66,13 +79,13 @@
 .panel {
   display: flex;
   align-items: center;
-  gap: clamp(1rem, 3vw, 2.5rem);
+  gap: clamp(1rem, 2vw, 2rem);
 }
 
 .links {
   display: flex;
   align-items: center;
-  gap: clamp(1rem, 3vw, 2.5rem);
+  gap: clamp(0.75rem, 1.5vw, 1.5rem);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -135,7 +148,9 @@
   display: none;
 }
 
-@media (max-width: 760px) {
+/* Abaixo disto os links (hábitos, relatório, histórico, convites, conta, sair, admin e a volta ao
+   site) não cabem numa linha com o idioma e o tema: vira o menu de abrir */
+@media (max-width: 1200px) {
   .toggle {
     display: inline-flex;
   }

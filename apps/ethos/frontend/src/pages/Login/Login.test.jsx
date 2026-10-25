@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, configure, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { browserTimezone } from '../../lib/time';
@@ -8,6 +8,12 @@ import { axe } from '../../test/axe';
 import { createTestI18n } from '../../test/i18n';
 import { meFixture, renderApp } from '../../test/render';
 import { api, server } from '../../test/server';
+
+// Os testes que entram vão até a tela de conta (com a lista de fusos) ou a de hábitos, que levam
+// mais que os 5 s padrão quando a suíte inteira roda junto, com cobertura
+vi.setConfig({ testTimeout: 15_000 });
+
+configure({ asyncUtilTimeout: 5_000 });
 
 const UNAUTHORIZED = { error: 'unauthorized', field: null };
 

@@ -1,0 +1,227 @@
+.page {
+  width: 100%;
+  max-width: var(--content-width);
+}
+
+.title {
+  margin-bottom: 1.5rem;
+  font-size: var(--text-2xl);
+}
+
+.section {
+  display: grid;
+  gap: 0.75rem;
+  padding-block: 1.5rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.sectionTitle {
+  font-size: var(--text-xl);
+}
+
+.stepTitle {
+  font-size: var(--text-lg);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.email {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.label {
+  font-weight: 700;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.input[aria-invalid='true'] {
+  border-style: dashed;
+}
+
+.list {
+  max-width: 32rem;
+}
+
+.code {
+  max-width: 14rem;
+  font-size: var(--text-xl);
+  letter-spacing: 0.4em;
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.choice input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: var(--fg);
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.check input {
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0.25rem 0 0;
+  accent-color: var(--fg);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.button,
+.primary,
+.danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button {
+  background: transparent;
+}
+
+.button:hover {
+  background: var(--surface-hover);
+}
+
+.primary,
+.danger {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/* Sem cor de alerta (os tokens são monocromáticos): o destrutivo leva borda tracejada e ícone */
+.danger {
+  outline: 2px dashed var(--fg);
+  outline-offset: 2px;
+}
+
+.button:disabled,
+.primary:disabled,
+.danger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.linkButton {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.linkButton:disabled {
+  color: var(--muted);
+  text-decoration: none;
+  cursor: default;
+}
+
+.status {
+  font-weight: 700;
+}
+
+.actions {
+  display: grid;
+  gap: 1rem;
+}
+
+.action {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+}
+
+.panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.steps [aria-current='step'] {
+  color: var(--fg);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.bullets {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.subtitle {
+  font-size: var(--text-base);
+}
