@@ -41,6 +41,13 @@ export function formatMonth(month, locale) {
   return formatter(locale, { timeZone: 'UTC', month: 'long' }).format(date);
 }
 
+/** Nome abreviado do mês ("mar." / "Mar"): o título das colunas do calendário. `month` de 1 a 12. */
+export function formatMonthShort(month, locale) {
+  const date = new Date(0);
+  date.setUTCFullYear(2000, month - 1, 1);
+  return formatter(locale, { timeZone: 'UTC', month: 'short' }).format(date);
+}
+
 /** Mês e ano ("março de 2026" / "March 2026"). `month` de 1 a 12. */
 export function formatMonthYear(year, month, locale) {
   return formatter(locale, { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(
@@ -64,8 +71,8 @@ export function formatPeriod(range, locale) {
 
 /**
  * Nomes dos dias da semana, de segunda a domingo: o índice é o `weekday` da API (0 = segunda).
- * `short` é a inicial ("S"), `abbr` a abreviação sem ponto ("seg", "Mon": as colunas do calendário)
- * e `long` o nome completo (para leitores). Na ordem do calendário, use calendarWeekdayNames.
+ * `short` é a inicial ("S") e `long` o nome completo (para leitores). Na ordem do calendário, use
+ * calendarWeekdayNames.
  */
 export function weekdayNames(locale) {
   // 2024-01-01 foi uma segunda
@@ -73,7 +80,6 @@ export function weekdayNames(locale) {
     const date = dayDate(`2024-01-0${index + 1}`);
     return {
       short: formatter(locale, { timeZone: 'UTC', weekday: 'narrow' }).format(date),
-      abbr: formatter(locale, { timeZone: 'UTC', weekday: 'short' }).format(date).replace(/\.$/, ''),
       long: formatter(locale, { timeZone: 'UTC', weekday: 'long' }).format(date),
     };
   });

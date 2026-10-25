@@ -5,6 +5,7 @@ import {
   formatDateTime,
   formatLongDay,
   formatMonth,
+  formatMonthShort,
   formatMonthYear,
   formatPeriod,
   formatShortDay,
@@ -28,6 +29,10 @@ describe('dates for the screen', () => {
   it('names months and weekdays, starting on Monday', () => {
     expect(formatMonth(3, 'en')).toBe('March');
     expect(formatMonth(12, 'pt')).toBe('dezembro');
+    // Abreviado: o título das colunas do calendário
+    expect(formatMonthShort(9, 'en')).toBe('Sep');
+    expect(formatMonthShort(9, 'pt')).toBe('set.');
+    expect(formatMonthShort(5, 'pt')).toBe('mai.');
 
     const weekdays = weekdayNames('en');
     expect(weekdays.map((day) => day.long)).toEqual([
@@ -63,25 +68,6 @@ describe('dates for the screen', () => {
       'sábado',
     ]);
     expect(calendarWeekdayNames('pt').map((day) => day.short).join('')).toBe('DSTQQSS');
-    // Nas colunas, a abreviação sem o ponto do pt
-    expect(calendarWeekdayNames('en').map((day) => day.abbr)).toEqual([
-      'Sun',
-      'Mon',
-      'Tue',
-      'Wed',
-      'Thu',
-      'Fri',
-      'Sat',
-    ]);
-    expect(calendarWeekdayNames('pt').map((day) => day.abbr)).toEqual([
-      'dom',
-      'seg',
-      'ter',
-      'qua',
-      'qui',
-      'sex',
-      'sáb',
-    ]);
   });
 
   it('shows instants in the viewer time zone', () => {

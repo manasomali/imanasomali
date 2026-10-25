@@ -6,8 +6,8 @@ import styles from './styles.module.css';
 // Um dia do calendário. Memorizado: com props iguais não redesenha, então um clique só redesenha
 // os dias que mudaram. Props:
 // - `day` ("AAAA-MM-DD"), `label` (aria-label com a data e o estado), `tabIndex` (foco itinerante);
-// - `weekday` (abreviação do dia da semana) e `weekStart` (primeiro dia de uma semana depois do
-//   dia 1): só na visão em colunas, onde não há cabeçalho de dias da semana;
+// - `weekStart` (primeiro dia de uma semana depois do dia 1): só na visão em colunas, onde uma
+//   linha separa as semanas;
 // - `future`: dia depois de hoje, desabilitado (aria-disabled, para continuar focável e lido);
 // - `today`, `selected`, `pending` (escrita a caminho);
 // - `color` (cor do hábito: nome da paleta ou "#rrggbb"), `marked` e `count` (várias por dia): aba
@@ -20,7 +20,6 @@ function DayCell({
   day,
   label,
   tabIndex,
-  weekday,
   weekStart = false,
   future = false,
   today = false,
@@ -60,11 +59,6 @@ function DayCell({
       <span className={styles.number} aria-hidden="true">
         {Number(day.slice(8))}
       </span>
-      {weekday && (
-        <span className={styles.weekday} aria-hidden="true">
-          {weekday}
-        </span>
-      )}
       {count > 1 && (
         <span className={styles.count} aria-hidden="true">
           {count}
