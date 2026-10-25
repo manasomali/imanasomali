@@ -13,6 +13,9 @@ fail() {
   exit 1
 }
 
+# Saída recuada: um "::error::" no começo da linha viraria anotação de erro no Actions
+show() { sed 's/^/    | /' "$1"; }
+
 # Roda o script e falha o teste se ele não falhar com a mensagem esperada
 expect_failure() {
   local message=$1
@@ -20,7 +23,7 @@ expect_failure() {
   if "$@" >"$out" 2>&1; then
     fail "deveria falhar: $*"
   fi
-  grep -qF -- "$message" "$out" || { cat "$out"; fail "mensagem esperada: $message"; }
+  grep -qF -- "$message" "$out" || { show "$out"; fail "mensagem esperada: $message"; }
 }
 
 echo "=== clean-assets.sh"
