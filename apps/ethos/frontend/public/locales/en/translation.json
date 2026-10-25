@@ -281,7 +281,8 @@
       "report": "Report",
       "settings": "Settings",
       "sharing": "Sharing",
-      "history": "History"
+      "history": "History",
+      "alerts": "Alerts"
     },
     "status": {
       "paused": "Paused",
@@ -900,5 +901,74 @@
       "month": "month",
       "year": "year"
     }
+  },
+  "habit_alerts": {
+    "title": "Alerts",
+    "intro": "Alerts arrive by email when this habit needs attention. The settings are yours alone: each person who marks the habit picks their own alerts.",
+    "forbidden": "No permission: people who can only view the habit do not set up or receive alerts.",
+    "archived": "This habit is archived: no alert fires and the settings are read-only. Unarchive it to make changes.",
+    "paused": "This habit is paused: no alert fires while it is paused, nor in periods that had a pause.",
+    "groups": {
+      "what": "What to alert about",
+      "when": "When to check"
+    },
+    "goal_enabled": "Goal alert",
+    "cost_enabled": "Cost alert",
+    "goal_rule": {
+      "min": "Fires when the habit falls behind the pace {{of_period}}: less done than the share of the goal that the time already passed asks for (rounded down).",
+      "min_single": "With this goal, the pace only asks for the mark at the end of the period, so this alert never fires.",
+      "exact": "Fires when the habit goes over the goal {{of_period}} or falls behind the pace: less done than the share of the goal that the time already passed asks for (rounded down).",
+      "exact_single": "Fires when the habit goes over the goal {{of_period}}. With this goal, the pace only asks for the mark at the end of the period, so falling behind does not fire it.",
+      "max": "Fires when the habit reaches or goes over the goal {{of_period}}.",
+      "never": "Fires on the first mark {{of_period}}.",
+      "unknown": "Could not read the goal of this habit."
+    },
+    "of_period": {
+      "week": "of the week",
+      "month": "of the month",
+      "year": "of the year"
+    },
+    "this_period": {
+      "week": "this week",
+      "month": "this month",
+      "year": "this year"
+    },
+    "pace_example": {
+      "half": "Example: halfway through the period, having done less than half the goal (rounded down) is already behind.",
+      "week": "Example: in a week with no marks, the habit falls behind from {{weekday}} at {{time}}, and the alert goes out at the first check after that."
+    },
+    "starts_on": "This habit was created {{this_period}}: this alert can only fire from {{date}} on.",
+    "cost_rule": {
+      "week": "Warns when this week's spending reaches {{percent}}% of the limit ({{limit}}), and again when it goes over.",
+      "month": "Warns when this month's spending reaches {{percent}}% of the limit ({{limit}}), and again when it goes over.",
+      "year": "Warns when this year's spending reaches {{percent}}% of the limit ({{limit}}), and again when it goes over."
+    },
+    "hour": "Hour",
+    "time_zone": "In your time zone, {{timeZone}}. To change it, go to <account>your account</account>.",
+    "frequency": "Frequency",
+    "frequencies": {
+      "daily": "Every day",
+      "weekly": "Once a week"
+    },
+    "frequency_hint": "The alert is checked at this hour: every day, or only on the chosen weekday.",
+    "weekday": "Weekday",
+    "weekday_choose": "Choose the day",
+    "weekday_hint": "The weekly alert is checked only on this day.",
+    "errors": {
+      "hour_invalid": "Choose an hour from the list.",
+      "frequency_invalid": "Choose the frequency.",
+      "weekday_required": "Choose the weekday of the weekly alert.",
+      "weekday_invalid": "Choose a weekday from the list."
+    },
+    "notes": {
+      "one_per_day": "At most 1 email a day goes out for this habit, joining goal and cost.",
+      "creation": "No alert fires in the period (week, month or year) in which the habit was created: the pace would be measured from the start of a period the habit did not live through.",
+      "save_after_hour": "If you save after the chosen hour, today's check does not happen: the alert counts from the next occurrence on."
+    },
+    "save": "Save alerts",
+    "saving": "Saving…",
+    "saved": "Alerts saved.",
+    "last_sent": "Last alert email: {{when}}.",
+    "never_sent": "No alert email sent yet."
   }
 }

@@ -6,6 +6,7 @@ import AdminAccounts from './pages/Admin/Accounts';
 import AdminBanners from './pages/Admin/Banners';
 import AdminUserHabits from './pages/Admin/UserHabits';
 import HabitLayout from './pages/Habit';
+import HabitAlerts from './pages/HabitAlerts';
 import HabitCalendar from './pages/HabitCalendar';
 import HabitSettings from './pages/HabitSettings';
 import HabitSharing from './pages/HabitSharing';
@@ -55,6 +56,7 @@ export const routes = [
               { index: true, element: <HabitCalendar /> },
               { path: HABIT_SECTION.settings, element: <HabitSettings /> },
               { path: HABIT_SECTION.sharing, element: <HabitSharing /> },
+              { path: HABIT_SECTION.alerts, element: <HabitAlerts /> },
             ],
           },
         ],
