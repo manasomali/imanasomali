@@ -106,7 +106,9 @@
   display: none;
 }
 
-@media (max-width: 820px) {
+/* With four links the inline menu needs about 880px in pt (the longest labels); below 960px it
+   collapses into the toggle, leaving some slack for wider fallback fonts */
+@media (max-width: 960px) {
   .toggle {
     display: inline-flex;
   }

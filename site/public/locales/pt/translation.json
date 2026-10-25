@@ -47,6 +47,17 @@
                 }
             }
         },
+        "apps": {
+            "title": "Aplicações",
+            "items": {
+                "ethos": {
+                    "title": "ethos",
+                    "subtitle": "Aplicativo para cadastro de hábitos",
+                    "description": "Marque no calendário os dias em que cumpriu cada hábito, acompanhe a pontuação e os relatórios, receba alertas por email e compartilhe hábitos com outras pessoas.",
+                    "image_alt": "O nome ethos ao lado de um mês do calendário, com pontos coloridos nos dias em que cada hábito foi marcado."
+                }
+            }
+        },
         "publications": {"title": "Publicações"},
         "page404": {"title": "Página não encontrada", "message": "O endereço que você tentou acessar não existe ou foi removido.", "back": "Voltar para o início"}
     },
@@ -63,6 +74,7 @@
     "menu": {
         "about": "SOBRE",
         "projects": "PROJETOS",
+        "apps": "APLICAÇÕES",
         "publications": "PUBLICAÇÕES"
     },
     "components": {
