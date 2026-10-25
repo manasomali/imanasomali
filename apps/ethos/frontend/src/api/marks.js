@@ -4,7 +4,9 @@
 // Cache: uma entrada por hábito, ano e fuso (`markKeys.year`), com TODAS as marcações do ano local
 // (array de MarkOut, por `marked_at` e id). A aba principal e a aba do hábito leem a mesma
 // entrada, então marcar numa aparece na outra sem buscar de novo. Uma request por hábito e ano
-// (páginas de até 1000; um hábito toggle cabe numa página só).
+// (páginas de até 1000; um hábito toggle cabe numa página só). A faixa do calendário (mês, 3 meses
+// ou ano) lê os anos que toca: a janela de 3 meses que cruza o ano lê os dois, e cada escrita mexe
+// só no ano do dia dela.
 //
 // Escritas otimistas: a tela muda na hora e, se a API falhar, a mudança é desfeita (a operação
 // inversa, não uma foto do cache, para não apagar o efeito de outro clique que ainda está a
@@ -12,7 +14,7 @@
 // supôs (ex.: outro membro marcou o mesmo dia), o ano é buscado de novo depois da última escrita.
 
 import { useCallback } from 'react';
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { meQueryKey } from './auth';
 import { habitKeys } from './habits';
 import { historyKeys } from './history';
@@ -64,35 +66,67 @@ export function yearMarksQuery(habitId, year, timeZone, select) {
   };
 }
 
-/** Marcações do hábito no ano, agrupadas por dia local (`data`: Map "AAAA-MM-DD" → marcações). */
-export function useYearMarks(habitId, year, timeZone) {
-  const select = useCallback((marks) => marksByDay(marks, timeZone), [timeZone]);
-  return useQuery(yearMarksQuery(habitId, year, timeZone, select));
+// Resultado das consultas dos anos de uma faixa: falhou se algum ano ficou sem dados
+function firstError(results) {
+  return results.find((result) => result.error && result.data === undefined)?.error ?? null;
+}
+
+function refetchFailed(results) {
+  return () => results.forEach((result) => result.error && result.refetch());
 }
 
 /**
- * Marcações do ano de vários hábitos, uma request por hábito, em paralelo. `byHabit`: Map do id
- * para o Map dia → marcações; `pending` enquanto algum carrega; `error`: o primeiro erro.
+ * Marcações do hábito nos anos `years` (os de calendarRange: 1, ou 2 quando a janela de 3 meses
+ * cruza o ano), uma consulta por ano no cache do ano. `data`: Map "AAAA-MM-DD" → marcações, só
+ * com todos os anos carregados; `isPending` enquanto algum carrega; `error`: o de um ano sem dados;
+ * `refetch` busca de novo os que falharam.
  */
-export function useYearMarksOfHabits(habits, year, timeZone) {
+export function useMarks(habitId, years, timeZone) {
+  const combine = useCallback(
+    (results) => ({
+      data: results.every((result) => result.data !== undefined)
+        ? marksByDay(results.flatMap((result) => result.data), timeZone)
+        : undefined,
+      isPending: results.some((result) => result.isPending),
+      error: firstError(results),
+      refetch: refetchFailed(results),
+    }),
+    [timeZone],
+  );
+  return useQueries({
+    queries: years.map((year) => yearMarksQuery(habitId, year, timeZone)),
+    combine,
+  });
+}
+
+/**
+ * Marcações de vários hábitos nos anos `years` (como em useMarks), uma request por hábito e ano,
+ * em paralelo. `byHabit`: Map do id para o Map dia → marcações, só dos hábitos com todos os anos
+ * carregados; `pending` enquanto algum carrega; `error`: o de um ano sem dados.
+ */
+export function useMarksOfHabits(habits, years, timeZone) {
   const combine = useCallback(
     (results) => {
       const byHabit = new Map();
-      results.forEach((result, index) => {
-        if (result.data) byHabit.set(habits[index].id, marksByDay(result.data, timeZone));
+      habits.forEach((habit, index) => {
+        const own = results.slice(index * years.length, (index + 1) * years.length);
+        if (own.every((result) => result.data !== undefined)) {
+          byHabit.set(habit.id, marksByDay(own.flatMap((result) => result.data), timeZone));
+        }
       });
-      const failed = results.find((result) => result.error && result.data === undefined);
       return {
         byHabit,
         pending: results.some((result) => result.isPending),
-        error: failed?.error ?? null,
-        refetch: () => results.forEach((result) => result.error && result.refetch()),
+        error: firstError(results),
+        refetch: refetchFailed(results),
       };
     },
-    [habits, timeZone],
+    [habits, years, timeZone],
   );
   return useQueries({
-    queries: habits.map((habit) => yearMarksQuery(habit.id, year, timeZone)),
+    queries: habits.flatMap((habit) =>
+      years.map((year) => yearMarksQuery(habit.id, year, timeZone)),
+    ),
     combine,
   });
 }

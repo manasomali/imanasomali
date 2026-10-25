@@ -1,10 +1,15 @@
 /* Meses lado a lado no desktop; no celular, um embaixo do outro (rolagem vertical) */
-.year {
+.months {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
   gap: 1.5rem 1.25rem;
   /* A dica dos pontos não pode criar rolagem horizontal na página */
   overflow-x: clip;
+}
+
+/* Um mês só: dias maiores, sem esticar a grade pela largura toda do desktop */
+.months[data-range='month'] {
+  grid-template-columns: minmax(0, 28rem);
 }
 
 .month {

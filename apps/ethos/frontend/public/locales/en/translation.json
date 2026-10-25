@@ -299,9 +299,23 @@
     "all": "All habits"
   },
   "calendar": {
-    "label": "Calendar for {{year}}",
-    "previous_year": "Previous year ({{year}})",
-    "next_year": "Next year ({{year}})",
+    "label": "Calendar for {{period}}",
+    "range": {
+      "label": "Show",
+      "month": "Month",
+      "3months": "3 months",
+      "year": "Year"
+    },
+    "previous": {
+      "month": "Previous month ({{period}})",
+      "3months": "Previous 3 months ({{period}})",
+      "year": "Previous year ({{period}})"
+    },
+    "next": {
+      "month": "Next month ({{period}})",
+      "3months": "Next 3 months ({{period}})",
+      "year": "Next year ({{period}})"
+    },
     "loading": "Loading marks…",
     "day_future": "{{date}}. Future day, cannot be marked",
     "day_marked": "{{date}}. Marked",

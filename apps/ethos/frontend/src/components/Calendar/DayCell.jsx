@@ -10,7 +10,7 @@ import styles from './styles.module.css';
 // - `dots` (`{shown: [{id, color}], extra, labels}`, memorizado): aba principal, até 4 pontos,
 //   "+N" e as siglas no hover e no foco;
 // - `onActivate(day)`: clique, Enter ou Espaço (o botão nativo já trata as duas teclas);
-// - `onKeyDown` e `onFocus`: do YearCalendar (setas e foco itinerante).
+// - `onKeyDown` e `onFocus`: do Calendar (setas e foco itinerante).
 function DayCell({
   day,
   label,

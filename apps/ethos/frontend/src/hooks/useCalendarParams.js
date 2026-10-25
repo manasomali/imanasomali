@@ -1,52 +1,95 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
-import { MIN_YEAR, parseDay, parseYear, yearOf } from '../lib/calendar';
+import {
+  RANGE_STORAGE_KEY,
+  rangeNeighbors,
+  resolveCalendar,
+  switchAnchor,
+  writeRangeParams,
+} from '../lib/calendarRange';
+import { readItem, writeItem } from '../lib/storage';
 
-// Ano e dia escolhidos no calendário, na URL (`?year=2025&day=2025-03-04`), para o voltar do
-// navegador e o link compartilhado mostrarem o mesmo. Valor inválido, dia no futuro e ano depois
-// do atual são ignorados. `today` é o dia de hoje no fuso da conta.
-// - `year`: o da URL, senão o do dia, senão o atual;
-// - `day`: o da URL se for desse ano; sem ele, hoje no ano atual e null nos outros anos.
+// Faixa e dia escolhidos no calendário, na URL (`?range=3months&month=2026-03&day=2026-03-04`),
+// para o voltar do navegador e o link compartilhado mostrarem o mesmo; o tipo da faixa também fica
+// lembrado no navegador. Regras em resolveCalendar (src/lib/calendarRange.js). `today` é o dia de
+// hoje no fuso da conta. Devolve:
+// - `range` (calendarRange) e `day` (o dia escolhido, ou null);
+// - `previous`/`next`: as âncoras vizinhas, null quando não há para onde ir; `move(anchor)` vai
+//   para uma delas (empilha no histórico e solta o dia);
+// - `setKind(kind)`: troca o tipo, lembra a escolha e mantém o dia escolhido visível;
+// - `setDay(day)`: escolhe um dia da faixa (sem empilhar: o voltar volta de tela, não de dia).
 export default function useCalendarParams(today) {
   const [params, setParams] = useSearchParams();
-  const maxYear = yearOf(today);
+  const search = params.toString();
+  const storedKind = readItem(RANGE_STORAGE_KEY);
+  const { range, day } = useMemo(() => {
+    const values = new URLSearchParams(search);
+    return resolveCalendar(
+      {
+        range: values.get('range'),
+        month: values.get('month'),
+        year: values.get('year'),
+        day: values.get('day'),
+      },
+      storedKind,
+      today,
+    );
+  }, [search, storedKind, today]);
+  const { previous, next } = useMemo(() => rangeNeighbors(range, today), [range, today]);
 
-  const parsedDay = parseDay(params.get('day'));
-  const validDay =
-    parsedDay !== null && parsedDay <= today && yearOf(parsedDay) >= MIN_YEAR ? parsedDay : null;
-  const year =
-    parseYear(params.get('year'), { max: maxYear }) ?? (validDay ? yearOf(validDay) : maxYear);
-  let day = null;
-  if (validDay !== null && yearOf(validDay) === year) day = validDay;
-  else if (year === maxYear) day = today;
+  const { kind } = range;
+  // A posição em números: escolher um dia não pode trocar a identidade de setDay (ele vai para
+  // todos os DayCell, que são memorizados). Na faixa do ano só o ano conta
+  const anchorYear = range.anchor.year;
+  const anchorMonth = kind === 'year' ? 1 : range.anchor.month;
 
-  const setYear = useCallback(
-    (value) => {
-      setParams((previous) => {
-        const next = new URLSearchParams(previous);
-        next.set('year', String(value));
-        next.delete('day');
-        return next;
-      }, { preventScrollReset: true });
+  const move = useCallback(
+    (target) => {
+      setParams(
+        (current) => {
+          const values = writeRangeParams(new URLSearchParams(current), kind, target);
+          values.delete('day');
+          return values;
+        },
+        { preventScrollReset: true },
+      );
     },
-    [setParams],
+    [setParams, kind],
   );
 
-  // Escolher um dia não empilha histórico: o voltar do navegador volta de tela, não de dia
+  const setKind = useCallback(
+    (value) => {
+      writeItem(RANGE_STORAGE_KEY, value);
+      const target = switchAnchor(range, value, day, today);
+      setParams(
+        (current) => {
+          const values = writeRangeParams(new URLSearchParams(current), value, target);
+          // O dia da URL fica se é o escolhido; hoje sem dia na URL continua implícito
+          if (current.get('day') !== day) values.delete('day');
+          return values;
+        },
+        { preventScrollReset: true },
+      );
+    },
+    [setParams, range, day, today],
+  );
+
   const setDay = useCallback(
     (value) => {
       setParams(
-        (previous) => {
-          const next = new URLSearchParams(previous);
-          next.set('year', String(yearOf(value)));
-          next.set('day', value);
-          return next;
+        (current) => {
+          const values = writeRangeParams(new URLSearchParams(current), kind, {
+            year: anchorYear,
+            month: anchorMonth,
+          });
+          values.set('day', value);
+          return values;
         },
         { replace: true, preventScrollReset: true },
       );
     },
-    [setParams],
+    [setParams, kind, anchorYear, anchorMonth],
   );
 
-  return { year, day, maxYear, setYear, setDay };
+  return { range, day, previous, next, move, setKind, setDay };
 }
