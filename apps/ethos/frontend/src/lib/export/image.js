@@ -243,8 +243,8 @@ function habitTitle(item, t) {
 function statSegments(item, t, language) {
   const segments = [t('report.image.marks', { count: item.marks.length })];
   segments.push(
-    item.closedPeriods > 0
-      ? t('report.image.periods', { met: item.metPeriods, total: item.closedPeriods })
+    item.countedPeriods > 0
+      ? t('report.image.periods', { met: item.metPeriods, total: item.countedPeriods })
       : t('report.image.no_periods'),
   );
   if (item.score) {

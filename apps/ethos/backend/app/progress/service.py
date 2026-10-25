@@ -6,8 +6,10 @@ Todo cálculo sai do `app/score.py`, no fuso de quem pede (`users.timezone`), co
   Cada período vem inteiro, com o valor e o gasto do período todo, mesmo que o intervalo comece
   ou acabe no meio dele. Não filtra criação nem pausa: são os números do que foi marcado.
 - Pontuação e sucesso/falha: `score.evaluate`, só com `score_enabled`. É a pontuação atual do
-  hábito, a mesma do `GET /habits` (da criação até o período anterior ao atual, ou congelada no
-  arquivamento), não uma pontuação recortada pelo intervalo.
+  hábito, a mesma do `GET /habits` (do período da criação até o atual, com o valor de agora, ou
+  congelada no arquivamento), não uma pontuação recortada pelo intervalo. As marcações vêm todas,
+  inclusive as de antes da criação (que contam nos `periods` e no `marks_range`): é o `score.py`
+  que as tira da pontuação.
 - Gasto (só com `cost_enabled`): a soma de `cost_cents` das marcações, como gravado na criação de
   cada uma (nível hábito ou nível marcação dá na mesma). Vem em cada período da meta e, quando há
   limite, também nos períodos do limite (`cost_limit_period`, que pode ser outro: meta semanal com

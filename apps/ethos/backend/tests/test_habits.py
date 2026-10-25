@@ -923,7 +923,7 @@ def test_deleted_habit_frees_the_limit(client, ana, db_session):
 
 # --- pontuação ---
 
-# Hábito semanal criado numa quarta; a contagem começa na segunda seguinte (9/3)
+# Hábito semanal criado numa quarta (4/3): a semana da criação (2/3) conta, até a atual (23/3)
 CREATED = datetime(2026, 3, 4, 15, 0, tzinfo=UTC)
 
 
@@ -959,18 +959,32 @@ def test_score_disabled_is_not_returned(client, ana, db_session):
     assert "success" not in detail
 
 
-def test_score_without_data(client, ana):
-    # Criado agora: nenhum período completo ainda
+def test_score_of_a_habit_created_now(client, ana, db_session):
+    # Criado agora: a semana atual já conta, com o valor de agora (sem marcação: não cumprida)
+    habit = created(client, ana, score_enabled=True, goal_count=1)
+    assert habit["score"] == {"value": 0, "success": False}
+
+    # Meta da semana cumprida no mesmo dia: a pontuação aparece na hora
+    mark(db_session, stored(db_session, habit["id"]), NOW)
+    assert score_of(client, ana, habit["id"]) == {"value": 100, "success": True}
+
+
+def test_score_without_data_when_every_period_is_paused(client, ana):
     habit = created(client, ana, score_enabled=True)
-    assert habit["score"] == {"value": None, "success": None}
+
+    paused = client.post(f"/habits/{habit['id']}/pause", headers=ana.headers).json()
+
+    assert paused["score"] == {"value": None, "success": None}
 
 
 def test_score_matches_score_module(client, ana, db_session):
     habit = scored_habit(db_session, ana, goal_count=2, score_threshold=50)
-    # Semanas consideradas: 9/3 e 16/3 (a de 23/3 é a atual). Só a de 9/3 cumpre
+    # Semanas consideradas: 2/3 (a da criação), 9/3, 16/3 e 23/3 (a atual). Cumprem 2/3 e 9/3
     mark(
         db_session,
         habit,
+        datetime(2026, 3, 5, 15, tzinfo=UTC),
+        datetime(2026, 3, 6, 15, tzinfo=UTC),
         datetime(2026, 3, 9, 15, tzinfo=UTC),
         datetime(2026, 3, 11, 15, tzinfo=UTC),
         datetime(2026, 3, 17, 15, tzinfo=UTC),
@@ -997,14 +1011,17 @@ def test_score_matches_score_module(client, ana, db_session):
 
 def test_changing_goal_changes_historical_score(client, ana, db_session):
     habit = scored_habit(db_session, ana, goal_count=2)
+    # Uma marcação em cada semana e duas na de 9/3: só ela cumpre a meta 2
     mark(
         db_session,
         habit,
+        datetime(2026, 3, 5, 15, tzinfo=UTC),
         datetime(2026, 3, 9, 15, tzinfo=UTC),
         datetime(2026, 3, 11, 15, tzinfo=UTC),
         datetime(2026, 3, 17, 15, tzinfo=UTC),
+        datetime(2026, 3, 24, 15, tzinfo=UTC),
     )
-    assert score_of(client, ana, habit.id) == {"value": 50, "success": False}
+    assert score_of(client, ana, habit.id) == {"value": 25, "success": False}
 
     body = patch(client, ana, habit.id, goal_count=1).json()
 
@@ -1014,9 +1031,12 @@ def test_changing_goal_changes_historical_score(client, ana, db_session):
 
 def test_changing_threshold_changes_success(client, ana, db_session):
     habit = scored_habit(db_session, ana, goal_count=2)
+    # Cumprem as semanas de 2/3 e 9/3; as de 16/3 e 23/3, não: 2 de 4
     mark(
         db_session,
         habit,
+        datetime(2026, 3, 5, 15, tzinfo=UTC),
+        datetime(2026, 3, 6, 15, tzinfo=UTC),
         datetime(2026, 3, 9, 15, tzinfo=UTC),
         datetime(2026, 3, 10, 15, tzinfo=UTC),
     )
@@ -1028,7 +1048,8 @@ def test_changing_threshold_changes_success(client, ana, db_session):
 
 def test_toggling_duration_keeps_mark_minutes(client, ana, db_session):
     habit = scored_habit(db_session, ana, duration_enabled=True, duration_minutes=40)
-    # 9/3: 2 x 20 min (cumpre 40 min); 16/3: 1 x 10 min (não cumpre)
+    # 2/3: 1 x 40 min e 9/3: 2 x 20 min (cumprem 40 min); 16/3 e 23/3: 1 x 10 min (não cumprem)
+    mark(db_session, habit, datetime(2026, 3, 5, 15, tzinfo=UTC), duration_minutes=40)
     mark(
         db_session,
         habit,
@@ -1036,23 +1057,35 @@ def test_toggling_duration_keeps_mark_minutes(client, ana, db_session):
         datetime(2026, 3, 10, 15, tzinfo=UTC),
         duration_minutes=20,
     )
-    mark(db_session, habit, datetime(2026, 3, 17, 15, tzinfo=UTC), duration_minutes=10)
+    mark(
+        db_session,
+        habit,
+        datetime(2026, 3, 17, 15, tzinfo=UTC),
+        datetime(2026, 3, 24, 15, tzinfo=UTC),
+        duration_minutes=10,
+    )
     assert score_of(client, ana, habit.id) == {"value": 50, "success": False}
 
     off = patch(client, ana, habit.id, duration_enabled=False).json()
     on = patch(client, ana, habit.id, duration_enabled=True).json()
 
-    # Desligada, conta dias marcados (meta 1 por semana): as duas semanas cumprem
+    # Desligada, conta dias marcados (meta 1 por semana): as quatro semanas cumprem
     assert off["score"] == {"value": 100, "success": True}
     assert on["score"] == {"value": 50, "success": False}
     assert on["duration_minutes"] == 40
     db_session.rollback()
-    assert sorted(db_session.scalars(select(Mark.duration_minutes))) == [10, 20, 20]
+    assert sorted(db_session.scalars(select(Mark.duration_minutes))) == [10, 10, 20, 20, 40]
 
 
 def test_score_ignores_paused_periods(client, ana, db_session):
     habit = scored_habit(db_session, ana)
-    mark(db_session, habit, datetime(2026, 3, 10, 15, tzinfo=UTC))
+    mark(
+        db_session,
+        habit,
+        datetime(2026, 3, 5, 15, tzinfo=UTC),
+        datetime(2026, 3, 10, 15, tzinfo=UTC),
+        datetime(2026, 3, 24, 15, tzinfo=UTC),
+    )
     # A semana de 16/3 (sem marcação) teve pausa: fica fora
     save(
         db_session,
@@ -1069,13 +1102,19 @@ def test_score_uses_timezone_of_who_asks(client, ana, make_account, db_session):
     habit = scored_habit(db_session, ana)
     save(db_session, new_member(habit, utc_member.user, "viewer"))
     # Segunda 9/3 01:00 UTC: semana de 9/3 em UTC; domingo 8/3 22:00 em São Paulo (semana da
-    # criação, fora da pontuação)
-    mark(db_session, habit, datetime(2026, 3, 9, 1, tzinfo=UTC))
+    # criação). A de terça 10/3 cai na semana de 9/3 nos dois fusos
+    mark(
+        db_session,
+        habit,
+        datetime(2026, 3, 9, 1, tzinfo=UTC),
+        datetime(2026, 3, 10, 15, tzinfo=UTC),
+    )
 
-    assert score_of(client, ana, habit.id) == {"value": 0, "success": False}
-    assert score_of(client, utc_member, habit.id) == {"value": 50, "success": False}
+    # São Paulo: 2/3 e 9/3 cumprem (2 de 4); UTC: só 9/3 (1 de 4)
+    assert score_of(client, ana, habit.id) == {"value": 50, "success": False}
+    assert score_of(client, utc_member, habit.id) == {"value": 25, "success": False}
     listed = client.get("/habits", headers=utc_member.headers).json()["habits"]
-    assert listed[0]["score"] == {"value": 50, "success": False}
+    assert listed[0]["score"] == {"value": 25, "success": False}
 
 
 def test_list_has_no_n_plus_one(client, ana, bia, db_session, selects):

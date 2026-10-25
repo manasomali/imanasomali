@@ -37,6 +37,8 @@ function progressItems() {
       periods: [
         { first_day: '2026-03-02', last_day: '2026-03-08', value: 60, met: false, spend_cents: 2500 },
         { first_day: '2026-03-09', last_day: '2026-03-15', value: 90, met: true, spend_cents: 0 },
+        // A semana de hoje, com a meta já cumprida: conta antes de acabar
+        { first_day: '2026-03-16', last_day: '2026-03-22', value: 90, met: true, spend_cents: 0 },
       ],
       cost_periods: [{ first_day: '2026-03-01', last_day: '2026-03-31', spend_cents: 2500, limit_percent: 125 }],
     }),
@@ -126,7 +128,7 @@ describe('report screen', () => {
     expect(screen.getByRole('heading', { name: 'Report from Jan 1, 2026 to Mar 20, 2026' })).toBeTruthy();
     const details = within(card);
     expect(details.getByText('Marks').nextSibling.textContent).toBe('2');
-    expect(details.getByText('Closed periods with the goal met').nextSibling.textContent).toBe('1 of 2');
+    expect(details.getByText('Periods with the goal met').nextSibling.textContent).toBe('2 of 3');
     expect(details.getByText('Score').nextSibling.textContent).toBe('80/100 (threshold 70)');
     expect(details.getByText('Result').nextSibling.textContent).toBe('Success');
     expect(details.getByText('Time').nextSibling.textContent).toBe('60 min');

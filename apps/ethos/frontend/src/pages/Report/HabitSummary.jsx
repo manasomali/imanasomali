@@ -40,8 +40,8 @@ export default function HabitSummary({ item }) {
         <Detail label={t('report.days')}>{item.days.size}</Detail>
         <Detail label={t('report.goal_label')}>{goalText}</Detail>
         <Detail label={t('report.periods')}>
-          {item.closedPeriods > 0
-            ? t('report.periods_value', { met: item.metPeriods, total: item.closedPeriods })
+          {item.countedPeriods > 0
+            ? t('report.periods_value', { met: item.metPeriods, total: item.countedPeriods })
             : t('report.no_periods')}
         </Detail>
         {score && (

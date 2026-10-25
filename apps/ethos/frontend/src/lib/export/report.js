@@ -9,7 +9,12 @@
 //
 // Contas feitas aqui, só com as marcações do período (as pontas do intervalo cortam os períodos
 // da meta, então os totais não saem dos `periods`): marcações, dias marcados, minutos e gasto.
-// Os períodos da meta contam só os encerrados (último dia antes de hoje): o atual ainda não acabou.
+// Metas cumpridas (`countedPeriods`/`metPeriods`): os períodos da meta do relatório que vão do
+// período da criação até o atual, inclusive, como na pontuação (ETH-53). O atual entra com o valor
+// de agora: no meio da semana, uma meta mínima ainda não atingida conta como não cumprida. Arquivado
+// para no período do arquivamento. Períodos antes da criação (mesmo com histórico marcado) e os que
+// ainda não começaram ficam fora. Diferente da pontuação, não descontam pausa (a API não manda as
+// pausas) e o valor é o do período todo (marcações antes da criação incluídas).
 
 import { localDate, localTime } from '../time';
 import { normalizeOptions, visibleFields } from './options';
@@ -28,6 +33,14 @@ function latestLimit(costPeriods, to, today) {
     costPeriods.find((period) => period.first_day <= reference && reference <= period.last_day)
     ?? costPeriods[costPeriods.length - 1]
   );
+}
+
+/** Os períodos da meta que contam nas metas cumpridas: da criação até hoje ou o arquivamento. */
+function countedPeriods(periods, habit, timezone, today) {
+  const created = localDate(habit.created_at, timezone);
+  const archived = habit.archived_at ? localDate(habit.archived_at, timezone) : null;
+  const last = archived !== null && archived < today ? archived : today;
+  return periods.filter((period) => period.last_day >= created && period.first_day <= last);
 }
 
 function buildHabit(item, options, { from, to, timezone }, today) {
@@ -54,7 +67,7 @@ function buildHabit(item, options, { from, to, timezone }, today) {
     minutes += mark.duration_minutes ?? 0;
     spend += mark.cost_cents ?? 0;
   }
-  const closed = item.periods.filter((period) => period.last_day < today);
+  const counted = countedPeriods(item.periods, habit, timezone, today);
   const costPeriods = show.cost ? (item.cost_periods ?? null) : null;
 
   return {
@@ -89,8 +102,8 @@ function buildHabit(item, options, { from, to, timezone }, today) {
     durationMinutes: show.duration ? minutes : null,
     periods: item.periods,
     costPeriods,
-    closedPeriods: closed.length,
-    metPeriods: closed.filter((period) => period.met).length,
+    countedPeriods: counted.length,
+    metPeriods: counted.filter((period) => period.met).length,
     marks,
     // Dia local → número de marcações (o mapa de calor)
     days,
@@ -100,7 +113,7 @@ function buildHabit(item, options, { from, to, timezone }, today) {
 /**
  * O relatório pronto: `{from, to, timezone, options, habits}`, com cada hábito em
  * `{habit, show, goal, score, reward, punishment, cost, durationMinutes, periods, costPeriods,
- * closedPeriods, metPeriods, marks, days}`. Campo de informação não visível vem null.
+ * countedPeriods, metPeriods, marks, days}`. Campo de informação não visível vem null.
  * `today`: hoje ("AAAA-MM-DD") no fuso do relatório.
  */
 export function buildReport(data, options, { today }) {

@@ -65,14 +65,13 @@
         "A pontuação vem desligada. Ligada, na configuração do hábito, ela mostra um número de 0 a 100, o limite e o resultado, e libera a recompensa e a punição, que servem só como lembrete.",
         "A pontuação é a porcentagem dos períodos considerados (semanas, meses ou anos, como na meta) em que a meta foi cumprida, arredondada para o inteiro mais próximo (meio para cima). Ex.: meta cumprida em 7 de 10 semanas dá 70; em 2 de 3, dá 67.",
         "É sucesso quando a pontuação é igual ou maior que o limite (de 1 a 100, padrão 70), e falha quando é menor. Com o limite 70, 7 de 10 semanas é sucesso, e 6 de 10 é falha.",
-        "Os períodos considerados vão do primeiro período completo depois da criação do hábito até o anterior ao atual. Ficam de fora:",
+        "Os períodos considerados vão do período em que o hábito foi criado até o atual, inclusive. Um hábito semanal criado numa quarta-feira já conta naquela semana.",
+        "O período atual entra com o que já foi marcado nele, mesmo sem ter terminado. Por isso a pontuação sobe e desce ao longo do período: no meio da semana, uma meta mínima ainda não atingida conta como não cumprida, e passa a contar como cumprida assim que você chega a N. Ficam de fora:",
         [
-          "o período em que o hábito foi criado, que começou pela metade: um hábito semanal criado numa quarta-feira só começa a contar na segunda-feira seguinte;",
-          "o período atual, que ainda não terminou;",
-          "os dias antes da criação, mesmo marcados;",
-          "todo período que teve pausa."
+          "os dias antes da criação, mesmo marcados (no período da criação, conta só o que veio depois dela);",
+          "todo período que teve pausa, inclusive o atual."
         ],
-        "Sem nenhum período considerado (ex.: na primeira semana de um hábito semanal), aparece “Sem dados ainda” no lugar do número. “Sem dados ainda” não é sucesso nem falha.",
+        "Sem nenhum período considerado (ex.: um hábito pausado desde a criação), aparece “Sem dados ainda” no lugar do número. “Sem dados ainda” não é sucesso nem falha.",
         "A pontuação não fica gravada: é calculada na hora, com as marcações e a meta atual, no seu fuso. Mudar a meta recalcula todo o histórico."
       ]
     },
@@ -82,7 +81,7 @@
       "paragraphs": [
         "Só o dono pausa, arquiva, desarquiva e apaga, na configuração do hábito.",
         "Pausado, o hábito continua na tela e pode ser marcado, mas os períodos que tiveram qualquer tempo de pausa não contam na pontuação, e nenhum alerta dispara enquanto ele está pausado nem nesses períodos.",
-        "Arquivado, o hábito sai da tela principal e fica em “Hábitos arquivados”. Ele vira só leitura: não recebe marcações, a configuração não muda, nenhum alerta dispara e não dá para convidar ninguém. A pontuação congela na data do arquivamento, e o hábito não conta no limite de hábitos.",
+        "Arquivado, o hábito sai da tela principal e fica em “Hábitos arquivados”. Ele vira só leitura: não recebe marcações, a configuração não muda, nenhum alerta dispara e não dá para convidar ninguém. A pontuação congela na data do arquivamento: o período do arquivamento conta com o que foi marcado até ali, e o hábito não conta no limite de hábitos.",
         "Ao desarquivar (se houver vaga no limite de hábitos), o hábito volta ao status de antes. O tempo em que ficou arquivado vira pausa: nele não dava para marcar, então esses períodos não contam como meta não cumprida.",
         "Apagar o hábito apaga também todas as marcações dele, inclusive as dos convidados, e o histórico. Os membros recebem um email avisando. Não dá para desfazer."
       ]
@@ -155,7 +154,7 @@
       "id": "report",
       "title": "Relatório e export",
       "paragraphs": [
-        "Em “Relatório”, no menu, você escolhe o período (até 5 anos) e os hábitos, inclusive os arquivados, e vê o resumo de cada um. Também escolhe o que aparece: pontuação, recompensa, punição, custo, duração, observação e autor. Cada informação só aparece nos hábitos com o recurso ligado, e a observação começa desligada.",
+        "Em “Relatório”, no menu, você escolhe o período (até 5 anos) e os hábitos, inclusive os arquivados, e vê o resumo de cada um. Em “Períodos com a meta cumprida”, contam os períodos da meta (semanas, meses ou anos) do relatório, do período da criação até o atual (ou o do arquivamento), que entra com o que já foi marcado, como na pontuação. Ao contrário da pontuação, os períodos com pausa não saem dessa conta. Também escolhe o que aparece: pontuação, recompensa, punição, custo, duração, observação e autor. Cada informação só aparece nos hábitos com o recurso ligado, e a observação começa desligada.",
         "Dá para exportar:",
         [
           "imagem PNG de 1080 × 1350, boa para redes sociais, com o mapa de calor do período, a pontuação e o resultado de cada hábito (quando ligados) e as informações escolhidas. Onde o navegador permite, ela vai direto para o compartilhamento do aparelho; senão, é baixada. A imagem nunca traz emails nem observações;",

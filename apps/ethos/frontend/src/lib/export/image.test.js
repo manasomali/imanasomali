@@ -181,7 +181,7 @@ describe('report image', () => {
 
     expect(text).toContain('Running (archived)');
     expect(text).toContain('score: no data yet');
-    expect(text).toContain('no closed period yet');
+    expect(text).toContain('no period has started yet');
     expect(text).not.toContain('Success');
     expect(text).not.toContain('Failure');
   });

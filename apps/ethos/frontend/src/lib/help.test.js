@@ -183,6 +183,15 @@ describe('help texts versus the code', () => {
     }
   });
 
+  // ETH-53: o período atual conta, na pontuação e no resumo do relatório (src/lib/export/report.js)
+  it('the report summary: the label of the screen and the current period', () => {
+    for (const language of LANGUAGES) {
+      const report = sectionText(language, 'report');
+
+      expect(report).toContain(`“${translations[language].report.periods}”`);
+    }
+  });
+
   it('the pace example of "3 times per week" uses the real moments of the pace', () => {
     for (const language of LANGUAGES) {
       const alerts = sectionText(language, 'alerts');

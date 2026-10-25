@@ -43,13 +43,18 @@ def noon(day, tz=SP):
     return datetime.combine(day, time(12), tzinfo=tz)
 
 
+def sunday_night(monday, tz=SP):
+    """Domingo 23:00 da semana que começa em `monday`: o fim da semana, ainda dentro dela."""
+    return datetime.combine(monday + timedelta(days=6), time(23), tzinfo=tz)
+
+
 def make_habit(**overrides):
-    # Padrão: "pelo menos 1x por semana", criado numa quinta (semana de 29/12/2025)
+    # Padrão: "pelo menos 1x por semana", criado na segunda 05/01/2026 às 00:00
     fields = {
         "goal_type": "min",
         "goal_count": 1,
         "goal_period": "week",
-        "created_at": noon(date(2026, 1, 1)),
+        "created_at": at(SP, 2026, 1, 5, 0, 0),
     }
     fields.update(overrides)
     return Habit(**fields)
@@ -57,21 +62,23 @@ def make_habit(**overrides):
 
 def weekly(pattern, **habit_fields):
     """Avalia um hábito semanal ("pelo menos 1x") com uma semana considerada por
-    item de `pattern`, a partir de 05/01/2026; True = semana com marcação."""
+    item de `pattern`, a partir de 05/01/2026 (a da criação); True = semana com
+    marcação. "Agora" é o fim da última semana, que é a atual."""
     marks = [
         Mark(marked_at=noon(JAN_5 + timedelta(weeks=i))) for i, met in enumerate(pattern) if met
     ]
-    now = noon(JAN_5 + timedelta(weeks=len(pattern), days=1))
+    now = sunday_night(JAN_5 + timedelta(weeks=len(pattern) - 1))
     return evaluate(make_habit(**habit_fields), marks, [], SP, now)
 
 
 # --- meta em cada tipo e período ---------------------------------------------
 
-# (criação, primeiro dia do único período considerado, "agora")
+# (criação, dia da primeira marcação, "agora"): o único período considerado é o da
+# criação, que também é o atual
 PERIOD_SETUPS = {
-    "week": (date(2026, 1, 1), JAN_5, date(2026, 1, 13)),
-    "month": (date(2025, 12, 15), date(2026, 1, 5), date(2026, 2, 10)),
-    "year": (date(2024, 6, 1), date(2025, 1, 5), date(2026, 3, 1)),
+    "week": (at(SP, 2026, 1, 5, 8), JAN_5, noon(date(2026, 1, 11))),
+    "month": (at(SP, 2026, 1, 3, 12), JAN_5, noon(date(2026, 1, 20))),
+    "year": (at(SP, 2026, 1, 2, 12), JAN_5, noon(date(2026, 3, 1))),
 }
 
 
@@ -92,12 +99,10 @@ PERIOD_SETUPS = {
 )
 def test_goal_table(kind, goal_type, marked_days, expected_met):
     created, first_day, now = PERIOD_SETUPS[kind]
-    habit = make_habit(
-        goal_type=goal_type, goal_count=3, goal_period=kind, created_at=noon(created)
-    )
+    habit = make_habit(goal_type=goal_type, goal_count=3, goal_period=kind, created_at=created)
     marks = [Mark(marked_at=noon(first_day + timedelta(days=i))) for i in range(marked_days)]
 
-    result = evaluate(habit, marks, [], SP, noon(now))
+    result = evaluate(habit, marks, [], SP, now)
 
     assert len(result.periods) == 1
     assert result.periods[0].value == marked_days
@@ -106,10 +111,10 @@ def test_goal_table(kind, goal_type, marked_days, expected_met):
 
 
 def test_monthly_periods_cross_december():
-    habit = make_habit(goal_period="month", created_at=noon(date(2025, 11, 20)))
+    habit = make_habit(goal_period="month", created_at=at(SP, 2025, 12, 1, 0, 0))
     marks = [Mark(marked_at=noon(date(2025, 12, 31))), Mark(marked_at=noon(date(2026, 1, 1)))]
 
-    result = evaluate(habit, marks, [], SP, noon(date(2026, 2, 3)))
+    result = evaluate(habit, marks, [], SP, noon(date(2026, 1, 31)))
 
     assert [r.period.first_day for r in result.periods] == [date(2025, 12, 1), date(2026, 1, 1)]
     assert [r.period.end_day for r in result.periods] == [date(2026, 1, 1), date(2026, 2, 1)]
@@ -124,9 +129,9 @@ def test_iso_week_53_crosses_the_year():
     week = period_containing(date(2027, 1, 3), "week", SP)
     assert (week.first_day, week.end_day) == (date(2026, 12, 28), date(2027, 1, 4))
 
-    habit = make_habit(goal_count=2, created_at=noon(date(2026, 12, 16)))
+    habit = make_habit(goal_count=2, created_at=at(SP, 2026, 12, 21, 0, 0))
     marks = [Mark(marked_at=noon(date(2026, 12, 31))), Mark(marked_at=noon(date(2027, 1, 2)))]
-    result = evaluate(habit, marks, [], SP, noon(date(2027, 1, 5)))
+    result = evaluate(habit, marks, [], SP, noon(date(2027, 1, 3)))
 
     assert [r.period.first_day for r in result.periods] == [date(2026, 12, 21), date(2026, 12, 28)]
     assert [r.value for r in result.periods] == [0, 2]
@@ -142,11 +147,11 @@ def test_iso_week_53_crosses_the_year():
     ],
 )
 def test_year_boundary_uses_the_local_date(marked_at, expected_score):
-    habit = make_habit(goal_period="year", created_at=at(SP, 2025, 5, 1))
+    habit = make_habit(goal_period="year", created_at=at(SP, 2026, 5, 1))
+    # Último minuto de 2026 em São Paulo: 2026 é o ano atual, e 2027 ainda não começou
+    now = at(SP, 2026, 12, 31, 23, 59)
 
-    result = evaluate(
-        habit, [Mark(marked_at=marked_at.astimezone(UTC))], [], SP, at(SP, 2027, 2, 1)
-    )
+    result = evaluate(habit, [Mark(marked_at=marked_at.astimezone(UTC))], [], SP, now)
 
     assert [r.period.first_day for r in result.periods] == [date(2026, 1, 1)]
     assert result.score == expected_score
@@ -163,11 +168,11 @@ def test_dst_weeks_have_their_real_length():
 
 
 def test_dst_mark_on_sunday_night_stays_in_its_week():
-    habit = make_habit(created_at=at(NY, 2026, 2, 18, 12))
+    habit = make_habit(created_at=at(NY, 2026, 2, 23, 12))
     # Domingo 23:30 já em horário de verão: segunda 03:30 em UTC
     marks = [Mark(marked_at=at(NY, 2026, 3, 8, 23, 30).astimezone(UTC))]
 
-    result = evaluate(habit, marks, [], NY, at(NY, 2026, 3, 10, 12))
+    result = evaluate(habit, marks, [], NY, at(NY, 2026, 3, 8, 23, 45))
 
     assert [(r.period.first_day, r.value) for r in result.periods] == [
         (date(2026, 2, 23), 0),
@@ -207,27 +212,32 @@ def test_extreme_timezones(tz, week_with_mark, week_starts_at):
 
     result = evaluate(habit, marks, [], tz, datetime(2026, 1, 20, 12, tzinfo=UTC))
 
+    # Da semana da criação (08/12) até a atual (19/01), nos dois fusos
     assert [r.period.first_day for r in result.periods] == [
+        date(2025, 12, 8),
         date(2025, 12, 15),
         date(2025, 12, 22),
         date(2025, 12, 29),
         JAN_5,
         JAN_12,
+        JAN_19,
     ]
     met = [r.period for r in result.periods if r.met]
     assert [p.first_day for p in met] == [week_with_mark]
     assert met[0].starts_at == week_starts_at
-    assert result.score == 20
+    assert result.score == 14
 
 
 def test_same_habit_in_two_timezones():
-    habit = make_habit(created_at=datetime(2025, 12, 31, 12, tzinfo=UTC))
+    # Segunda 05/01 nos dois fusos (00:00 em São Paulo, 12:00 em Tóquio)
+    habit = make_habit(created_at=datetime(2026, 1, 5, 3, tzinfo=UTC))
     marks = [
         Mark(marked_at=datetime(2026, 1, 7, 12, tzinfo=UTC)),
         # Domingo 20:00 em São Paulo, segunda 08:00 em Tóquio
         Mark(marked_at=at(SP, 2026, 1, 11, 20).astimezone(UTC)),
     ]
-    now = datetime(2026, 1, 20, 12, tzinfo=UTC)
+    # Domingo 18/01 nos dois fusos: a semana de 12/01 é a atual
+    now = datetime(2026, 1, 18, 12, tzinfo=UTC)
 
     in_sao_paulo = evaluate(habit, marks, [], SP, now)
     in_tokyo = evaluate(habit, marks, [], TOKYO, now)
@@ -241,68 +251,146 @@ def test_same_habit_in_two_timezones():
 # --- criação, período atual, pausa e arquivamento ----------------------------
 
 
-def test_habit_created_today_has_no_data():
+def test_weekly_habit_created_today_with_the_goal_met_scores_100():
+    now = at(SP, 2026, 1, 11, 15)  # domingo
+    habit = make_habit(created_at=now - timedelta(hours=1))
+
+    result = evaluate(habit, [Mark(marked_at=now - timedelta(minutes=5))], [], SP, now)
+
+    assert [(r.period.first_day, r.value, r.met) for r in result.periods] == [(JAN_5, 1, True)]
+    assert (result.score, result.success) == (100, True)
+    # O ritmo (alertas) continua sem avaliar o período da criação
+    assert result.pace is None
+
+
+def test_current_week_below_a_minimum_goal_counts_as_missed():
+    habit = make_habit(goal_count=3)
+    # Duas semanas cumpridas e a atual (quarta) com só 1 das 3 marcações
+    days = [JAN_5 + timedelta(days=i) for i in range(3)]
+    days += [JAN_12 + timedelta(days=i) for i in range(3)]
+    marks = [Mark(marked_at=noon(day)) for day in [*days, JAN_19]]
+    rest_of_the_week = [
+        Mark(marked_at=at(SP, 2026, 1, 21, 9)),
+        Mark(marked_at=noon(date(2026, 1, 22))),
+    ]
+
+    wednesday = evaluate(habit, marks, [], SP, at(SP, 2026, 1, 21, 12))
+    thursday = evaluate(habit, marks + rest_of_the_week, [], SP, at(SP, 2026, 1, 22, 13))
+
+    assert [(r.value, r.met) for r in wednesday.periods] == [(3, True), (3, True), (1, False)]
+    assert (wednesday.score, wednesday.success) == (67, False)
+    # A pontuação oscila ao longo do período: cumprir a meta da semana atual a sobe na hora
+    assert [r.met for r in thursday.periods] == [True, True, True]
+    assert (thursday.score, thursday.success) == (100, True)
+
+
+def test_habit_created_today_without_marks_scores_0():
     now = at(SP, 2026, 1, 7, 15)
     habit = make_habit(created_at=now - timedelta(hours=1))
 
-    result = evaluate(habit, [Mark(marked_at=now)], [], SP, now)
+    result = evaluate(habit, [], [], SP, now)
 
-    assert result.periods == ()
-    assert result.score is None
-    assert result.success is None
+    assert [(r.period.first_day, r.value, r.met) for r in result.periods] == [(JAN_5, 0, False)]
+    assert (result.score, result.success) == (0, False)
 
 
-def test_weekly_habit_created_on_wednesday_starts_on_the_next_monday():
+def test_weekly_habit_created_on_wednesday_counts_that_week():
     habit = make_habit(created_at=at(SP, 2026, 1, 7, 10))
-    # A semana da criação está cumprida, mas não conta
-    marks = [Mark(marked_at=at(SP, 2026, 1, 7, 11)), Mark(marked_at=at(SP, 2026, 1, 8, 11))]
+    marks = [
+        # Antes da criação, na mesma semana: não conta
+        Mark(marked_at=at(SP, 2026, 1, 6, 11)),
+        Mark(marked_at=at(SP, 2026, 1, 8, 11)),
+    ]
 
+    # Na quarta, a de quinta ainda não existe
+    on_wednesday = evaluate(habit, marks[:1], [], SP, at(SP, 2026, 1, 7, 10, 30))
+    on_thursday = evaluate(habit, marks, [], SP, at(SP, 2026, 1, 8, 12))
     on_next_monday = evaluate(habit, marks, [], SP, at(SP, 2026, 1, 12, 10))
-    a_week_later = evaluate(habit, marks, [], SP, at(SP, 2026, 1, 20, 10))
 
-    assert on_next_monday.score is None
-    assert [r.period.first_day for r in a_week_later.periods] == [JAN_12]
-    assert a_week_later.score == 0
+    assert [(r.period.first_day, r.value) for r in on_wednesday.periods] == [(JAN_5, 0)]
+    assert on_wednesday.score == 0
+    assert on_thursday.score == 100
+    assert [(r.period.first_day, r.met) for r in on_next_monday.periods] == [
+        (JAN_5, True),
+        (JAN_12, False),
+    ]
+    assert on_next_monday.score == 50
 
 
-def test_habit_created_at_monday_midnight_skips_that_week_too():
+def test_habit_created_at_monday_midnight_counts_that_week():
     habit = make_habit(created_at=at(SP, 2026, 1, 5, 0, 0))
     marks = [Mark(marked_at=noon(JAN_5))]
 
-    assert evaluate(habit, marks, [], SP, at(SP, 2026, 1, 13)).score is None
-    later = evaluate(habit, marks, [], SP, at(SP, 2026, 1, 20))
-    assert [r.period.first_day for r in later.periods] == [JAN_12]
+    that_week = evaluate(habit, marks, [], SP, sunday_night(JAN_5))
+    later = evaluate(habit, marks, [], SP, at(SP, 2026, 1, 13))
+
+    assert [r.period.first_day for r in that_week.periods] == [JAN_5]
+    assert that_week.score == 100
+    assert [r.period.first_day for r in later.periods] == [JAN_5, JAN_12]
+    assert later.score == 50
 
 
-def test_monthly_habit_created_on_the_first_has_no_data_next_month():
+def test_monthly_habit_created_on_the_first_counts_that_month():
     habit = make_habit(goal_period="month", created_at=at(SP, 2026, 1, 1, 0, 0))
     marks = [Mark(marked_at=noon(date(2026, 1, 2)))]
 
-    assert evaluate(habit, marks, [], SP, noon(date(2026, 2, 15))).score is None
+    result = evaluate(habit, marks, [], SP, noon(date(2026, 2, 15)))
+
+    assert [(r.period.first_day, r.met) for r in result.periods] == [
+        (date(2026, 1, 1), True),
+        (date(2026, 2, 1), False),
+    ]
+    assert result.score == 50
 
 
 def test_marks_before_creation_do_not_count():
     habit = make_habit(created_at=noon(date(2025, 12, 31)))
-    # Histórico registrado antes da criação: semanas não consideradas
+    # Histórico registrado antes da criação: semanas anteriores fora, e na semana da
+    # criação só conta o que veio depois dela
     marks = [Mark(marked_at=noon(date(2025, 12, 1))), Mark(marked_at=noon(date(2025, 12, 30)))]
 
-    result = evaluate(habit, marks, [], SP, noon(date(2026, 1, 13)))
+    result = evaluate(habit, marks, [], SP, sunday_night(JAN_5))
 
-    assert [(r.period.first_day, r.value) for r in result.periods] == [(JAN_5, 0)]
+    assert [(r.period.first_day, r.value) for r in result.periods] == [
+        (date(2025, 12, 29), 0),
+        (JAN_5, 0),
+    ]
     assert result.score == 0
+
+
+def test_mark_at_the_creation_instant_counts():
+    created = at(SP, 2026, 1, 7, 10)
+    habit = make_habit(created_at=created)
+
+    result = evaluate(habit, [Mark(marked_at=created)], [], SP, at(SP, 2026, 1, 7, 11))
+
+    assert result.score == 100
 
 
 def test_pause_in_the_middle_of_a_period_skips_it():
     marks = [Mark(marked_at=noon(JAN_5)), Mark(marked_at=noon(JAN_19))]
     pause = Pause(started_at=at(SP, 2026, 1, 14, 10), ended_at=at(SP, 2026, 1, 15, 10))
-    now = noon(date(2026, 1, 27))
+    now = sunday_night(JAN_19)
 
     without_pause = evaluate(make_habit(), marks, [], SP, now)
     with_pause = evaluate(make_habit(), marks, [pause], SP, now)
+    # A pausa já fechada na semana atual também a tira, enquanto ela é a atual
+    during = evaluate(make_habit(), marks, [pause], SP, at(SP, 2026, 1, 16, 12))
 
     assert without_pause.score == 67
     assert [r.period.first_day for r in with_pause.periods] == [JAN_5, JAN_19]
     assert with_pause.score == 100
+    assert [r.period.first_day for r in during.periods] == [JAN_5]
+
+
+def test_paused_since_creation_has_no_data():
+    habit = make_habit(created_at=at(SP, 2026, 1, 7, 10))
+    pause = Pause(started_at=at(SP, 2026, 1, 7, 11))
+    marks = [Mark(marked_at=at(SP, 2026, 1, 7, 10, 30))]
+
+    result = evaluate(habit, marks, [pause], SP, noon(JAN_19))
+
+    assert (result.periods, result.score, result.success, result.pace) == ((), None, None, None)
 
 
 def test_pause_edges():
@@ -313,7 +401,7 @@ def test_pause_edges():
         Pause(started_at=at(SP, 2026, 1, 21, 9), ended_at=at(SP, 2026, 1, 21, 9)),
     ]
 
-    result = evaluate(make_habit(), [], pauses, SP, noon(date(2026, 1, 27)))
+    result = evaluate(make_habit(), [], pauses, SP, sunday_night(JAN_19))
 
     assert [r.period.first_day for r in result.periods] == [JAN_12, JAN_19]
 
@@ -331,7 +419,10 @@ def test_archived_habit_freezes_on_the_archive_date():
     habit = make_habit(archived_at=at(SP, 2026, 1, 21, 10))
     marks = [
         Mark(marked_at=noon(JAN_5)),
-        # Depois do arquivamento: não entram
+        # Na semana do arquivamento, antes dele: entra
+        Mark(marked_at=noon(date(2026, 1, 20))),
+        # Depois do arquivamento, mesmo na mesma semana: não entram
+        Mark(marked_at=noon(date(2026, 1, 21))),
         Mark(marked_at=noon(date(2026, 1, 26))),
         Mark(marked_at=noon(date(2026, 2, 2))),
     ]
@@ -340,8 +431,13 @@ def test_archived_habit_freezes_on_the_archive_date():
     much_later = evaluate(habit, marks, [], SP, noon(date(2027, 6, 1)))
 
     assert soon == much_later
-    assert [r.period.first_day for r in soon.periods] == [JAN_5, JAN_12]
-    assert soon.score == 50
+    # Congela na semana do arquivamento, com o valor até ele (1 dia, não 2)
+    assert [(r.period.first_day, r.value) for r in soon.periods] == [
+        (JAN_5, 1),
+        (JAN_12, 0),
+        (JAN_19, 1),
+    ]
+    assert soon.score == 67
     assert soon.pace is None
 
 
@@ -464,7 +560,7 @@ def test_success_threshold(pattern, threshold, expected_score, expected_success)
 def test_max_zero_fails_with_any_mark():
     habit = make_habit(goal_type="max", goal_count=0)
 
-    result = evaluate(habit, [Mark(marked_at=noon(JAN_5))], [], SP, noon(date(2026, 1, 20)))
+    result = evaluate(habit, [Mark(marked_at=noon(JAN_5))], [], SP, sunday_night(JAN_12))
 
     assert [(r.value, r.met) for r in result.periods] == [(1, False), (0, True)]
     assert result.score == 50
@@ -505,8 +601,12 @@ def test_pace_with_a_mark_is_not_behind():
 def test_pace_is_not_evaluated_in_the_creation_period():
     habit = make_habit(goal_count=3, created_at=at(SP, 2026, 1, 5, 8))
 
-    # Atrasado na quarta, mas a semana é a da criação
-    assert evaluate(habit, [], [], SP, at(SP, 2026, 1, 7, 12)).pace is None
+    result = evaluate(habit, [], [], SP, at(SP, 2026, 1, 7, 12))
+
+    # Atrasado na quarta, mas a semana é a da criação: o ritmo não avalia, mesmo com a
+    # semana já contando na pontuação
+    assert result.pace is None
+    assert result.score == 0
 
 
 @pytest.mark.parametrize(
@@ -656,12 +756,12 @@ def test_now_defaults_to_the_current_time():
 
 
 @time_machine.travel(FROZEN, tick=False)
-def test_habit_created_now_has_no_data():
+def test_habit_created_now_counts_the_current_period():
     habit = make_habit(created_at=datetime.now(UTC))
 
     result = evaluate(habit, [Mark(marked_at=datetime.now(UTC))], [], SP)
 
-    assert (result.score, result.success, result.pace) == (None, None, None)
+    assert (result.score, result.success, result.pace) == (100, True, None)
 
 
 # --- validação da entrada -----------------------------------------------------------
@@ -798,5 +898,14 @@ def test_score_is_always_between_0_and_100(habit, marks, pauses, tz, now):
     else:
         assert result.score is None
         assert result.success is None
+    # "Sem dados" só quando não sobra período: sem pausa, há pelo menos o da criação
+    frozen_at = now if habit.archived_at is None else min(now, habit.archived_at)
+    if not pauses and frozen_at >= habit.created_at:
+        assert result.periods
+    first_days = [r.period.first_day for r in result.periods]
+    assert first_days == sorted(set(first_days))
+    if first_days:
+        assert first_days[0] >= period_at(habit.created_at, habit.goal_period, tz).first_day
+        assert first_days[-1] <= period_at(frozen_at, habit.goal_period, tz).first_day
     if result.pace is not None:
         assert 0 <= result.pace.expected <= result.pace.target

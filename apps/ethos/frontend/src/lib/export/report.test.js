@@ -40,13 +40,15 @@ describe('buildReport', () => {
     expect(report).toMatchObject({ from: '2026-03-01', to: '2026-03-31', timezone: 'America/Sao_Paulo' });
   });
 
-  it('counts only the closed goal periods', () => {
+  it('counts the goal periods up to the current one, with its value so far', () => {
     const periods = weeks(
       ['2026-02-23', '2026-03-01', 3, true],
       ['2026-03-02', '2026-03-08', 1, false],
       ['2026-03-09', '2026-03-15', 4, true],
-      // A semana de hoje (20/3) ainda não acabou
-      ['2026-03-16', '2026-03-22', 5, true],
+      // A semana de hoje (20/3) conta com o valor de agora, mesmo sem ter acabado
+      ['2026-03-16', '2026-03-22', 1, false],
+      // Ainda não começou: fora
+      ['2026-03-23', '2026-03-29', 0, false],
     );
     const [item] = buildReport(
       reportData({ habits: [progressItem(habitFixture(), { periods, marks: [] })] }),
@@ -54,10 +56,57 @@ describe('buildReport', () => {
       { today: TODAY },
     ).habits;
 
-    expect(item.closedPeriods).toBe(3);
+    expect(item.countedPeriods).toBe(4);
     expect(item.metPeriods).toBe(2);
     expect(item.periods).toBe(periods);
     expect(item.goal).toEqual({ type: 'min', count: 3, period: 'week', target: 3, unit: 'days' });
+  });
+
+  it('counts from the period of creation, like the score: a habit created today with the goal met', () => {
+    // Sexta 20/3, 10:00 em São Paulo; relatório do mês inteiro
+    const habit = habitFixture({ created_at: '2026-03-20T13:00:00Z' });
+    const periods = weeks(
+      // Antes da criação: fora, mesmo com histórico marcado
+      ['2026-03-09', '2026-03-15', 3, true],
+      ['2026-03-16', '2026-03-22', 3, true],
+    );
+    const [item] = buildReport(
+      reportData({ habits: [progressItem(habit, { periods, marks: [] })] }),
+      DEFAULT_OPTIONS,
+      { today: TODAY },
+    ).habits;
+
+    expect([item.countedPeriods, item.metPeriods]).toEqual([1, 1]);
+  });
+
+  it('stops at the period of archiving', () => {
+    // Arquivado na terça 10/3 (12:00 em São Paulo): as semanas depois dela não contam
+    const habit = habitFixture({ status: 'archived', archived_at: '2026-03-10T15:00:00Z' });
+    const periods = weeks(
+      ['2026-03-02', '2026-03-08', 3, true],
+      ['2026-03-09', '2026-03-15', 1, false],
+      ['2026-03-16', '2026-03-22', 0, false],
+    );
+    const [item] = buildReport(
+      reportData({ habits: [progressItem(habit, { periods, marks: [] })] }),
+      DEFAULT_OPTIONS,
+      { today: TODAY },
+    ).habits;
+
+    expect([item.countedPeriods, item.metPeriods]).toEqual([2, 1]);
+  });
+
+  it('counts nothing when no period of the habit has started', () => {
+    const habit = habitFixture({ created_at: '2026-03-20T13:00:00Z' });
+    // Relatório só da semana que vem
+    const periods = weeks(['2026-03-23', '2026-03-29', 0, false]);
+    const [item] = buildReport(
+      reportData({ from: '2026-03-23', to: '2026-03-29', habits: [progressItem(habit, { periods, marks: [] })] }),
+      DEFAULT_OPTIONS,
+      { today: TODAY },
+    ).habits;
+
+    expect([item.countedPeriods, item.metPeriods]).toEqual([0, 0]);
   });
 
   it('fills the chosen information of a habit with every feature on', () => {
