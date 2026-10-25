@@ -377,6 +377,20 @@ def test_every_history_event_is_an_audit_event_with_public_details():
     assert "alert_updated" not in set(HistoryEvent)
 
 
+def test_color_changes_in_both_formats(client, ana):
+    habit_id = created(client, ana)["id"]
+    for color in ["#0A1B2C", "violet"]:
+        response = client.patch(f"/habits/{habit_id}", json={"color": color}, headers=ana.headers)
+        assert response.status_code == 200
+
+    body = ok(client, ana, event="habit_updated")
+
+    assert [entry["details"] for entry in body["events"]] == [
+        {"changes": [{"field": "color", "old": "#0a1b2c", "new": "violet"}]},
+        {"changes": [{"field": "color", "old": "teal", "new": "#0a1b2c"}]},
+    ]
+
+
 def test_real_events_through_the_api(client, ana, bia):
     # Os eventos gravados pelos services saem com os detalhes que cada um grava
     model = created(client, ana, **MULTI, notes_enabled=True)

@@ -277,3 +277,130 @@ def test_missing_or_memory_database_path_is_refused(
 
     with pytest.raises(RuntimeError, match="DATABASE_PATH"):
         command.upgrade(config, "head")
+
+
+# --- 0004: cor própria do hábito ----------------------------------------------------------------
+
+STAMP = "2026-01-15 12:00:00.000000"
+
+
+def insert_user(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "INSERT INTO users (id, email, timezone, locale, terms_version, terms_accepted_at, "
+        "created_at, updated_at) VALUES (1, 'ana@example.com', 'UTC', 'pt', 'v', ?, ?, ?)",
+        (STAMP, STAMP, STAMP),
+    )
+
+
+def insert_habit(connection: sqlite3.Connection, color: str, habit_id: int | None = None) -> int:
+    cursor = connection.execute(
+        "INSERT INTO habits (id, owner_id, name, color, goal_type, goal_count, goal_period, "
+        "created_at, updated_at) VALUES (?, 1, 'x', ?, 'min', 1, 'week', ?, ?)",
+        (habit_id, color, STAMP, STAMP),
+    )
+    return cursor.lastrowid
+
+
+def palette_database(db_path: Path, make_alembic_config) -> Any:
+    """Banco na 0003 com uma conta, três hábitos (o último apagado), uma marcação e um evento."""
+    config = make_alembic_config(db_path)
+    command.upgrade(config, "0003")
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        connection.execute("PRAGMA foreign_keys = ON")
+        insert_user(connection)
+        first = insert_habit(connection, "teal")
+        insert_habit(connection, "pink")
+        last = insert_habit(connection, "red")
+        connection.execute(
+            "INSERT INTO marks (habit_id, user_id, marked_at, created_at, updated_at) "
+            "VALUES (?, 1, ?, ?, ?)",
+            (first, STAMP, STAMP, STAMP),
+        )
+        connection.execute(
+            "INSERT INTO audit_log (user_id, habit_id, event, created_at) "
+            "VALUES (1, ?, 'habit_created', ?)",
+            (first, STAMP),
+        )
+        connection.execute("DELETE FROM habits WHERE id = ?", (last,))
+    return config
+
+
+def test_0004_keeps_rows_and_accepts_custom_color(db_path, make_alembic_config):
+    config = palette_database(db_path, make_alembic_config)
+
+    command.upgrade(config, "0004")
+
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        connection.execute("PRAGMA foreign_keys = ON")
+        # Recriar a tabela não dispara o CASCADE: marcações e auditoria continuam
+        assert connection.execute("SELECT id, color FROM habits ORDER BY id").fetchall() == [
+            (1, "teal"),
+            (2, "pink"),
+        ]
+        assert connection.execute("SELECT count(*) FROM marks").fetchone() == (1,)
+        assert connection.execute("SELECT count(*) FROM audit_log").fetchone() == (1,)
+        # O id 3 (apagado) não volta: o contador do AUTOINCREMENT sobreviveu à recriação
+        assert insert_habit(connection, "#0a1b2c") == 4
+        for color in ["#ABCDEF", "#fff", "#gggggg", "#0a1b2c0", " #0a1b2c", "magenta"]:
+            with pytest.raises(sqlite3.IntegrityError, match="ck_habits_color"):
+                insert_habit(connection, color)
+
+
+def test_0004_keeps_the_counter_of_an_emptied_table(db_path, make_alembic_config):
+    config = make_alembic_config(db_path)
+    command.upgrade(config, "0003")
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        insert_user(connection)
+        insert_habit(connection, "teal", habit_id=7)
+        connection.execute("DELETE FROM habits")
+
+    command.upgrade(config, "0004")
+
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        assert insert_habit(connection, "teal") == 8
+
+
+def test_0004_on_a_database_without_habits(db_path, make_alembic_config):
+    config = make_alembic_config(db_path)
+
+    command.upgrade(config, "0004")
+    command.downgrade(config, "0003")
+
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        insert_user(connection)
+        assert insert_habit(connection, "teal") == 1
+
+
+def test_0004_downgrade_is_refused_with_custom_colors(db_path, make_alembic_config):
+    config = palette_database(db_path, make_alembic_config)
+    command.upgrade(config, "0004")
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        insert_habit(connection, "#0a1b2c")
+
+    with pytest.raises(RuntimeError, match=r"1 hábito\(s\) com cor própria"):
+        command.downgrade(config, "0003")
+
+    # Nada mudou: a execução inteira é uma transação
+    assert current_revision(db_path) == "0004"
+    with closing(sqlite3.connect(db_path)) as connection:
+        colors = connection.execute("SELECT color FROM habits ORDER BY id").fetchall()
+    assert colors == [("teal",), ("pink",), ("#0a1b2c",)]
+
+
+def test_0004_downgrade_restores_the_palette_check(db_path, make_alembic_config):
+    config = palette_database(db_path, make_alembic_config)
+    command.upgrade(config, "0004")
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        insert_habit(connection, "#0a1b2c")
+        # O que a mensagem do downgrade recusado manda fazer
+        connection.execute("UPDATE habits SET color = 'teal' WHERE color GLOB '#*'")
+
+    command.downgrade(config, "0003")
+
+    assert current_revision(db_path) == "0003"
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        assert connection.execute("SELECT count(*) FROM marks").fetchone() == (1,)
+        with pytest.raises(sqlite3.IntegrityError, match="ck_habits_color"):
+            insert_habit(connection, "#0a1b2c")
+        # O contador continua depois do maior id já usado (o 4, da cor própria)
+        assert insert_habit(connection, "teal") == 5
