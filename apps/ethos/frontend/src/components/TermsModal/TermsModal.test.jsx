@@ -7,7 +7,7 @@ import { browserTimezone } from '../../lib/time';
 import { BASENAME, PATHS } from '../../paths';
 import { axe } from '../../test/axe';
 import { meFixture, renderApp } from '../../test/render';
-import { api, server } from '../../test/server';
+import { activeBanner, api, server } from '../../test/server';
 
 const PENDING = { terms_version: '2025-01-01', terms_pending: true, timezone: browserTimezone() };
 
@@ -32,6 +32,8 @@ function pendingTerms({ accept, me = PENDING } = {}) {
       calls.logout += 1;
       return new HttpResponse(null, { status: 204 });
     }),
+    // O banner é público e fica no Layout, fora da tela bloqueada
+    activeBanner(),
     // Qualquer outra chamada seria da tela bloqueada
     http.all(api('/*'), ({ request }) => {
       calls.other.push(`${request.method} ${new URL(request.url).pathname}`);

@@ -7,8 +7,8 @@ import { axe } from '../../test/axe';
 import { createTestI18n } from '../../test/i18n';
 import { renderApp } from '../../test/render';
 
-// Sem handler do MSW: qualquer chamada à API (ex.: /auth/me) falharia o teste. As páginas
-// legais abrem sem login
+// Só o handler padrão do banner (público, no Layout): qualquer outra chamada à API (ex.: /auth/me)
+// falharia o teste. As páginas legais abrem sem login
 
 const CASES = [
   ['terms', PATHS.terms, 'en'],
