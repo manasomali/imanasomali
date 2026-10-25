@@ -1,0 +1,37 @@
+.banner {
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: calc(var(--wide-width) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding: 0.5rem var(--gutter);
+}
+
+.text {
+  font-weight: 700;
+}
+
+.close {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+
+.close:hover {
+  border-color: var(--fg);
+}

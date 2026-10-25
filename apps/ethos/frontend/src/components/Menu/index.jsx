@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiMenu, FiMoon, FiSun, FiX } from 'react-icons/fi';
+import { useCachedMe } from '../../api/auth';
 import useTheme from '../../hooks/useTheme';
 import { LANGUAGES } from '../../i18n';
 import { PATHS } from '../../paths';
@@ -14,10 +15,15 @@ const links = [
   { to: PATHS.account, i18nKey: 'menu.account' },
 ];
 
+// Só para admin. Esconder o link é conveniência: a rota redireciona e o backend recusa (403)
+const adminLink = { to: PATHS.admin, i18nKey: 'menu.admin' };
+
 export default function Menu() {
   const { t, i18n } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
+  const me = useCachedMe();
+  const visibleLinks = me?.is_admin ? [...links, adminLink] : links;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -52,7 +58,7 @@ export default function Menu() {
         <div id="ethos-menu" className={styles.panel} data-open={open}>
           <nav aria-label={t('a11y.main_navigation')}>
             <ul className={styles.links}>
-              {links.map((link) => (
+              {visibleLinks.map((link) => (
                 <li key={link.to}>
                   <NavLink to={link.to} end={link.end} className={navClass} onClick={close}>
                     {t(link.i18nKey)}

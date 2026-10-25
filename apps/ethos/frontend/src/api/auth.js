@@ -17,6 +17,14 @@ export function useMe() {
   return useQuery({ queryKey: meQueryKey, queryFn: fetchMe });
 }
 
+/**
+ * O usuário que o RequireSession já carregou, sem buscar (undefined antes disso). Para o que
+ * aparece também nas telas públicas, como o menu: buscar ali levaria um 401 para o login.
+ */
+export function useCachedMe() {
+  return useQuery({ queryKey: meQueryKey, queryFn: fetchMe, enabled: false }).data;
+}
+
 /** Idioma da API ("pt" ou "en") a partir do idioma da tela (que pode vir como "pt-BR"). */
 export function apiLocale(language) {
   return typeof language === 'string' && language.toLowerCase().startsWith('pt') ? 'pt' : 'en';
