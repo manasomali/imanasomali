@@ -60,14 +60,18 @@ vm() {
     bash -s -- "$@" < "$here/vm.sh"
 }
 
+# Saída de uma falha esperada, recuada: um "::error::" no começo da linha viraria anotação de erro
+# no Actions, num job que passou
+show() { sed 's/^/    | /' "$1"; }
+
 expect_failure() {
   local message=$1
   shift
   if "$@" >"$out" 2>&1; then
-    cat "$out"
+    show "$out"
     fail "deveria falhar: $*"
   fi
-  cat "$out"
+  show "$out"
   grep -qF -- "$message" "$out" || fail "mensagem esperada: $message"
 }
 
