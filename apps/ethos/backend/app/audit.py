@@ -35,7 +35,8 @@ Regras:
   como `habit_deleted`, vai com `habit_id=None` e o id em `details` (`{"habit_id": 7}`). O mesmo
   vale para `account_deleted`: `user_id` é quem apagou (`None` quando foi o próprio usuário, cuja
   linha já não existe) e o id da conta vai em `details` (`{"account_id": 7, "by_admin": false}`),
-  sem email.
+  sem email. A exclusão reaplicada depois de um restore (`reapply-deletions`) vai com `user_id`
+  `None` e `{"account_id": 7, "reapplied": true}`: quem apagou não se sabe mais.
 
 Nunca ponha no `details` código, token, cookie nem senha, e evite email: a exclusão de conta
 (`app/auth/deletion.py`) tira todo texto com "@" do `details` das linhas que ficam e citam a
@@ -84,7 +85,7 @@ class AuditEvent(StrEnum):
     # Fuso ou idioma alterado; o que mudou (ETH-18)
     PROFILE_UPDATED = "profile_updated"
     # Conta apagada; user_id = quem apagou (None se o próprio),
-    # {"account_id": n, "by_admin": bool} (ETH-27/28)
+    # {"account_id": n, "by_admin": bool} (ETH-27/28) ou {"account_id": n, "reapplied": true}
     ACCOUNT_DELETED = "account_deleted"
 
     # --- Hábitos: ficam enquanto o hábito existe (habit_id preenchido) ---

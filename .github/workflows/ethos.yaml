@@ -18,10 +18,12 @@ on:
       - "infra/lib/backups.sh"
       - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
-      # Usados pelo apps/ethos/deploy/test-vm.sh (uv e Python como o provision instala)
+      # Usados pelo apps/ethos/deploy/test-vm.sh (uv e Python como o provision instala; o
+      # restore-test.sh do backup-verify.yaml com o banco do ethos populado)
       - "infra/config.env"
       - "infra/lib/common.sh"
       - "infra/lib/packages.sh"
+      - "infra/scripts/restore-test.sh"
   pull_request:
     paths:
       - "apps/ethos/**"
@@ -36,10 +38,12 @@ on:
       - "infra/lib/backups.sh"
       - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
-      # Usados pelo apps/ethos/deploy/test-vm.sh (uv e Python como o provision instala)
+      # Usados pelo apps/ethos/deploy/test-vm.sh (uv e Python como o provision instala; o
+      # restore-test.sh do backup-verify.yaml com o banco do ethos populado)
       - "infra/config.env"
       - "infra/lib/common.sh"
       - "infra/lib/packages.sh"
+      - "infra/scripts/restore-test.sh"
   # Rollback (ou deploy de um commit específico): Actions → Ethos → Run workflow, a partir da main
   workflow_dispatch:
     inputs:
@@ -194,6 +198,7 @@ jobs:
             app/auth/deletion.py
             app/auth/deps.py
             app/auth/origin.py
+            app/auth/reapply.py
             app/auth/security.py
             app/auth/service.py
             app/habits/access.py
@@ -271,8 +276,10 @@ jobs:
       - name: sqlite3
         run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends sqlite3
 
-      # uv e Python como o provision instala, .venv, migração e API como app-ethos, backup e restart
-      - name: Passos da VM (vm.sh)
+      # uv e Python como o provision instala, .venv, migração e API como app-ethos, backup e restart;
+      # depois, com o banco populado, o restore do infra/RESTORE.md (reapply-deletions) e o
+      # restore-test.sh do backup-verify.yaml
+      - name: Passos da VM (vm.sh), restore e backup-verify
         run: sudo bash apps/ethos/deploy/test-vm.sh
 
   # Os 9 passos do deploy: checagens (needs) → VM pronta → backend → dependências → backup →
