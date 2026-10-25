@@ -144,7 +144,6 @@
   gap: 0.4rem 0.6rem;
   font-size: var(--text-base);
   font-weight: 700;
-  overflow-wrap: anywhere;
 }
 
 .badge {
@@ -159,7 +158,6 @@
 .meta {
   font-size: var(--text-sm);
   color: var(--muted);
-  overflow-wrap: anywhere;
 }
 
 .swatch {
@@ -222,5 +220,4 @@
 
 .confirmTitle {
   font-weight: 700;
-  overflow-wrap: anywhere;
 }

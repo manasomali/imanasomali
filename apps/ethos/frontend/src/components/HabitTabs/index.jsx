@@ -5,8 +5,9 @@ import { PATHS, habitPath } from '../../paths';
 import styles from './styles.module.css';
 
 // Abas do topo: a principal (todos os hábitos) e uma por hábito ativo ou pausado, com a cor e a
-// sigla (ou o nome). Os arquivados não aparecem aqui (ficam na seção de arquivados da principal).
-// Erro e carregamento da lista ficam com a tela, que usa a mesma consulta
+// sigla (ou o nome, cortado com reticências se não couber; o `title` mostra o nome). Os arquivados
+// não aparecem aqui (ficam na seção de arquivados da principal). Erro e carregamento da lista
+// ficam com a tela, que usa a mesma consulta
 export default function HabitTabs() {
   const { t } = useTranslation();
   const habits = useHabits();
@@ -24,7 +25,7 @@ export default function HabitTabs() {
           <li key={habit.id}>
             <NavLink to={habitPath(habit.id)} className={tabClass} title={habit.name}>
               <span className={styles.swatch} data-habit-color={habit.color} aria-hidden="true" />
-              {habit.label}
+              <span className={`truncate ${styles.label}`}>{habit.label}</span>
             </NavLink>
           </li>
         ))}

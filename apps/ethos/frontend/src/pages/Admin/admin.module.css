@@ -199,7 +199,6 @@ textarea.input {
   align-items: center;
   gap: 0.5rem;
   font-size: var(--text-lg);
-  overflow-wrap: anywhere;
 }
 
 .badge {
@@ -228,7 +227,6 @@ textarea.input {
 
 .details dd {
   margin: 0;
-  overflow-wrap: anywhere;
 }
 
 .confirm {
@@ -246,10 +244,6 @@ textarea.input {
   height: 0.9rem;
   border-radius: 50%;
   background: var(--habit-color, var(--muted));
-}
-
-.text {
-  overflow-wrap: anywhere;
 }
 
 .back {

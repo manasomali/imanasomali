@@ -33,11 +33,11 @@ function HabitCard({ habit, date, money }) {
     <li className={styles.card}>
       <h3 className={styles.cardTitle}>
         <span className={styles.swatch} data-habit-color={habit.color} aria-hidden="true" />
-        <span>{habit.name}</span>
+        <span className="user-text">{habit.name}</span>
         {habit.code && <> <span className={styles.badge}>{habit.code}</span></>}{' '}
         <span className={styles.badge}>{t(`admin.user_habits.status.${habit.status}`)}</span>
       </h3>
-      {habit.description && <p className={styles.text}>{habit.description}</p>}
+      {habit.description && <p>{habit.description}</p>}
       <dl className={styles.details}>
         <Detail label={t('admin.user_habits.goal')}>
           {t(`admin.user_habits.goal_${habit.goal_type}`, {

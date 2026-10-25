@@ -20,14 +20,14 @@ export default function EventItem({ entry, color, context }) {
         <time dateTime={entry.created_at}>
           {formatDateTime(entry.created_at, context.timeZone, context.language)}
         </time>
-        <Link to={habitPath(entry.habit.id)} className={styles.habit}>
+        <Link to={habitPath(entry.habit.id)} className={`${styles.habit} user-text`}>
           <span className={styles.swatch} data-habit-color={color} aria-hidden="true" />
           {entry.habit.label}
         </Link>
       </div>
       <p className={styles.text}>{text}</p>
       {lines.length > 0 && (
-        <ul className={styles.lines}>
+        <ul className={`${styles.lines} user-text`}>
           {lines.map((line, index) => (
             // Linhas fixas de um evento que não muda: o índice basta como chave
             <li key={index}>{line}</li>

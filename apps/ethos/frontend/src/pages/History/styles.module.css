@@ -166,10 +166,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  min-width: 0;
   color: var(--fg);
   font-weight: 700;
-  overflow-wrap: anywhere;
 }
 
 .swatch {
@@ -182,19 +180,16 @@
 
 .text {
   font-weight: 700;
-  overflow-wrap: anywhere;
 }
 
 .lines {
   margin: 0;
   padding-left: 1.25rem;
-  overflow-wrap: anywhere;
 }
 
 .author {
   font-size: var(--text-sm);
   color: var(--muted);
-  overflow-wrap: anywhere;
 }
 
 .removed {

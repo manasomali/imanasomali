@@ -30,7 +30,6 @@
 .email {
   font-size: var(--text-lg);
   font-weight: 700;
-  overflow-wrap: anywhere;
 }
 
 .form {
