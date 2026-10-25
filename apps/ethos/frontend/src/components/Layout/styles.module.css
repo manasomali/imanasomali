@@ -26,6 +26,15 @@
   padding: 1rem var(--gutter);
 }
 
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .skipLink {
   position: absolute;
   top: 0.5rem;

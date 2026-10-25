@@ -8,6 +8,7 @@ import AdminUserHabits from './pages/Admin/UserHabits';
 import HabitLayout from './pages/Habit';
 import HabitCalendar from './pages/HabitCalendar';
 import Home from './pages/Home';
+import Legal from './pages/Legal';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 import { PATHS } from './paths';
@@ -20,6 +21,8 @@ export const routes = [
     element: <Layout />,
     children: [
       { path: PATHS.login, element: <Login /> },
+      { path: PATHS.terms, element: <Legal key="terms" name="terms" /> },
+      { path: PATHS.privacy, element: <Legal key="privacy" name="privacy" /> },
       {
         element: <RequireSession />,
         children: [

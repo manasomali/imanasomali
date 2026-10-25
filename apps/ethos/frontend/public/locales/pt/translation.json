@@ -15,7 +15,10 @@
     "admin": "Admin"
   },
   "footer": {
-    "tagline": "ethos: aplicativo para cadastro de hábitos"
+    "tagline": "ethos: aplicativo para cadastro de hábitos",
+    "legal": "Textos legais",
+    "terms": "Termos de uso",
+    "privacy": "Política de privacidade"
   },
   "common": {
     "loading": "Carregando…",
@@ -27,7 +30,21 @@
       "title": "Hábitos"
     },
     "login": {
-      "title": "Entrar"
+      "title": "Entrar",
+      "intro": "Digite o seu email e enviaremos um código de 6 dígitos. Se você ainda não tem conta, ela é criada quando você confirmar o código.",
+      "email": "Email",
+      "send_code": "Enviar código",
+      "sending": "Enviando…",
+      "have_code": "Já tenho um código",
+      "code_sent": "Enviamos um código de 6 dígitos para {{email}}. Ele vale por 10 minutos. Se não chegar, confira a caixa de spam.",
+      "code": "Código de 6 dígitos",
+      "submit": "Entrar",
+      "submitting": "Entrando…",
+      "resend": "Enviar outro código",
+      "resend_in": "Enviar outro código em {{seconds}} s",
+      "resent": "Enviamos um novo código.",
+      "change_email": "Usar outro email",
+      "consent": "Ao continuar, você concorda com os <terms>termos de uso</terms> e a <privacy>política de privacidade</privacy> (os links abrem em outra aba)."
     },
     "account": {
       "title": "Conta"
@@ -36,6 +53,12 @@
       "title": "Página não encontrada",
       "text": "O endereço não existe ou mudou.",
       "back_home": "Voltar para os hábitos"
+    },
+    "terms": {
+      "title": "Termos de uso"
+    },
+    "privacy": {
+      "title": "Política de privacidade"
     }
   },
   "timezone_notice": {
@@ -274,6 +297,20 @@
       "title": "Hábitos arquivados",
       "empty": "Nenhum hábito arquivado."
     }
+  },
+  "legal": {
+    "version": "Versão {{version}}",
+    "contents": "Sumário"
+  },
+  "terms_modal": {
+    "title": "Novos termos de uso",
+    "text": "Atualizamos os termos de uso e a política de privacidade. Para continuar usando o ethos, leia e aceite a nova versão.",
+    "links": "Textos (abrem em outra aba)",
+    "accept": "Aceitar e continuar",
+    "accepting": "Salvando…",
+    "outdated": "Uma versão mais nova dos termos foi publicada enquanto esta página estava aberta. Recarregue a página para lê-la.",
+    "reload": "Recarregar a página",
+    "sign_out": "Sair"
   },
   "errors": {
     "bad_request": "Não foi possível entender o pedido. Recarregue a página e tente de novo.",
