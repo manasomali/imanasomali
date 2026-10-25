@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { FiPlus } from 'react-icons/fi';
 import { useMe } from '../../api/auth';
 import { useHabits } from '../../api/habits';
 import { useYearMarksOfHabits } from '../../api/marks';
@@ -14,7 +15,7 @@ import useCalendarParams from '../../hooks/useCalendarParams';
 import { MIN_YEAR, overviewByDay } from '../../lib/calendar';
 import { formatLongDay } from '../../lib/format';
 import { today } from '../../lib/time';
-import { habitPath } from '../../paths';
+import { PATHS, habitPath } from '../../paths';
 import calendar from '../calendar.module.css';
 import page from '../page.module.css';
 import OverviewRow from './OverviewRow';
@@ -112,7 +113,13 @@ export default function Home() {
   return (
     <>
       <PageTitle title={title} />
-      <h1 className={page.title}>{title}</h1>
+      <div className={styles.heading}>
+        <h1 className={page.title}>{title}</h1>
+        <Link to={PATHS.newHabit} className={styles.newHabit}>
+          <FiPlus size={16} aria-hidden="true" />
+          {t('home.new_habit')}
+        </Link>
+      </div>
       <HabitTabs />
       {content}
       <ArchivedHabits />

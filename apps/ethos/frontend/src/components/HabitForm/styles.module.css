@@ -1,0 +1,291 @@
+.form {
+  display: grid;
+  gap: 1.5rem;
+  max-width: 44rem;
+}
+
+.reset {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.group {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  margin: 0;
+  padding: 1rem;
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.legend {
+  padding-inline: 0.4rem;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.field {
+  display: grid;
+  align-content: start;
+  gap: 0.3rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.label {
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg);
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.input:focus-visible {
+  border-color: var(--fg);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--fg);
+  border-style: dashed;
+}
+
+textarea.input {
+  resize: vertical;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.hint,
+.counter {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.counter {
+  margin-left: auto;
+}
+
+.counterOver {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+.fieldError {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+/* Paleta: rádios escondidos, a bolinha da cor é o alvo do clique e mostra o foco e a escolha */
+.colors {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.colorOption {
+  position: relative;
+  display: inline-flex;
+  padding: 0.3rem;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.colorSwatch {
+  display: block;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--habit-color, var(--muted));
+}
+
+.colorOption:hover {
+  border-color: var(--border-soft);
+}
+
+.colorRadio:checked + .colorSwatch {
+  outline: 3px solid var(--fg);
+  outline-offset: 3px;
+}
+
+.colorRadio:focus-visible + .colorSwatch {
+  box-shadow:
+    0 0 0 6px var(--bg),
+    0 0 0 8px var(--fg);
+}
+
+/* Meta: tipo, N e período lado a lado no desktop, empilhados no celular */
+.goal {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 1rem;
+}
+
+.preview {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--surface);
+  border-left: 4px solid var(--fg);
+}
+
+.previewLabel {
+  font-weight: 700;
+}
+
+/* Recursos ligados por chave */
+.feature {
+  display: grid;
+  gap: 0.3rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.group > .feature:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.switch {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 2.6rem;
+  height: 1.5rem;
+  margin: 0;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  background: var(--fg);
+  border-radius: 50%;
+  transition: transform var(--transition);
+}
+
+.switch:checked {
+  background: var(--fg);
+}
+
+.switch:checked::after {
+  background: var(--bg);
+  transform: translateX(1.1rem);
+}
+
+.switchLabel {
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kept {
+  padding: 0.4rem 0.7rem;
+  background: var(--surface);
+  border-left: 4px solid var(--fg);
+  font-size: var(--text-sm);
+}
+
+.kept:empty {
+  display: none;
+}
+
+.featureFields {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--border-soft);
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.choice input {
+  flex-shrink: 0;
+  margin-top: 0.4rem;
+}
+
+.status {
+  font-weight: 700;
+}
+
+.status:empty {
+  display: none;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+}
+
+.primary {
+  padding: 0.4rem 1rem;
+  background: var(--fg);
+  color: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 30rem) {
+  .group {
+    padding: 0.75rem;
+  }
+
+  .featureFields {
+    padding-left: 0.6rem;
+  }
+}

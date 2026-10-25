@@ -274,7 +274,8 @@
     "sections": {
       "label": "Habit sections",
       "calendar": "Calendar",
-      "report": "Report"
+      "report": "Report",
+      "settings": "Settings"
     },
     "status": {
       "paused": "Paused",
@@ -301,7 +302,8 @@
     "archived": {
       "title": "Archived habits",
       "empty": "No archived habits."
-    }
+    },
+    "new_habit": "New habit"
   },
   "legal": {
     "version": "Version {{version}}",
@@ -487,5 +489,179 @@
     "cannot_block_self": "You cannot block your own account.",
     "network_error": "No connection to the server. Check your internet and try again.",
     "unknown": "Something went wrong. Try again."
+  },
+  "new_habit": {
+    "title": "New habit",
+    "intro": "Give it a name, pick a colour and a goal. The extra features start off and can be turned on now or later, in the habit settings.",
+    "create": "Create habit",
+    "back": "Back to the habits"
+  },
+  "habit_settings": {
+    "title": "Settings",
+    "save": "Save settings",
+    "saved": "Settings saved.",
+    "archived_notice": "This habit is archived: its settings are read-only. Unarchive it to edit them.",
+    "status": {
+      "title": "Pause and archive",
+      "current": {
+        "active": "This habit is active.",
+        "paused": "This habit is paused.",
+        "archived": "This habit is archived."
+      },
+      "pause": "Pause",
+      "pause_hint": "Paused periods do not count in the score and trigger no alerts. You can still mark it.",
+      "pause_done": "Habit paused.",
+      "resume": "Resume",
+      "resume_hint": "It counts in the score and the alerts again from now on.",
+      "resume_done": "Habit resumed.",
+      "archive": "Archive",
+      "archive_hint": "It leaves the main tab, becomes read-only and its score freezes. It does not count in the habit limit. You can unarchive it later.",
+      "archive_done": "Habit archived.",
+      "unarchive": "Unarchive",
+      "unarchive_hint": "It comes back to the main tab and counts in the limit of active and paused habits again.",
+      "unarchive_done": "Habit unarchived."
+    },
+    "delete": {
+      "title": "Delete the habit",
+      "hint": "Deletes the habit for everyone who takes part in it. This cannot be undone.",
+      "open": "Delete habit",
+      "confirm_title": "Delete {{habit}}?",
+      "warning": "Deletes the habit with all its marks, including the guests' marks, plus its invitations, alerts and history. The guests get an email about it. This cannot be undone.",
+      "confirm": "Delete for good",
+      "deleting": "Deleting…",
+      "cancel": "Cancel"
+    }
+  },
+  "habit_form": {
+    "groups": {
+      "identity": "Habit",
+      "goal": "Goal",
+      "features": "Features"
+    },
+    "name": "Name",
+    "code": "Code (optional)",
+    "code_hint": "Up to 4 letters or digits. When set, it shows instead of the name.",
+    "description": "Description (optional)",
+    "color": "Colour",
+    "colors": {
+      "red": "Red",
+      "orange": "Orange",
+      "amber": "Amber",
+      "yellow": "Yellow",
+      "lime": "Lime",
+      "green": "Green",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "blue": "Blue",
+      "indigo": "Indigo",
+      "violet": "Violet",
+      "pink": "Pink"
+    },
+    "goal_type": "Goal type",
+    "goal_types": {
+      "min": "At least",
+      "max": "At most",
+      "exact": "Exactly"
+    },
+    "goal_count": "How many times",
+    "goal_count_hint": "From {{min}} to {{max}} in this period.",
+    "goal_period": "Per",
+    "periods": {
+      "week": "week",
+      "month": "month",
+      "year": "year"
+    },
+    "features": {
+      "multi_mark": "Several marks per day",
+      "multi_mark_hint": "Off, each day is marked or not (one click). On, every mark counts.",
+      "duration_enabled": "Duration",
+      "duration_enabled_hint": "Each mark has minutes, and the goal compares the sum of the period's minutes.",
+      "notes_enabled": "Note",
+      "notes_enabled_hint": "Each mark can have a free text, as a reminder.",
+      "score_enabled": "Score",
+      "score_enabled_hint": "Shows the score from 0 to 100 and success or failure. Unlocks reward and punishment.",
+      "cost_enabled": "Cost",
+      "cost_enabled_hint": "An amount of money per mark, added up in the report, with an optional limit."
+    },
+    "kept": {
+      "multi_mark": "Days with several marks now count as one marked day. The extra marks are kept and count again if you turn this back on.",
+      "duration_enabled": "The minutes of the habit and of the marks are kept and come back when you turn this back on.",
+      "notes_enabled": "The notes of the marks are kept and come back when you turn this back on.",
+      "score_enabled": "The threshold, the reward and the punishment are kept and come back when you turn this back on.",
+      "cost_enabled": "The amounts of the habit and of the marks are kept and come back when you turn this back on."
+    },
+    "duration_minutes": "Default duration (minutes)",
+    "duration_minutes_hint": "From 1 to {{max}} minutes. It is the duration of each mark, which can be changed in its details.",
+    "score_threshold": "Success threshold",
+    "score_threshold_hint": "From 1 to 100 (default 70). A score equal or higher is a success.",
+    "reward": "Reward (optional)",
+    "reward_hint": "A reminder for when it is a success.",
+    "punishment": "Punishment (optional)",
+    "punishment_hint": "A reminder for when it is a failure.",
+    "cost_level": "How the cost is set",
+    "cost_levels": {
+      "habit": "Per habit: a fixed amount on each mark",
+      "mark": "Per mark: each mark has its own amount"
+    },
+    "cost_cents_habit": "Amount of each mark",
+    "cost_cents_mark": "Default amount of the marks (optional)",
+    "money_hint": "No currency symbol, up to 2 decimals, like {{example}}.",
+    "cost_limit_period": "Spending limit",
+    "no_limit": "No limit",
+    "limit_periods": {
+      "week": "Per week",
+      "month": "Per month",
+      "year": "Per year"
+    },
+    "cost_limit_cents": "Limit amount",
+    "counter": "{{n}}/{{max}} characters",
+    "unchanged": "Nothing changed to save.",
+    "saving": "Saving…",
+    "errors": {
+      "required": "Fill in this field.",
+      "too_long": "Use at most {{max}} characters.",
+      "invalid_chars": "Remove the invisible or control characters.",
+      "invalid_code": "Use 1 to 4 unaccented letters or digits.",
+      "goal_range": "Use a whole number from {{min}} to {{max}}.",
+      "duration_range": "Use whole minutes, from 1 to 1440.",
+      "threshold_range": "Use a whole number from 1 to 100.",
+      "invalid_money": "Enter a valid amount, like 12.50."
+    },
+    "invalid": {
+      "name": "Invalid name: use 1 to 60 characters, on a single line.",
+      "code": "Invalid code: use 1 to 4 unaccented letters or digits.",
+      "description": "Invalid description: use at most 500 characters.",
+      "color": "Pick one of the palette colours.",
+      "goal_type": "Pick the goal type.",
+      "goal_count": "This number does not work for this goal. At least 1, except with \"at most\", and no more than fits in the period.",
+      "goal_period": "Pick the goal period.",
+      "duration_minutes": "Enter the duration in whole minutes, from 1 to 1440.",
+      "score_threshold": "Use a whole number from 1 to 100.",
+      "reward": "Invalid reward: use at most 140 characters, with the score on.",
+      "punishment": "Invalid punishment: use at most 140 characters, with the score on.",
+      "cost_level": "Pick how the cost is set.",
+      "cost_cents": "Enter a valid amount. It is required for a per-habit cost.",
+      "cost_limit_cents": "Enter a valid amount for the limit.",
+      "cost_limit_period": "Pick the limit period."
+    }
+  },
+  "goal_preview": {
+    "label": "Goal:",
+    "invalid": "pick a valid number to see the goal.",
+    "never": "zero times a {{period}}.",
+    "min_one": "at least {{count}} time a {{period}}.",
+    "min_other": "at least {{count}} times a {{period}}.",
+    "max_one": "at most {{count}} time a {{period}}.",
+    "max_other": "at most {{count}} times a {{period}}.",
+    "exact_one": "exactly {{count}} time a {{period}}.",
+    "exact_other": "exactly {{count}} times a {{period}}.",
+    "minutes_min": "With the duration on, the minutes add up: at least {{total}} min a {{period}}.",
+    "minutes_max": "With the duration on, the minutes add up: at most {{total}} min a {{period}}.",
+    "minutes_exact": "With the duration on, the minutes add up: exactly {{total}} min a {{period}}.",
+    "period": {
+      "week": "week",
+      "month": "month",
+      "year": "year"
+    }
   }
 }

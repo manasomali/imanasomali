@@ -97,6 +97,79 @@ export function mockHabitsApi({ habits = [], archived = [], marks = {}, pageSize
   return { requests, marks };
 }
 
+const STATUS_AFTER = { pause: 'paused', resume: 'active', archive: 'archived', unarchive: 'active' };
+
+/**
+ * API falsa das escritas do dono sobre o array `habits` (o mesmo do mockHabitsApi, que passa a
+ * devolver o hábito mudado): POST /habits (cria com o próximo id), PATCH e DELETE /habits/{id} e
+ * POST /habits/{id}/pause|resume|archive|unarchive. `fail({method, path, body})` pode devolver uma
+ * resposta de erro (ex.: um 422) no lugar da de sucesso. Devolve `requests`, com cada chamada
+ * (`{method, path, body}`; body null sem corpo).
+ */
+export function mockHabitWritesApi(habits, { fail } = {}) {
+  const requests = [];
+  const record = async (request) => {
+    const text = await request.text();
+    const entry = {
+      method: request.method,
+      path: new URL(request.url).pathname.replace(/^\/api\/ethos/, ''),
+      body: text ? JSON.parse(text) : null,
+    };
+    requests.push(entry);
+    return entry;
+  };
+  const find = (id) => habits.find((habit) => habit.id === Number(id));
+  const notFound = () => HttpResponse.json({ error: 'not_found', field: null }, { status: 404 });
+  const change = (habit, values) => {
+    Object.assign(habit, values);
+    habit.label = habit.code || habit.name;
+    return HttpResponse.json(habit);
+  };
+
+  server.use(
+    http.post(api('/habits'), async ({ request }) => {
+      const entry = await record(request);
+      const failure = fail?.(entry);
+      if (failure) return failure;
+      const id = Math.max(0, ...habits.map((habit) => habit.id)) + 1;
+      const habit = habitFixture({ ...entry.body, id });
+      habits.push(habit);
+      return HttpResponse.json(habit, { status: 201 });
+    }),
+    http.patch(api('/habits/:id'), async ({ request, params }) => {
+      const entry = await record(request);
+      const failure = fail?.(entry);
+      if (failure) return failure;
+      const habit = find(params.id);
+      return habit ? change(habit, entry.body) : notFound();
+    }),
+    http.delete(api('/habits/:id'), async ({ request, params }) => {
+      const entry = await record(request);
+      const failure = fail?.(entry);
+      if (failure) return failure;
+      const index = habits.findIndex((habit) => habit.id === Number(params.id));
+      if (index < 0) return notFound();
+      habits.splice(index, 1);
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.post(api('/habits/:id/:action'), async ({ request, params }) => {
+      // Outras rotas com o mesmo formato (toggle, leave...) seguem para os outros handlers
+      if (!Object.hasOwn(STATUS_AFTER, params.action)) return undefined;
+      const entry = await record(request);
+      const failure = fail?.(entry);
+      if (failure) return failure;
+      const habit = find(params.id);
+      if (!habit) return notFound();
+      const status = STATUS_AFTER[params.action];
+      return change(habit, {
+        status,
+        archived_at: status === 'archived' ? '2026-03-10T15:00:00Z' : null,
+      });
+    }),
+  );
+  return { requests };
+}
+
 /** Promessa que o teste resolve na hora certa (para segurar uma resposta da API). */
 export function deferred() {
   let resolve;

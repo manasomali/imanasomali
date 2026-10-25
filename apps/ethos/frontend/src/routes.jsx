@@ -7,12 +7,14 @@ import AdminBanners from './pages/Admin/Banners';
 import AdminUserHabits from './pages/Admin/UserHabits';
 import HabitLayout from './pages/Habit';
 import HabitCalendar from './pages/HabitCalendar';
+import HabitSettings from './pages/HabitSettings';
 import Home from './pages/Home';
 import Legal from './pages/Legal';
 import Login from './pages/Login';
+import NewHabit from './pages/NewHabit';
 import NotFound from './pages/NotFound';
 import Report from './pages/Report/LazyReport';
-import { PATHS } from './paths';
+import { HABIT_SECTION, PATHS } from './paths';
 
 // Todas as rotas, relativas ao basename /ethos. Tela que exige sessão entra como filha de
 // RequireSession; telas públicas (login, termos, privacidade) ficam fora dele. O painel de admin
@@ -30,6 +32,7 @@ export const routes = [
           { path: PATHS.home, element: <Home /> },
           { path: PATHS.account, element: <Account /> },
           { path: PATHS.report, element: <Report /> },
+          { path: PATHS.newHabit, element: <NewHabit /> },
           {
             element: <RequireAdmin />,
             children: [
@@ -43,7 +46,10 @@ export const routes = [
             // (ex.: { path: HABIT_SECTION.alerts, element: <HabitAlerts /> }), e no HabitNav
             path: PATHS.habit,
             element: <HabitLayout />,
-            children: [{ index: true, element: <HabitCalendar /> }],
+            children: [
+              { index: true, element: <HabitCalendar /> },
+              { path: HABIT_SECTION.settings, element: <HabitSettings /> },
+            ],
           },
         ],
       },

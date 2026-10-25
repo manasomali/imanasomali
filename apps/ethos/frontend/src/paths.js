@@ -11,6 +11,9 @@ export const PATHS = Object.freeze({
   adminBanners: '/admin/banners',
   terms: '/termos',
   privacy: '/privacidade',
+  // Criar um hábito. Caminho fixo antes de `/habits/:habitId` (a rota fixa ganha da dinâmica, e
+  // "new" nunca é um id)
+  newHabit: '/habits/new',
   // Aba de um hábito (HabitLayout). O calendário é a rota índice; as outras seções são rotas
   // filhas (`/habits/:habitId/<seção>`, ver HABIT_SECTION)
   habit: '/habits/:habitId',
@@ -38,8 +41,8 @@ export function adminUserPath(userId) {
 }
 
 // Seções da aba de um hábito: o caminho relativo da rota filha do HabitLayout em src/routes.jsx.
-// Só o calendário tem tela por enquanto; os outros caminhos estão reservados para:
-// - `settings`: configuração (ETH-33, só o dono);
+// - `calendar`: o calendário, rota índice;
+// - `settings`: configuração (ETH-33, só o dono: pages/HabitSettings);
 // - `sharing`: compartilhamento (ETH-34);
 // - `alerts`: alertas (ETH-35, dono e editor). Caminho fixo: o email do alerta aponta para
 //   `/habits/{id}/alerts` (ALERT_SETTINGS_PATH em app/mail/templates.py; src/paths.test.js confere).
