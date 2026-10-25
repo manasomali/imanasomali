@@ -82,6 +82,8 @@ describe('calendar day size', () => {
     expect(grid.declarations['grid-template-columns']).toBe('repeat(7, var(--day-size))');
     expect(grid.declarations.gap).toBe('var(--day-gap)');
     expect(declarationsOf('.columnDays').gap).toBe('var(--day-gap)');
+    // Entre as colunas, o mesmo vão que entre os dias da grade
+    expect(declarationsOf('.columns').gap).toBe('var(--day-gap)');
   });
 
   it('does not resize the day in one view only', () => {
