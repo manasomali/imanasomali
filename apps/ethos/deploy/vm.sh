@@ -102,6 +102,8 @@ install_venv() {
   # com PYTHONDONTWRITEBYTECODE e o app-<nome> não grava aqui: sem isto, o bytecode seria refeito em
   # memória a cada subida
   run_uv sync --frozen --no-dev --no-build --compile-bytecode
+  # O uv cria a .venv/.lock gravável por todos, ignorando o umask: o app-<nome> não grava nada aqui
+  chmod -R go-w .venv
   .venv/bin/python -m compileall -q app migrations
   echo "dependências instaladas: $(.venv/bin/python --version)"
 }
