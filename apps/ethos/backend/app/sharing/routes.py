@@ -10,8 +10,9 @@ Do hábito (sem acesso ao hábito: 404 `not_found`; com acesso, mas sem o papel:
 - `GET /habits/{id}/invites` (só o dono): `{"invites": [{id, email, role, created_at}]}`, os
   pendentes.
 - `DELETE /habits/{id}/invites/{invite_id}` (só o dono): 204, cancela o pendente.
-- `GET /habits/{id}/members` (todo papel): `{"members": [{user: {id, email}, role, joined_at}]}`,
-  o dono primeiro.
+- `GET /habits/{id}/members` (todo papel): `{"members": [{user: {id, email}, role, joined_at}],
+  "guest_limit": n}`, o dono primeiro; `guest_limit` é o `MAX_GUESTS_PER_HABIT` (membros +
+  convites pendentes), para a tela mostrar as vagas.
 - `PATCH /habits/{id}/members/{user_id}` com `{role}` (só o dono): o membro com o papel novo.
 - `DELETE /habits/{id}/members/{user_id}` (só o dono): 204.
 - `POST /habits/{id}/leave` (editor e viewer; o dono leva 403): 204.
@@ -134,9 +135,14 @@ def cancel_invite(
 
 
 @router.get("/habits/{habit_id}/members")
-def list_members(habit_id: HabitId, user: CurrentUser, session: SessionDep) -> MemberList:
+def list_members(
+    habit_id: HabitId, user: CurrentUser, session: SessionDep, settings: SettingsDep
+) -> MemberList:
     entries = service.list_members(session, user_id=user.id, habit_id=habit_id)
-    return MemberList(members=[member_out(entry) for entry in entries])
+    return MemberList(
+        members=[member_out(entry) for entry in entries],
+        guest_limit=settings.max_guests_per_habit,
+    )
 
 
 @router.patch("/habits/{habit_id}/members/{user_id}")

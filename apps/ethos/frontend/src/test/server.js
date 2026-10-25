@@ -12,6 +12,12 @@ export function activeBanner(banner = null) {
   return http.get(api('/banners/active'), () => HttpResponse.json({ banner }));
 }
 
+/** Handler do GET /invites (convites recebidos, que o menu conta) com a lista dada. */
+export function receivedInvites(invites = []) {
+  return http.get(api('/invites'), () => HttpResponse.json({ invites }));
+}
+
 // Servidor do MSW de todos os testes; cada teste registra os handlers com server.use(...), que
-// passam na frente destes padrões. O Layout busca o banner em toda tela: sem banner, por padrão
-export const server = setupServer(activeBanner());
+// passam na frente destes padrões. O Layout busca o banner em toda tela (sem banner, por padrão)
+// e, com sessão, o menu busca os convites recebidos (nenhum, por padrão)
+export const server = setupServer(activeBanner(), receivedInvites());

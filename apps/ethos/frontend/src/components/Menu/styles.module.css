@@ -43,6 +43,18 @@
   border-bottom-color: var(--fg);
 }
 
+/* Quantos convites recebidos estão pendentes */
+.count {
+  min-width: 1.4rem;
+  padding: 0 0.35rem;
+  background: var(--fg);
+  color: var(--bg);
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  line-height: 1.4rem;
+  text-align: center;
+}
+
 .site {
   color: var(--muted);
 }

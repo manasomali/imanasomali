@@ -6,6 +6,8 @@ export const PATHS = Object.freeze({
   home: '/',
   login: '/entrar',
   account: '/conta',
+  // Caixa de convites recebidos (ETH-34)
+  invites: '/convites',
   admin: '/admin',
   adminUser: '/admin/contas/:userId',
   adminBanners: '/admin/banners',
@@ -43,7 +45,7 @@ export function adminUserPath(userId) {
 // Seções da aba de um hábito: o caminho relativo da rota filha do HabitLayout em src/routes.jsx.
 // - `calendar`: o calendário, rota índice;
 // - `settings`: configuração (ETH-33, só o dono: pages/HabitSettings);
-// - `sharing`: compartilhamento (ETH-34);
+// - `sharing`: compartilhamento (ETH-34, todo papel: pages/HabitSharing);
 // - `alerts`: alertas (ETH-35, dono e editor). Caminho fixo: o email do alerta aponta para
 //   `/habits/{id}/alerts` (ALERT_SETTINGS_PATH em app/mail/templates.py; src/paths.test.js confere).
 // Ao criar a tela, registre a rota filha e o item do submenu em components/HabitNav.

@@ -13,7 +13,10 @@
     "report": "Relatório",
     "account": "Conta",
     "back_to_site": "manasomali.com",
-    "admin": "Admin"
+    "admin": "Admin",
+    "invites": "Convites",
+    "invites_pending_one": "{{count}} convite pendente",
+    "invites_pending_other": "{{count}} convites pendentes"
   },
   "footer": {
     "tagline": "ethos: aplicativo para cadastro de hábitos",
@@ -275,7 +278,8 @@
       "label": "Seções do hábito",
       "calendar": "Calendário",
       "report": "Relatório",
-      "settings": "Configuração"
+      "settings": "Configuração",
+      "sharing": "Compartilhamento"
     },
     "status": {
       "paused": "Pausado",
@@ -461,6 +465,83 @@
     "csv": "Exportar tudo (CSV)",
     "working": "Preparando o export…",
     "done": "Export baixado."
+  },
+  "sharing": {
+    "title": "Compartilhamento",
+    "cancel": "Cancelar",
+    "role": {
+      "owner": "Dono",
+      "editor": "Pode marcar",
+      "viewer": "Só visualiza"
+    },
+    "role_hint": {
+      "editor": "Pode marcar: marca, desmarca e edita marcações, inclusive de outras pessoas",
+      "viewer": "Só visualiza: vê o calendário, os custos e as observações, mas não marca"
+    },
+    "invite": {
+      "title": "Convidar alguém",
+      "hint": "Só quem tem conta no ethos recebe o convite. O convite não expira, e você pode cancelar um pendente.",
+      "email": "Email",
+      "role": "Permissão",
+      "slots": "{{used}} de {{limit}} vagas usadas (membros e convites pendentes).",
+      "full": "Cancele um convite ou remova alguém para convidar de novo.",
+      "send": "Enviar convite",
+      "sending": "Enviando…",
+      "sent": "Convite enviado.",
+      "email_missing": "Digite um email.",
+      "email_invalid": "Digite um email válido.",
+      "archived": "Hábito arquivado não recebe convites novos. Desarquive para convidar alguém."
+    },
+    "members": {
+      "title": "Quem tem acesso",
+      "only_you": "Por enquanto, só você tem acesso a este hábito.",
+      "you": "Você",
+      "since": "Desde {{date}}",
+      "owner_since": "Dono desde {{date}}",
+      "actions": "Ações para {{email}}",
+      "make": {
+        "editor": "Permitir marcar",
+        "viewer": "Deixar só visualizar"
+      },
+      "role_changed": {
+        "editor": "{{email}} agora pode marcar.",
+        "viewer": "{{email}} agora só visualiza. Os alertas dessa pessoa neste hábito foram apagados."
+      },
+      "remove": "Remover",
+      "remove_title": "Remover {{email}} deste hábito?",
+      "remove_warning": "As marcações dessa pessoa continuam no hábito, e os alertas dela neste hábito são apagados. Ela só volta com um convite novo.",
+      "remove_confirm": "Sim, remover",
+      "removed": "{{email}} não tem mais acesso a este hábito."
+    },
+    "invites": {
+      "title": "Convites pendentes",
+      "hint": "O convite fica pendente até a pessoa aceitar ou recusar.",
+      "empty": "Nenhum convite pendente.",
+      "sent_on": "Enviado em {{date}}",
+      "cancel": "Cancelar convite",
+      "cancel_label": "Cancelar convite para {{email}}",
+      "canceled": "Convite para {{email}} cancelado."
+    },
+    "leave": {
+      "title": "Sair deste hábito",
+      "warning": "Você perde o acesso a este hábito. Suas marcações continuam nele, e os seus alertas dele são apagados. Para voltar, só com um convite novo do dono.",
+      "button": "Sair do hábito",
+      "confirm_title": "Sair de “{{name}}”?",
+      "confirm": "Sim, sair"
+    }
+  },
+  "invites": {
+    "title": "Convites",
+    "hint": "Hábitos que outras pessoas compartilharam com você. Aceite para vê-los junto com os seus.",
+    "empty": "Você não tem convites pendentes.",
+    "from": "De {{email}}",
+    "received_on": "Recebido em {{date}}",
+    "actions": "Responder ao convite para {{name}}",
+    "accept": "Aceitar",
+    "decline": "Recusar",
+    "accepted": "Você entrou em “{{name}}”.",
+    "declined": "Convite para “{{name}}” recusado.",
+    "open_habit": "Abrir o hábito"
   },
   "errors": {
     "bad_request": "Não foi possível entender o pedido. Recarregue a página e tente de novo.",
