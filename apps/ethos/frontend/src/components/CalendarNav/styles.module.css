@@ -21,8 +21,6 @@
   font-size: var(--text-xl);
   font-variant-numeric: tabular-nums;
   text-align: center;
-  /* "dez. de 2025 – fev. de 2026" quebra a linha em vez de empurrar o botão para fora (320 px) */
-  overflow-wrap: anywhere;
 }
 
 .button {
