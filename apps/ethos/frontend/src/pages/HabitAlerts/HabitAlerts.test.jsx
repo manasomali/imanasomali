@@ -255,7 +255,7 @@ describe('habit alerts: cost', () => {
 
     const toggle = screen.getByRole('switch', { name: 'Cost alert' });
     const rule = screen.getByText(
-      "Warns when this week's spending reaches 80% of the limit (1,234.50), and again when it goes over.",
+      "Warns when this week's spending (Monday to Sunday) reaches 80% of the limit (1,234.50), and again when it goes over.",
     );
     expect(toggle.getAttribute('aria-describedby')).toContain(rule.parentElement.id);
     await user.click(toggle);
@@ -289,7 +289,7 @@ describe('habit alerts: when it fires', () => {
     expect(screen.getByText(/^Fires when the habit falls behind the pace of the week:/)).toBeTruthy();
     expect(
       screen.getByText(
-        'Example: in a week with no marks, the habit falls behind from Wednesday at 8:00 AM, and the alert goes out at the first check after that.',
+        'Example: in a goal week (Monday to Sunday) with no marks, the habit falls behind from Wednesday at 8:00 AM, and the alert goes out at the first check after that.',
       ),
     ).toBeTruthy();
   });

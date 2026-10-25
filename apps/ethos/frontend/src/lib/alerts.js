@@ -124,7 +124,10 @@ export function weeklyPaceStart(target) {
   };
 }
 
-/** Primeiro dia ("AAAA-MM-DD") do período (week, month, year) que contém `day`; semana na segunda. */
+/**
+ * Primeiro dia ("AAAA-MM-DD") do período (week, month, year) que contém `day`. A semana da meta é
+ * a ISO, começando na segunda (score.py), mesmo com o calendário começando no domingo.
+ */
 export function periodFirstDay(day, period) {
   const { year, month } = parseDate(day);
   if (period === 'week') return addDays(day, 1 - isoWeekday(day));

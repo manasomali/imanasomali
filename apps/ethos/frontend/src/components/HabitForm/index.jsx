@@ -207,6 +207,8 @@ export default function HabitForm({ habit = null, pending, error, submitLabel, d
   const goalMin = minGoalCount(form.goal_type);
   const goalMax = maxGoalCount(form.goal_period, form.multi_mark);
   const moneyHint = t('habit_form.money_hint', { example: formatMoney(1250, locale) });
+  // A semana do limite, como a da meta, vai de segunda a domingo (o calendário começa no domingo)
+  const limitWeekHint = form.cost_limit_period === 'week' ? `${id}-limit-week-hint` : null;
 
   return (
     <form ref={formRef} className={styles.form} aria-label={submitLabel} onSubmit={submit} noValidate>
@@ -391,7 +393,10 @@ export default function HabitForm({ habit = null, pending, error, submitLabel, d
                   <label className={styles.label} htmlFor={`${id}-cost_limit_period`}>
                     {t('habit_form.cost_limit_period')}
                   </label>
-                  <select {...inputProps('cost_limit_period')} onChange={onText('cost_limit_period')}>
+                  <select
+                    {...inputProps('cost_limit_period', limitWeekHint)}
+                    onChange={onText('cost_limit_period')}
+                  >
                     <option value="">{t('habit_form.no_limit')}</option>
                     {PERIODS.map((period) => (
                       <option key={period} value={period}>
@@ -399,6 +404,11 @@ export default function HabitForm({ habit = null, pending, error, submitLabel, d
                       </option>
                     ))}
                   </select>
+                  {limitWeekHint && (
+                    <p id={limitWeekHint} className={styles.hint}>
+                      {t('habit_form.limit_week_hint')}
+                    </p>
+                  )}
                   {errorText('cost_limit_period')}
                 </div>
                 {form.cost_limit_period !== '' && (
@@ -437,7 +447,8 @@ export default function HabitForm({ habit = null, pending, error, submitLabel, d
 }
 
 // Prévia da meta em texto ("Pelo menos 3 vezes por semana"; "no máximo 0" vira "nenhuma vez"),
-// lida pelo leitor de tela quando muda
+// lida pelo leitor de tela quando muda. Na meta semanal, lembra que a semana vai de segunda a
+// domingo, já que o calendário começa no domingo
 function GoalPreview({ form }) {
   const { t } = useTranslation();
   const summary = goalSummary(form);
@@ -458,6 +469,7 @@ function GoalPreview({ form }) {
         <span className={styles.previewLabel}>{t('goal_preview.label')}</span> <span>{text}</span>
       </p>
       {minutes && <p>{minutes}</p>}
+      {summary?.period === 'week' && <p>{t('goal_preview.week_range')}</p>}
     </div>
   );
 }

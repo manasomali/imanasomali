@@ -74,6 +74,28 @@ function expectInside({ texts, rects }) {
 
 const allText = ({ texts }) => texts.map((text) => text.text).join('\n');
 
+/** Quadrados do mapa de calor de um relatório sem marcações: um por dia, logo depois do fundo. */
+function heatmapCells(from, to) {
+  const habits = [progressItem(fullHabit(), { marks: [] })];
+  const report = buildReport(reportData({ from, to, habits }), ALL_OPTIONS, { today: TODAY });
+  return draw(report).rects.slice(1, 1 + 7 * 2);
+}
+
+describe('report image heat map', () => {
+  it('draws each week from Sunday (top) to Saturday (bottom), like the calendar', () => {
+    // 1º de março de 2026 foi um domingo: a semana inteira numa coluna, de cima para baixo
+    const week = heatmapCells('2026-03-01', '2026-03-07').slice(0, 7);
+    expect(new Set(week.map((cell) => cell.x)).size).toBe(1);
+    for (let row = 1; row < 7; row += 1) expect(week[row].y).toBeGreaterThan(week[row - 1].y);
+
+    // De segunda a domingo: a segunda na 2ª linha e o domingo abrindo a coluna seguinte
+    const goalWeek = heatmapCells('2026-03-02', '2026-03-08').slice(0, 7);
+    expect(goalWeek[0].y).toBe(week[1].y);
+    expect(goalWeek[6].y).toBe(week[0].y);
+    expect(goalWeek[6].x).toBeGreaterThan(goalWeek[0].x);
+  });
+});
+
 describe('report image', () => {
   it('draws the header, the heat map and every chosen piece of information', () => {
     const fake = draw(fullReport());

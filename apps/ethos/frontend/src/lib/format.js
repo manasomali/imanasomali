@@ -2,6 +2,7 @@
 // UTC, onde a meia-noite do dia é o próprio dia. Instantes da API (UTC) são mostrados no fuso de
 // quem vê
 
+import { CALENDAR_WEEKDAYS } from './calendar';
 import { parseDate } from './time';
 
 const formatters = new Map();
@@ -40,7 +41,10 @@ export function formatMonth(month, locale) {
   return formatter(locale, { timeZone: 'UTC', month: 'long' }).format(date);
 }
 
-/** Iniciais dos dias da semana, de segunda a domingo, e os nomes completos (para leitores). */
+/**
+ * Iniciais dos dias da semana e os nomes completos (para leitores), de segunda a domingo: o índice
+ * é o `weekday` da API (0 = segunda). Para o cabeçalho do calendário, use calendarWeekdayNames.
+ */
 export function weekdayNames(locale) {
   // 2024-01-01 foi uma segunda
   return Array.from({ length: 7 }, (_, index) => {
@@ -50,6 +54,12 @@ export function weekdayNames(locale) {
       long: formatter(locale, { timeZone: 'UTC', weekday: 'long' }).format(date),
     };
   });
+}
+
+/** Os dias de weekdayNames na ordem das colunas do calendário (começa no domingo). */
+export function calendarWeekdayNames(locale) {
+  const names = weekdayNames(locale);
+  return CALENDAR_WEEKDAYS.map((weekday) => names[weekday - 1]);
 }
 
 /** Hora ("14:05" / "2:05 PM") de um instante (ISO, Date ou ms) no fuso dado. */

@@ -5,6 +5,7 @@ import { HttpResponse, http } from 'msw';
 import { BASENAME } from '../../paths';
 import { axe } from '../../test/axe';
 import { habitFixture, markFixture, mockHabitsApi } from '../../test/habits';
+import { createTestI18n } from '../../test/i18n';
 import { meFixture, renderApp } from '../../test/render';
 import { api, server } from '../../test/server';
 
@@ -92,6 +93,24 @@ describe('home calendar', () => {
     expect(markRequests.map((request) => request.path).sort()).toEqual(
       CODES.map((_, index) => `/habits/${index + 1}/marks`).sort(),
     );
+  });
+
+  it('heads every month from Sunday, in Portuguese too', async () => {
+    window.localStorage.setItem('i18nextLng', 'pt');
+    createTestI18n();
+    signedIn();
+    mockHabitsApi(sixHabits());
+    renderApp('/');
+
+    const months = await screen.findAllByRole('region', { name: /^(janeiro|agosto)$/ });
+    expect(months).toHaveLength(2);
+    for (const month of months) {
+      const header = [...month.querySelectorAll('div[aria-hidden="true"] > span')];
+      expect(header.map((day) => day.textContent).join('')).toBe('DSTQQSS');
+    }
+    // 1º de janeiro de 2026 foi uma quinta (5ª coluna); 1º de agosto, um sábado (7ª)
+    expect(dayButton(document, '2026-01-01').previousElementSibling.dataset.offset).toBe('4');
+    expect(dayButton(document, '2026-08-01').previousElementSibling.dataset.offset).toBe('6');
   });
 
   it('has no accessibility violations', async () => {

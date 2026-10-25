@@ -938,6 +938,7 @@
       "month": "Per month",
       "year": "Per year"
     },
+    "limit_week_hint": "The limit week runs from Monday to Sunday.",
     "cost_limit_cents": "Limit amount",
     "counter": "{{n}}/{{max}} characters",
     "unchanged": "Nothing changed to save.",
@@ -983,6 +984,7 @@
     "minutes_min": "With the duration on, the minutes add up: at least {{total}} min a {{period}}.",
     "minutes_max": "With the duration on, the minutes add up: at most {{total}} min a {{period}}.",
     "minutes_exact": "With the duration on, the minutes add up: exactly {{total}} min a {{period}}.",
+    "week_range": "The goal week runs from Monday to Sunday.",
     "period": {
       "week": "week",
       "month": "month",
@@ -1022,11 +1024,11 @@
     },
     "pace_example": {
       "half": "Example: halfway through the period, having done less than half the goal (rounded down) is already behind.",
-      "week": "Example: in a week with no marks, the habit falls behind from {{weekday}} at {{time}}, and the alert goes out at the first check after that."
+      "week": "Example: in a goal week (Monday to Sunday) with no marks, the habit falls behind from {{weekday}} at {{time}}, and the alert goes out at the first check after that."
     },
     "starts_on": "This habit was created {{this_period}}: this alert can only fire from {{date}} on.",
     "cost_rule": {
-      "week": "Warns when this week's spending reaches {{percent}}% of the limit ({{limit}}), and again when it goes over.",
+      "week": "Warns when this week's spending (Monday to Sunday) reaches {{percent}}% of the limit ({{limit}}), and again when it goes over.",
       "month": "Warns when this month's spending reaches {{percent}}% of the limit ({{limit}}), and again when it goes over.",
       "year": "Warns when this year's spending reaches {{percent}}% of the limit ({{limit}}), and again when it goes over."
     },

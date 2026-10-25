@@ -1,9 +1,9 @@
 // Imagem do relatório para redes sociais: PNG 1080×1350 (retrato), desenhado num <canvas> sem
 // biblioteca. De cima para baixo: marca, título e período; mapa de calor do período (semanas em
-// colunas, segunda a domingo nas linhas); um bloco por hábito com a sigla/nome, marcações,
-// períodos da meta cumpridos e, quando escolhidos e ligados no hábito, pontuação e sucesso/falha,
-// minutos, gasto e limite, recompensa e punição; rodapé com a data. Nunca traz emails nem
-// observações.
+// colunas, domingo a sábado nas linhas, como o calendário); um bloco por hábito com a
+// sigla/nome, marcações, períodos da meta cumpridos e, quando escolhidos e ligados no hábito,
+// pontuação e sucesso/falha, minutos, gasto e limite, recompensa e punição; rodapé com a data.
+// Nunca traz emails nem observações.
 //
 // Cores e fonte vêm dos tokens e da paleta lidos em runtime (readImageTheme), nunca de valores
 // fixos: a imagem sai no tema da tela, com o mesmo contraste garantido pelos tokens e pela paleta
@@ -16,7 +16,7 @@
 // passam um contexto falso que grava as chamadas (src/lib/export/image.test.js) e conferem o
 // tamanho, os textos e os limites; renderReportImage cria o <canvas>, carrega a fonte e gera o PNG.
 
-import { isoWeekday } from '../calendar';
+import { weekColumn } from '../calendar';
 import { formatShortDay } from '../format';
 import { formatMoney } from '../money';
 import { HABIT_COLORS } from '../palette';
@@ -147,9 +147,10 @@ function habitColor(theme, habit) {
 
 // --- mapa de calor ---
 
-// Semanas em colunas a partir da segunda antes de `from`; `pitch`: distância entre as células
+// Semanas em colunas a partir do domingo antes de `from` (WEEK_START, como o calendário; só o
+// desenho: os períodos da meta seguem de segunda a domingo); `pitch`: distância entre as células
 function heatmapGeometry(report, maxCell) {
-  const start = addDays(report.from, 1 - isoWeekday(report.from));
+  const start = addDays(report.from, -weekColumn(report.from));
   const weeks = Math.ceil((daysBetween(start, report.to) + 1) / 7);
   const pitch = Math.min(maxCell, CONTENT_WIDTH / weeks);
   const gap = pitch >= 6 ? Math.max(1, Math.round(pitch * 0.15)) : 0;
