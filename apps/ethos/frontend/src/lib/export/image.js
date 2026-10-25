@@ -13,6 +13,11 @@
 // letra diminui até um mínimo legível, depois somem as linhas de recompensa/punição e, por fim, o
 // resto vira "+N hábitos".
 //
+// O layout é medido antes de desenhar (layoutReport): o rodapé vem logo depois dos hábitos e o
+// bloco inteiro, da tinta da marca à do rodapé, fica centrado na altura, nunca com margem menor que
+// a do encaixe (PAD em cima, 52 px até a linha de base do rodapé). Conteúdo que ocupa a área toda
+// (muitos hábitos, períodos longos) não se desloca: sai como antes, com o rodapé no pé da imagem.
+//
 // Testes: o jsdom não tem canvas de verdade. drawReport recebe o contexto 2D, então os testes
 // passam um contexto falso que grava as chamadas (src/lib/export/image.test.js) e conferem o
 // tamanho, os textos e os limites; renderReportImage cria o <canvas>, carrega a fonte e gera o PNG.
@@ -37,13 +42,23 @@ const CONTENT_WIDTH = IMAGE_WIDTH - 2 * PAD;
 // grande; muitos, mapa baixo e mais altura para eles (10 hábitos, o limite de ativos e pausados,
 // cabem inteiros). Períodos longos têm células menores que isso, para caber na largura
 const CELL_SIZES = [40, 32, 24, 18, 12];
-// Topo do mapa de calor e distâncias até a legenda e os hábitos
-const HEATMAP_TOP = PAD + 190;
+// A partir do topo do conteúdo (sem deslocamento, PAD: a linha de base da marca menos o tamanho da
+// letra dela): linhas de base da marca, do título e do período, e o topo do mapa de calor
+const HEADER = Object.freeze({ brand: 28, title: 100, period: 148, heatmap: 190 });
+// Letra da marca e do rodapé
+const BRAND = Object.freeze({ size: 28, weight: 700 });
+const FOOTER = Object.freeze({ size: 22, weight: 500 });
+// Topo do mapa de calor sem deslocamento e distâncias até a legenda e os hábitos
+const HEATMAP_TOP = PAD + HEADER.heatmap;
 const LEGEND_OFFSET = 40;
 const HABITS_OFFSET = 48;
-// Linha de base do rodapé e o fim da área dos hábitos
+// Linha de base mais baixa do rodapé, distância dela até o fim dos hábitos e o fim da área deles
 const FOOTER_BASELINE = IMAGE_HEIGHT - PAD + 20;
-const HABITS_BOTTOM = FOOTER_BASELINE - 48;
+const FOOTER_GAP = 48;
+const HABITS_BOTTOM = FOOTER_BASELINE - FOOTER_GAP;
+// Sem hábitos: linha de base do aviso e altura do bloco (a mesma folga depois da última linha)
+const EMPTY_BASELINE = 32;
+const EMPTY_HEIGHT = 64;
 // Opacidade da cor nos 4 níveis do mapa de calor (fração dos hábitos marcados no dia)
 const LEVELS = [0.3, 0.55, 0.8, 1];
 // Escalas de letra testadas para os hábitos caberem; a última é o mínimo legível
@@ -292,6 +307,8 @@ function layoutHabits(ctx, theme, report, t, language, scale, stage) {
   return { sizes, indent, width, blocks };
 }
 
+const blocksHeight = (blocks) => blocks.reduce((sum, block) => sum + block.height, 0);
+
 // A melhor arrumação que cabe em `available`: `{layout, rank}`, com `rank` a posição da tentativa
 // (0 é tudo na letra maior); sem nenhuma, `{layout: null, rank: Infinity}`
 function chooseLayout(ctx, theme, report, t, language, available) {
@@ -299,8 +316,7 @@ function chooseLayout(ctx, theme, report, t, language, available) {
   for (const stage of STAGES) {
     for (const scale of SCALES) {
       const layout = layoutHabits(ctx, theme, report, t, language, scale, stage);
-      const height = layout.blocks.reduce((sum, block) => sum + block.height, 0);
-      if (height <= available) return { layout, rank };
+      if (blocksHeight(layout.blocks) <= available) return { layout, rank };
       rank += 1;
     }
   }
@@ -323,36 +339,84 @@ function planLayout(ctx, theme, report, t, language) {
   return best;
 }
 
-function drawHabits(ctx, report, theme, t, language, top, chosen) {
-  const { colors } = theme;
-  const available = HABITS_BOTTOM - top;
-  if (report.habits.length === 0) {
-    drawText(ctx, theme, t('report.image.no_habits'), PAD, top + 32, { size: 28, color: colors.muted });
-    return;
-  }
+// Os hábitos em `available`: `{layout, hidden, height}`. `layout`: a arrumação escolhida ou, se
+// nem na menor letra cabem todos, só os blocos que cabem; `hidden`: quantos ficam de fora ("+N
+// hábitos"); `height`: a altura ocupada, com a folga depois da última linha. Sem hábitos, `layout`
+// é null e a altura é a do aviso
+function fitHabits(ctx, theme, report, t, language, available, chosen) {
+  if (report.habits.length === 0) return { layout: null, hidden: 0, height: EMPTY_HEIGHT };
+  if (chosen) return { layout: chosen, hidden: 0, height: blocksHeight(chosen.blocks) };
 
-  let layout = chosen;
-  let hidden = 0;
-  if (!layout) {
-    // Nem na menor letra: mostra os que cabem e "+N hábitos"
-    layout = layoutHabits(
-      ctx,
-      theme,
-      report,
-      t,
-      language,
-      SCALES[SCALES.length - 1],
-      STAGES[STAGES.length - 1],
-    );
-    const reserve = layout.sizes.textLine + layout.sizes.gap;
-    let used = 0;
-    let shown = 0;
-    while (shown < layout.blocks.length && used + layout.blocks[shown].height + reserve <= available) {
-      used += layout.blocks[shown].height;
-      shown += 1;
-    }
-    hidden = layout.blocks.length - shown;
-    layout.blocks = layout.blocks.slice(0, shown);
+  // Nem na menor letra: mostra os que cabem e "+N hábitos"
+  const layout = layoutHabits(
+    ctx,
+    theme,
+    report,
+    t,
+    language,
+    SCALES[SCALES.length - 1],
+    STAGES[STAGES.length - 1],
+  );
+  const reserve = layout.sizes.textLine + layout.sizes.gap;
+  let used = 0;
+  let shown = 0;
+  while (shown < layout.blocks.length && used + layout.blocks[shown].height + reserve <= available) {
+    used += layout.blocks[shown].height;
+    shown += 1;
+  }
+  return {
+    layout: { ...layout, blocks: layout.blocks.slice(0, shown) },
+    hidden: layout.blocks.length - shown,
+    height: used + reserve,
+  };
+}
+
+// Tinta do texto acima e abaixo da linha de base, como o canvas desenha; sem essa medida, a altura
+// da fonte acima e nada abaixo
+function inkExtent(ctx, theme, text, { size, weight }) {
+  setFont(ctx, theme, size, weight);
+  const metrics = ctx.measureText(fitText(ctx, text, CONTENT_WIDTH));
+  return {
+    ascent: metrics.actualBoundingBoxAscent ?? size,
+    descent: metrics.actualBoundingBoxDescent ?? 0,
+  };
+}
+
+/**
+ * Mede tudo antes de desenhar: `{top, geometry, habitsTop, habits, footer}`, com `top` o topo do
+ * conteúdo (de onde saem as linhas do cabeçalho, HEADER), `geometry` a do mapa de calor, `habits`
+ * de fitHabits e `footer` a linha de base do rodapé (`footerText`), já deslocados para a tinta
+ * ficar centrada na altura: margem de cima até a letra mais alta da marca igual à de baixo a
+ * partir do rodapé. O deslocamento nunca é negativo, então as margens nunca ficam menores que as
+ * do encaixe (PAD e IMAGE_HEIGHT − FOOTER_BASELINE). Com hábitos de fora, o conteúdo ocupa a área
+ * toda: o rodapé fica no pé e o deslocamento é zero.
+ */
+function layoutReport(ctx, theme, report, t, language, footerText) {
+  const plan = planLayout(ctx, theme, report, t, language);
+  const habitsY = habitsTop(plan.geometry);
+  const habits = fitHabits(ctx, theme, report, t, language, HABITS_BOTTOM - habitsY, plan.layout);
+  const footer = habits.hidden > 0 ? FOOTER_BASELINE : habitsY + habits.height + FOOTER_GAP;
+  // Centra a tinta, da letra mais alta da marca à parte mais baixa do rodapé
+  const inkTop = PAD + HEADER.brand - inkExtent(ctx, theme, 'ethos', BRAND).ascent;
+  const inkBottom = footer + inkExtent(ctx, theme, footerText, FOOTER).descent;
+  const offset = Math.max(0, Math.floor((IMAGE_HEIGHT - (inkBottom - inkTop)) / 2 - inkTop));
+  return {
+    top: PAD + offset,
+    geometry: plan.geometry,
+    habitsTop: habitsY + offset,
+    habits,
+    footer: footer + offset,
+  };
+}
+
+function drawHabits(ctx, theme, t, top, { layout, hidden }) {
+  const { colors } = theme;
+  if (layout === null) {
+    drawText(ctx, theme, t('report.image.no_habits'), PAD, top + EMPTY_BASELINE, {
+      size: 28,
+      color: colors.muted,
+    });
+    return;
   }
 
   const { sizes, indent, width } = layout;
@@ -402,19 +466,24 @@ export function drawReport(ctx, report, { t, language, theme, today }) {
   ctx.fillStyle = colors.bg;
   ctx.fillRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
 
-  drawText(ctx, theme, 'ethos', PAD, PAD + 28, { size: 28, weight: 700, color: colors.muted });
-  drawText(ctx, theme, t('report.image.title'), PAD, PAD + 100, { size: 56, weight: 700, color: colors.fg });
+  const footer = t('report.image.footer', { date: formatShortDay(today, language) });
+  const layout = layoutReport(ctx, theme, report, t, language, footer);
+  const { top } = layout;
+  drawText(ctx, theme, 'ethos', PAD, top + HEADER.brand, { ...BRAND, color: colors.muted });
+  drawText(ctx, theme, t('report.image.title'), PAD, top + HEADER.title, {
+    size: 56,
+    weight: 700,
+    color: colors.fg,
+  });
   const period = t('report.image.period', {
     from: formatShortDay(report.from, language),
     to: formatShortDay(report.to, language),
   });
-  drawText(ctx, theme, period, PAD, PAD + 148, { size: 30, color: colors.muted });
+  drawText(ctx, theme, period, PAD, top + HEADER.period, { size: 30, color: colors.muted });
 
-  const plan = planLayout(ctx, theme, report, t, language);
-  drawHeatmap(ctx, report, theme, t, HEATMAP_TOP, plan.geometry);
-  drawHabits(ctx, report, theme, t, language, habitsTop(plan.geometry), plan.layout);
-  const footer = t('report.image.footer', { date: formatShortDay(today, language) });
-  drawText(ctx, theme, footer, PAD, FOOTER_BASELINE, { size: 22, color: colors.muted });
+  drawHeatmap(ctx, report, theme, t, top + HEADER.heatmap, layout.geometry);
+  drawHabits(ctx, theme, t, layout.habitsTop, layout.habits);
+  drawText(ctx, theme, footer, PAD, layout.footer, { ...FOOTER, color: colors.muted });
   ctx.restore();
 }
 

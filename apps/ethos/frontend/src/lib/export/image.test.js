@@ -74,6 +74,24 @@ function expectInside({ texts, rects }) {
 
 const allText = ({ texts }) => texts.map((text) => text.text).join('\n');
 
+const fontSize = (text) => Number(/(\d+(?:\.\d+)?)px/.exec(text.font)[1]);
+
+/**
+ * Margens do conteúdo: em cima, até a tinta mais alta (linha de base − `ascent` × o tamanho da
+ * fonte); embaixo, da tinta mais baixa (linha de base + `descent` × o tamanho) até a borda. Os
+ * quadrados (fora o fundo) ficam entre elas. Os padrões são os do contexto falso, que não mede a
+ * tinta: a fonte inteira acima da linha de base e nada abaixo.
+ */
+function margins({ texts, rects }, { ascent = 1, descent = 0 } = {}) {
+  const top = Math.min(...texts.map((text) => text.y - ascent * fontSize(text)));
+  const bottom = Math.max(...texts.map((text) => text.y + descent * fontSize(text)));
+  for (const rect of rects.slice(1)) {
+    expect(rect.y).toBeGreaterThanOrEqual(top);
+    expect(rect.y + rect.height).toBeLessThanOrEqual(bottom);
+  }
+  return { top, bottom: IMAGE_HEIGHT - bottom };
+}
+
 /** Quadrados do mapa de calor de um relatório sem marcações: um por dia, logo depois do fundo. */
 function heatmapCells(from, to) {
   const habits = [progressItem(fullHabit(), { marks: [] })];
@@ -189,7 +207,44 @@ describe('report image', () => {
 
   it('says when there are no habits', () => {
     const report = buildReport(reportData(), ALL_OPTIONS, { today: TODAY });
-    expect(allText(draw(report))).toContain('No habits in this report.');
+    const fake = draw(report);
+
+    expect(allText(fake)).toContain('No habits in this report.');
+    const { top, bottom } = margins(fake);
+    expect(Math.abs(top - bottom)).toBeLessThanOrEqual(2);
+  });
+
+  it.each(['en', 'pt'])('centers one habit and one month vertically (%s)', (language) => {
+    const fake = draw(fullReport(), { t: language === 'en' ? en : pt, language });
+    const { top, bottom } = margins(fake);
+
+    // Sobra bastante altura: o bloco desce e fica com margens iguais (até 1 px do arredondamento)
+    expect(top).toBeGreaterThan(200);
+    expect(Math.abs(top - bottom)).toBeLessThanOrEqual(2);
+    // O rodapé vem logo depois dos hábitos, não no pé da imagem
+    const footer = fake.texts.at(-1);
+    expect(footer.text).toContain(language === 'en' ? 'Mar 20, 2026' : '20 de mar. de 2026');
+    expect(footer.y).toBe(IMAGE_HEIGHT - bottom);
+    expectInside(fake);
+  });
+
+  it('centers the ink when the canvas measures it', () => {
+    const fake = fakeContext();
+    const { measureText } = fake.ctx;
+    // Como um canvas de verdade: a tinta sobe 0,7 e desce 0,2 do tamanho da fonte
+    fake.ctx.measureText = function measureInk(text) {
+      const size = Number(/(\d+(?:\.\d+)?)px/.exec(this.font)[1]);
+      return {
+        ...measureText.call(this, text),
+        actualBoundingBoxAscent: 0.7 * size,
+        actualBoundingBoxDescent: 0.2 * size,
+      };
+    };
+    drawReport(fake.ctx, fullReport(), { t: en, language: 'en', theme: imageTheme(), today: TODAY });
+
+    const { top, bottom } = margins(fake, { ascent: 0.7, descent: 0.2 });
+    expect(top).toBeGreaterThan(200);
+    expect(Math.abs(top - bottom)).toBeLessThanOrEqual(2);
   });
 
   it('does not break with 10 habits and a whole year of marks', () => {
@@ -219,6 +274,10 @@ describe('report image', () => {
     // 365 dias (cada um com fundo e cor), sem uma chamada por marcação
     expect(fake.calls.fillRect).toBeLessThan(365 * 2 + 20);
     expectInside(fake);
+    // Centrado ou não, nunca com margens menores que as do encaixe
+    const { top, bottom } = margins(fake);
+    expect(top).toBeGreaterThanOrEqual(72);
+    expect(bottom).toBeGreaterThanOrEqual(52);
     // Folga grande para o CI; na prática leva poucas centenas de ms
     expect(elapsed).toBeLessThan(5_000);
   });
@@ -236,6 +295,8 @@ describe('report image', () => {
     expect(allText(fake)).toContain('Habit 1');
     expect(allText(fake)).not.toContain('Habit 40');
     expectInside(fake);
+    // Ocupa a área toda: sem deslocamento, marca no topo e rodapé no pé, como antes
+    expect(margins(fake)).toEqual({ top: 72, bottom: 52 });
   });
 });
 
