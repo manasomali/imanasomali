@@ -222,6 +222,37 @@ describe('habit calendar: toggle', () => {
     expect(document.activeElement).toBe(dayButton('Tuesday, March 31, 2026'));
   });
 
+  it('draws the weeks from Sunday to Saturday and moves in that order', async () => {
+    signedIn();
+    mockHabitsApi({ habits: [habitFixture()] });
+    const user = userEvent.setup();
+    const { container } = renderApp('/habits/1');
+
+    // Março de 2026 começa num domingo: o dia 1 abre a grade, na primeira coluna
+    const march = await screen.findByRole('region', { name: 'March' });
+    const header = [...march.querySelectorAll('div[aria-hidden="true"] > span')];
+    expect(header.map((day) => day.textContent).join('')).toBe('SMTWTFS');
+    const first = within(march).getByRole('button', { name: /^Sunday, March 1, 2026\./ });
+    expect(first.previousElementSibling).toBeNull();
+    // Agosto começa num sábado: 6 casas vazias antes do dia 1, que fica na última coluna
+    const august = screen.getByRole('region', { name: 'August' });
+    const firstOfAugust = within(august).getByRole('button', { name: /^Saturday, August 1, 2026\./ });
+    expect(firstOfAugust.previousElementSibling.dataset.offset).toBe('6');
+
+    // Setas: do sábado para o domingo seguinte (começo da linha de baixo) e uma semana para cima
+    dayButton('Saturday, March 7, 2026').focus();
+    await user.keyboard('{ArrowRight}');
+    expect(document.activeElement).toBe(dayButton('Sunday, March 8, 2026'));
+    await user.keyboard('{ArrowUp}');
+    expect(document.activeElement).toBe(first);
+    await user.keyboard('{ArrowLeft}');
+    expect(document.activeElement).toBe(dayButton('Saturday, February 28, 2026'));
+    await user.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(dayButton('Saturday, March 7, 2026'));
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it('keeps the day right when two clicks cross each other', async () => {
     signedIn();
     const { requests } = mockHabitsApi({ habits: [habitFixture()] });

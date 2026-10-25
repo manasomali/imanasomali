@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  calendarWeekdayNames,
   formatDate,
   formatDateTime,
   formatLongDay,
@@ -36,6 +37,29 @@ describe('dates for the screen', () => {
       'Sunday',
     ]);
     expect(weekdays[0].short).toBe('M');
+  });
+
+  it('heads the calendar from Sunday to Saturday, in pt and en', () => {
+    expect(calendarWeekdayNames('en').map((day) => day.long)).toEqual([
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ]);
+    expect(calendarWeekdayNames('en').map((day) => day.short).join('')).toBe('SMTWTFS');
+    expect(calendarWeekdayNames('pt').map((day) => day.long)).toEqual([
+      'domingo',
+      'segunda-feira',
+      'terça-feira',
+      'quarta-feira',
+      'quinta-feira',
+      'sexta-feira',
+      'sábado',
+    ]);
+    expect(calendarWeekdayNames('pt').map((day) => day.short).join('')).toBe('DSTQQSS');
   });
 
   it('shows instants in the viewer time zone', () => {

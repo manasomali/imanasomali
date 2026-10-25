@@ -938,6 +938,7 @@
       "month": "Por mês",
       "year": "Por ano"
     },
+    "limit_week_hint": "A semana do limite vai de segunda a domingo.",
     "cost_limit_cents": "Valor do limite",
     "counter": "{{n}}/{{max}} caracteres",
     "unchanged": "Nada mudou para salvar.",
@@ -983,6 +984,7 @@
     "minutes_min": "Com a duração ligada, conta a soma dos minutos: pelo menos {{total}} min por {{period}}.",
     "minutes_max": "Com a duração ligada, conta a soma dos minutos: no máximo {{total}} min por {{period}}.",
     "minutes_exact": "Com a duração ligada, conta a soma dos minutos: exatamente {{total}} min por {{period}}.",
+    "week_range": "A semana da meta vai de segunda a domingo.",
     "period": {
       "week": "semana",
       "month": "mês",
@@ -1022,11 +1024,11 @@
     },
     "pace_example": {
       "half": "Ex.: na metade do período, ter feito menos que a metade da meta (arredondada para baixo) já é atraso.",
-      "week": "Ex.: numa semana sem nenhuma marcação, o hábito fica atrasado a partir de {{weekday}} às {{time}}, e o alerta sai na primeira avaliação depois disso."
+      "week": "Ex.: numa semana da meta (de segunda a domingo) sem nenhuma marcação, o hábito fica atrasado a partir de {{weekday}} às {{time}}, e o alerta sai na primeira avaliação depois disso."
     },
     "starts_on": "Este hábito foi criado {{this_period}}: este alerta só pode disparar a partir de {{date}}.",
     "cost_rule": {
-      "week": "Avisa quando o gasto da semana chega a {{percent}}% do limite ({{limit}}) e de novo quando passa dele.",
+      "week": "Avisa quando o gasto da semana (de segunda a domingo) chega a {{percent}}% do limite ({{limit}}) e de novo quando passa dele.",
       "month": "Avisa quando o gasto do mês chega a {{percent}}% do limite ({{limit}}) e de novo quando passa dele.",
       "year": "Avisa quando o gasto do ano chega a {{percent}}% do limite ({{limit}}) e de novo quando passa dele."
     },

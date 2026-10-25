@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CALENDAR_WEEKDAYS,
   MAX_DOTS,
   MIN_YEAR,
+  WEEK_START,
+  calendarMonth,
   daysInMonth,
   daysInYear,
   isLeapYear,
@@ -12,6 +15,7 @@ import {
   parseDay,
   parseYear,
   splitDots,
+  weekColumn,
   yearBounds,
   yearMonths,
   yearOf,
@@ -44,15 +48,46 @@ describe('years and months', () => {
     }
   });
 
-  it('starts each month on its ISO weekday (Monday = no offset)', () => {
-    const months = yearMonths(2026);
-
-    // 1º de janeiro de 2026 foi uma quinta; 1º de junho, uma segunda; 1º de março, um domingo
-    expect(months[0].offset).toBe(3);
-    expect(months[5].offset).toBe(0);
-    expect(months[2].offset).toBe(6);
+  it('draws the week from Sunday to Saturday', () => {
+    expect(WEEK_START).toBe(7);
+    expect(CALENDAR_WEEKDAYS).toEqual([7, 1, 2, 3, 4, 5, 6]);
+    expect(Object.isFrozen(CALENDAR_WEEKDAYS)).toBe(true);
+    // 1º de março de 2026 foi um domingo
     expect(isoWeekday('2026-03-01')).toBe(7);
     expect(isoWeekday('2026-03-02')).toBe(1);
+    expect(['01', '02', '03', '04', '05', '06', '07', '08'].map((day) => weekColumn(`2026-03-${day}`))).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 0,
+    ]);
+  });
+
+  it('puts day 1 in its column: none empty on a Sunday, 6 on a Saturday', () => {
+    const months = yearMonths(2026);
+
+    // 1º de março de 2026: domingo; 1º de agosto: sábado; 1º de janeiro: quinta; 1º de junho: segunda
+    expect(months[2].offset).toBe(0);
+    expect(months[7].offset).toBe(6);
+    expect(months[0].offset).toBe(4);
+    expect(months[5].offset).toBe(1);
+    expect(calendarMonth(2026, 8)).toEqual(months[7]);
+    expect(calendarMonth(2026, 8)).toMatchObject({ year: 2026, month: 8, offset: 6 });
+  });
+
+  it.each([
+    [2025, 365, 3, 3],
+    [2026, 365, 4, 4],
+    [2024, 366, 1, 2],
+    [2028, 366, 6, 0],
+  ])('%i (%i days) starts in column %i and ends in column %i, without gaps', (year, length, start, end) => {
+    const months = yearMonths(year);
+
+    expect(months.flatMap((month) => month.days)).toHaveLength(length);
+    expect(months[0].offset).toBe(start);
+    expect(weekColumn(`${year}-12-31`)).toBe(end);
+    // Cada mês começa na coluna seguinte à do último dia do mês anterior
+    for (let index = 1; index < 12; index += 1) {
+      const previous = months[index - 1];
+      expect(months[index].offset).toBe((previous.offset + previous.days.length) % 7);
+    }
   });
 
   it('gives February 29 days only in leap years', () => {

@@ -1,6 +1,7 @@
 // Calendário anual: meses, dias, intervalo do ano em UTC e agrupamento das marcações por dia local.
-// Dias são strings "AAAA-MM-DD" (como em time.js), que comparam certo como texto. Semana começa na
-// segunda (ISO), como os períodos da meta.
+// Dias são strings "AAAA-MM-DD" (como em time.js), que comparam certo como texto. No desenho, a
+// semana começa no domingo (WEEK_START); os períodos da meta continuam na semana ISO, de segunda a
+// domingo (periodFirstDay em alerts.js e score.py no backend).
 
 import { addDays, localDate, parseDate, zonedTimeToUtc } from './time';
 
@@ -27,6 +28,19 @@ export function isoWeekday(value) {
   return date.getUTCDay() || 7;
 }
 
+// Dia da semana ISO da primeira coluna do calendário: 7 = domingo. Só muda o desenho
+export const WEEK_START = 7;
+
+/** Os dias da semana ISO (1 = segunda ... 7 = domingo) na ordem das colunas do calendário. */
+export const CALENDAR_WEEKDAYS = Object.freeze(
+  Array.from({ length: 7 }, (_, column) => ((WEEK_START - 1 + column) % 7) + 1),
+);
+
+/** Coluna de "AAAA-MM-DD" no calendário: 0 (WEEK_START, domingo) a 6 (sábado). */
+export function weekColumn(value) {
+  return (isoWeekday(value) - WEEK_START + 7) % 7;
+}
+
 function pad(value) {
   return String(value).padStart(2, '0');
 }
@@ -37,23 +51,22 @@ function yearText(year) {
 }
 
 /**
- * Os 12 meses do ano: `{month, days, offset}`, com `month` de 1 a 12, `days` os dias
- * "AAAA-MM-DD" em ordem e `offset` as casas vazias antes do dia 1 numa semana que começa na
- * segunda (0 a 6).
+ * Um mês do calendário: `{year, month, days, offset}`, com `month` de 1 a 12, `days` os dias
+ * "AAAA-MM-DD" em ordem e `offset` as casas vazias antes do dia 1 (a coluna dele, de 0 a 6, numa
+ * semana que começa em WEEK_START).
  */
+export function calendarMonth(year, month) {
+  const prefix = `${yearText(year)}-${pad(month)}-`;
+  const days = Array.from(
+    { length: daysInMonth(year, month) },
+    (_, index) => `${prefix}${pad(index + 1)}`,
+  );
+  return { year, month, days, offset: weekColumn(days[0]) };
+}
+
+/** Os 12 meses do ano, como em calendarMonth. */
 export function yearMonths(year) {
-  const months = [];
-  let day = `${yearText(year)}-01-01`;
-  for (let month = 1; month <= 12; month += 1) {
-    const prefix = `${yearText(year)}-${pad(month)}-`;
-    const days = [];
-    while (day.startsWith(prefix)) {
-      days.push(day);
-      day = addDays(day, 1);
-    }
-    months.push({ month, days, offset: isoWeekday(days[0]) - 1 });
-  }
-  return months;
+  return Array.from({ length: 12 }, (_, index) => calendarMonth(year, index + 1));
 }
 
 /** Primeiro e último dia do ano, "AAAA-MM-DD". */

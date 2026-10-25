@@ -25,7 +25,7 @@
       "id": "goal",
       "title": "Goal",
       "paragraphs": [
-        "The goal is always “N times per week, month or year”, with a type: at least N (minimum), at most N (maximum) or exactly N (exact). The week starts on Monday.",
+        "The goal is always “N times per week, month or year”, with a type: at least N (minimum), at most N (maximum) or exactly N (exact). The goal week runs from Monday to Sunday, even though the calendar shows the weeks starting on Sunday.",
         "What counts in the period:",
         [
           "each day marked or not: the number of marked days;",

@@ -54,7 +54,7 @@ describe('new habit', () => {
     for (const name of ['Several marks per day', 'Duration', 'Note', 'Score', 'Cost']) {
       await user.click(screen.getByRole('switch', { name }));
     }
-    await user.selectOptions(screen.getByLabelText('Spending limit'), 'month');
+    await user.selectOptions(screen.getByLabelText('Spending limit'), 'week');
 
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -208,6 +208,8 @@ describe('new habit', () => {
     const count = screen.getByLabelText('Quantas vezes');
 
     expect(screen.getByText('pelo menos 1 vez por semana.')).toBeTruthy();
+    // O calendário começa no domingo, mas a semana da meta é a ISO
+    expect(screen.getByText('A semana da meta vai de segunda a domingo.')).toBeTruthy();
 
     await user.clear(count);
     await user.type(count, '3');
@@ -218,6 +220,7 @@ describe('new habit', () => {
     await user.type(count, '0');
     await user.selectOptions(screen.getByLabelText('Por'), 'month');
     expect(screen.getByText('nenhuma vez por mês.')).toBeTruthy();
+    expect(screen.queryByText('A semana da meta vai de segunda a domingo.')).toBeNull();
 
     await user.selectOptions(screen.getByLabelText('Tipo da meta'), 'exact');
     await user.clear(count);
@@ -278,7 +281,11 @@ describe('new habit', () => {
     expect(screen.getByLabelText('Default amount of the marks (optional)')).toBeTruthy();
     expect(screen.queryByLabelText('Limit amount')).toBeNull();
 
-    await user.selectOptions(screen.getByLabelText('Spending limit'), 'week');
+    const limitPeriod = screen.getByLabelText('Spending limit');
+    expect(screen.queryByText('The limit week runs from Monday to Sunday.')).toBeNull();
+    await user.selectOptions(limitPeriod, 'week');
+    const weekHint = screen.getByText('The limit week runs from Monday to Sunday.');
+    expect(limitPeriod.getAttribute('aria-describedby').split(' ')).toContain(weekHint.id);
     await user.click(screen.getByRole('button', { name: 'Create habit' }));
     expect(screen.getByLabelText('Limit amount').getAttribute('aria-invalid')).toBe('true');
     expect(posts(writes)).toEqual([]);

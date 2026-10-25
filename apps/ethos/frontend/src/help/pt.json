@@ -25,7 +25,7 @@
       "id": "goal",
       "title": "Meta",
       "paragraphs": [
-        "A meta é sempre “N vezes por semana, mês ou ano”, com um tipo: pelo menos N (mínimo), no máximo N (máximo) ou exatamente N (exato). A semana começa na segunda-feira.",
+        "A meta é sempre “N vezes por semana, mês ou ano”, com um tipo: pelo menos N (mínimo), no máximo N (máximo) ou exatamente N (exato). A semana da meta vai de segunda a domingo, mesmo com o calendário mostrando as semanas a partir do domingo.",
         "O que conta no período:",
         [
           "cada dia marcado ou não: o número de dias marcados;",
