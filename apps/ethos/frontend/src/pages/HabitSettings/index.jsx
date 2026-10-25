@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { forgetHabit, useDeleteHabit, useHabitStatus, useUpdateHabit } from '../../api/habits';
 import ErrorMessage from '../../components/ErrorMessage';
 import HabitForm from '../../components/HabitForm';
+import { WithHelp } from '../../components/HelpLink';
 import useHabitContext from '../../hooks/useHabitContext';
 import { PATHS, habitPath } from '../../paths';
 import styles from './styles.module.css';
@@ -34,9 +35,11 @@ function SettingsScreen({ habit }) {
   return (
     <>
       <section className={styles.section} aria-labelledby={titleId}>
-        <h2 id={titleId} className={styles.title}>
-          {t('habit_settings.title')}
-        </h2>
+        <WithHelp section="goal" topic={t('habit_settings.title')}>
+          <h2 id={titleId} className={styles.title}>
+            {t('habit_settings.title')}
+          </h2>
+        </WithHelp>
         {archived && <p className={styles.notice}>{t('habit_settings.archived_notice')}</p>}
         <HabitForm
           habit={habit}
@@ -89,9 +92,11 @@ function StatusActions({ habit }) {
 
   return (
     <section className={styles.section} aria-labelledby={titleId}>
-      <h2 id={titleId} className={styles.title}>
-        {t('habit_settings.status.title')}
-      </h2>
+      <WithHelp section="pause-archive" topic={t('habit_settings.status.title')}>
+        <h2 id={titleId} className={styles.title}>
+          {t('habit_settings.status.title')}
+        </h2>
+      </WithHelp>
       <p className={styles.muted}>{t(`habit_settings.status.current.${habit.status}`)}</p>
       <ul ref={listRef} className={styles.actions}>
         {actions.map((action) => (

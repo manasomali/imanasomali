@@ -6,6 +6,7 @@ import { useHabits } from '../../api/habits';
 import { useReportData } from '../../api/report';
 import ErrorMessage from '../../components/ErrorMessage';
 import ExportAll from '../../components/ExportAll';
+import { WithHelp } from '../../components/HelpLink';
 import PageTitle from '../../components/PageTitle';
 import { DEFAULT_OPTIONS } from '../../lib/export/options';
 import { parseReportSearch } from '../../lib/export/params';
@@ -81,7 +82,9 @@ export default function Report() {
   return (
     <>
       <PageTitle title={title} />
-      <h1 className={styles.title}>{title}</h1>
+      <WithHelp section="report" topic={title}>
+        <h1 className={styles.title}>{title}</h1>
+      </WithHelp>
       <p className={styles.intro}>{t('report.intro')}</p>
 
       <ReportForm

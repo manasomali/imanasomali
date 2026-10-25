@@ -13,6 +13,7 @@
     "report": "Relatório",
     "history": "Histórico",
     "account": "Conta",
+    "help": "Ajuda",
     "back_to_site": "manasomali.com",
     "admin": "Admin",
     "invites": "Convites",
@@ -146,6 +147,9 @@
     },
     "privacy": {
       "title": "Política de privacidade"
+    },
+    "help": {
+      "title": "Ajuda"
     }
   },
   "timezone_notice": {
@@ -548,6 +552,10 @@
   "legal": {
     "version": "Versão {{version}}",
     "contents": "Sumário"
+  },
+  "help": {
+    "contents": "Sumário",
+    "link": "Ajuda: {{topic}} (abre em outra aba)"
   },
   "terms_modal": {
     "title": "Novos termos de uso",

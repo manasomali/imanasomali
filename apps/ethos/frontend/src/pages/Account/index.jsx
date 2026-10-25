@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { useLocation } from 'react-router';
 import { Trans, useTranslation } from 'react-i18next';
 import { useMe } from '../../api/auth';
+import { WithHelp } from '../../components/HelpLink';
 import PageTitle from '../../components/PageTitle';
 import { SUPPORT_EMAIL } from '../../lib/legal';
 import { isValidTimezone } from '../../lib/time';
@@ -31,7 +32,9 @@ export default function Account() {
   return (
     <div className={styles.page}>
       <PageTitle title={title} />
-      <h1 className={styles.title}>{title}</h1>
+      <WithHelp section="account" topic={title}>
+        <h1 className={styles.title}>{title}</h1>
+      </WithHelp>
 
       <section className={styles.section} aria-labelledby={emailTitleId}>
         <h2 id={emailTitleId} className={styles.sectionTitle}>

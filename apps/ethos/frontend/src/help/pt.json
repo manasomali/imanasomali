@@ -1,0 +1,182 @@
+{
+  "title": "Ajuda",
+  "sections": [
+    {
+      "id": "about",
+      "title": "Como o ethos funciona",
+      "paragraphs": [
+        "O ethos registra hábitos ao longo do tempo. Cada hábito tem um calendário anual: você marca os dias em que cumpriu o hábito, e o app compara as marcações com a meta que você definiu.",
+        "A tela principal mostra os hábitos ativos e pausados num calendário só, com até 4 pontos coloridos por dia e “+N” para o resto. Cada hábito tem a sua aba, com o calendário só dele e as seções de configuração, compartilhamento e alertas.",
+        "Cada conta tem até 10 hábitos ativos e pausados. Os arquivados e os de outras pessoas compartilhados com você não entram nessa conta."
+      ]
+    },
+    {
+      "id": "marks",
+      "title": "Marcar",
+      "paragraphs": [
+        "Por padrão, cada dia é marcado ou não: um clique marca, outro desmarca. Com “mais de uma marcação por dia” ligado, cada clique soma uma marcação, até 999 por dia.",
+        "Dá para marcar hoje e qualquer dia passado, nunca o futuro. Marcar hoje grava o momento do clique; marcar um dia passado grava 12:00 daquele dia no seu fuso.",
+        "Dias antes da criação do hábito podem ser marcados, para registrar o que você já fazia, mas não contam na pontuação.",
+        "Nos detalhes de uma marcação dá para mudar a duração, a observação (até 140 caracteres, só como lembrete) e o custo (só no custo por marcação). A data não muda: para trocar, apague a marcação e crie outra.",
+        "Marcam, desmarcam e editam o dono e quem tem papel de edição, em qualquer marcação do hábito. Quem só visualiza não muda nada."
+      ]
+    },
+    {
+      "id": "goal",
+      "title": "Meta",
+      "paragraphs": [
+        "A meta é sempre “N vezes por semana, mês ou ano”, com um tipo: pelo menos N (mínimo), no máximo N (máximo) ou exatamente N (exato). A semana começa na segunda-feira.",
+        "O que conta no período:",
+        [
+          "cada dia marcado ou não: o número de dias marcados;",
+          "mais de uma marcação por dia: o número de marcações;",
+          "duração ligada: a soma dos minutos das marcações, comparada com N vezes a duração. Ex.: “meditar 40 min, pelo menos 1 vez por semana” é cumprido com duas sessões de 20 min."
+        ],
+        "Com cada dia marcado ou não, N vai até o número de dias do período (7 na semana, 28 no mês, 365 no ano), para a meta ser sempre possível.",
+        "Mudar a configuração não apaga dados. Um recurso desligado (duração, custo, observação) fica escondido e é ignorado nas contas; ao religar, os dados antigos voltam. Ao desligar “mais de uma marcação por dia”, o dia com várias marcações conta como um dia marcado, e as marcações extras ficam guardadas.",
+        "A sigla (até 4 letras ou números) aparece no lugar do nome. Só o dono muda a configuração."
+      ]
+    },
+    {
+      "id": "not-doing",
+      "title": "Hábitos de “não fazer”",
+      "paragraphs": [
+        "Para algo que você quer evitar, use o tipo máximo com N = 0. Ex.: “quero não fumar” é “no máximo 0 vezes por semana”.",
+        "Você marca o dia em que fez o que queria evitar. A semana sem nenhuma marcação cumpre a meta; uma marcação já basta para a semana não cumprir.",
+        "Com o alerta de meta ligado, o email sai na primeira avaliação depois da primeira marcação do período. No tipo máximo com N maior que 0 (ex.: “pizza no máximo 2 vezes por mês”), ele sai quando o período chega a N."
+      ]
+    },
+    {
+      "id": "score",
+      "title": "Pontuação",
+      "paragraphs": [
+        "A pontuação vem desligada. Ligada, na configuração do hábito, ela mostra um número de 0 a 100, o limite e o resultado, e libera a recompensa e a punição, que servem só como lembrete.",
+        "A pontuação é a porcentagem dos períodos considerados (semanas, meses ou anos, como na meta) em que a meta foi cumprida, arredondada para o inteiro mais próximo (meio para cima). Ex.: meta cumprida em 7 de 10 semanas dá 70; em 2 de 3, dá 67.",
+        "É sucesso quando a pontuação é igual ou maior que o limite (de 1 a 100, padrão 70), e falha quando é menor. Com o limite 70, 7 de 10 semanas é sucesso, e 6 de 10 é falha.",
+        "Os períodos considerados vão do primeiro período completo depois da criação do hábito até o anterior ao atual. Ficam de fora:",
+        [
+          "o período em que o hábito foi criado, que começou pela metade: um hábito semanal criado numa quarta-feira só começa a contar na segunda-feira seguinte;",
+          "o período atual, que ainda não terminou;",
+          "os dias antes da criação, mesmo marcados;",
+          "todo período que teve pausa."
+        ],
+        "Sem nenhum período considerado (ex.: na primeira semana de um hábito semanal), aparece “Sem dados ainda” no lugar do número. “Sem dados ainda” não é sucesso nem falha.",
+        "A pontuação não fica gravada: é calculada na hora, com as marcações e a meta atual, no seu fuso. Mudar a meta recalcula todo o histórico."
+      ]
+    },
+    {
+      "id": "pause-archive",
+      "title": "Pausar, arquivar e apagar",
+      "paragraphs": [
+        "Só o dono pausa, arquiva, desarquiva e apaga, na configuração do hábito.",
+        "Pausado, o hábito continua na tela e pode ser marcado, mas os períodos que tiveram qualquer tempo de pausa não contam na pontuação, e nenhum alerta dispara enquanto ele está pausado nem nesses períodos.",
+        "Arquivado, o hábito sai da tela principal e fica em “Hábitos arquivados”. Ele vira só leitura: não recebe marcações, a configuração não muda, nenhum alerta dispara e não dá para convidar ninguém. A pontuação congela na data do arquivamento, e o hábito não conta no limite de hábitos.",
+        "Ao desarquivar (se houver vaga no limite de hábitos), o hábito volta ao status de antes. O tempo em que ficou arquivado vira pausa: nele não dava para marcar, então esses períodos não contam como meta não cumprida.",
+        "Apagar o hábito apaga também todas as marcações dele, inclusive as dos convidados, e o histórico. Os membros recebem um email avisando. Não dá para desfazer."
+      ]
+    },
+    {
+      "id": "sharing",
+      "title": "Compartilhamento",
+      "paragraphs": [
+        "O dono pode convidar outras pessoas pelo email, na seção de compartilhamento do hábito. O hábito compartilhado é um só: um calendário, e a marcação de qualquer membro aparece para todos. Quando cada dia é marcado ou não, o dia marcado por duas pessoas conta uma vez, e desmarcar tira a marcação do dia para todos.",
+        "Papéis:",
+        [
+          "dono: o único que muda a configuração, convida, remove membros, troca papéis, pausa, arquiva e apaga;",
+          "edição: marca, desmarca, edita e apaga marcações, inclusive as de outras pessoas, e liga os próprios alertas;",
+          "visualização: só vê."
+        ],
+        "Todos os membros veem as marcações, as observações, o custo, a recompensa, a punição e o histórico do hábito.",
+        "Só dá para convidar um email que já tem conta no ethos. Para não revelar quem tem conta, a resposta é sempre “convite enviado”. O convite para um email sem conta nunca é entregue, nem se a conta for criada depois.",
+        "O convidado recebe um email e aceita ou recusa em “Convites”, no menu. O convite não expira, e o dono pode cancelar um convite pendente.",
+        "O convidado pode sair sozinho, e o dono pode removê-lo. Nos dois casos, as marcações da pessoa continuam no hábito, e os alertas dela nesse hábito são apagados. Passar alguém de edição para visualização também apaga os alertas dela nesse hábito.",
+        "Limites: até 5 convidados por hábito (membros e convites pendentes), até 20 convites por dia somando todos os seus hábitos e até 20 hábitos de outras pessoas por conta. O hábito compartilhado conta só no limite de hábitos do dono."
+      ]
+    },
+    {
+      "id": "time-zone",
+      "title": "Fuso horário",
+      "paragraphs": [
+        "Tudo é guardado em UTC e mostrado no fuso salvo na sua conta: o calendário, a pontuação e a hora dos alertas. O fuso nasce com o do navegador no primeiro acesso e só muda na tela de conta. Quando o fuso do navegador fica diferente do salvo (numa viagem, por exemplo), o app sugere a troca.",
+        "Num hábito compartilhado, cada membro vê o calendário e a pontuação no próprio fuso. Entre fusos distantes, uma marcação pode cair no dia vizinho para outra pessoa: feita às 22:00 em São Paulo, ela aparece no dia seguinte para quem está em Lisboa. Por isso dois membros podem ver pontuações um pouco diferentes.",
+        "Marcar um dia passado grava 12:00 daquele dia, longe da virada, o que diminui esse efeito."
+      ]
+    },
+    {
+      "id": "alerts",
+      "title": "Alertas",
+      "paragraphs": [
+        "Os alertas chegam por email e vêm desligados. Só o dono e quem tem papel de edição ligam alertas; quem só visualiza não liga nem recebe. Cada pessoa configura os próprios alertas de cada hábito, na seção “Alertas” da aba dele.",
+        "São duas chaves independentes: alerta de meta e alerta de custo (só em hábitos com custo e limite). Você escolhe a hora cheia, no seu fuso, e a frequência: todo dia ou uma vez por semana, no dia escolhido. Nessa hora, o app olha o período atual:",
+        [
+          "pelo menos N: dispara quando o hábito fica atrasado no ritmo;",
+          "no máximo N: dispara quando o período chega a N ou passa dele (com N = 0, na primeira marcação);",
+          "exatamente N: dispara quando passa de N ou fica atrasado no ritmo;",
+          "custo: dispara quando o gasto do período do limite chega a 80% do limite (aviso) ou passa dele."
+        ],
+        "O ritmo é a parte da meta que o tempo já passado pede, arredondada para baixo. Ex.: “pelo menos 3 vezes por semana”, com o alerta todo dia às 20:00 (a hora padrão). Numa semana sem marcações, o ritmo pede 1 marcação a partir de quarta-feira às 08:00 (3 × 56 h ÷ 168 h = 1), e o email sai na quarta às 20:00. Com uma marcação na segunda, o atraso só começa na sexta-feira às 16:00, quando o ritmo pede 2, e o email sai na sexta às 20:00.",
+        "Sem a duração e com meta 1 no período (ex.: “pelo menos 1 vez por semana”), o ritmo só pediria a marcação no fim do período, então nunca fica atrasado: o alerta de meta do tipo mínimo não dispara, e o do tipo exato só dispara quando passa de 1.",
+        "Com a duração ligada, o ritmo conta minutos e cresce aos poucos. Ex.: “pelo menos 3 vezes de 40 min por semana” pede 120 min na semana; sem nenhuma marcação, na segunda-feira às 20:00 o ritmo já pede 14 min, e o alerta dispara.",
+        "Nenhum alerta dispara:",
+        [
+          "no período (da meta ou do limite de custo) em que o hábito foi criado: o ritmo seria medido desde o começo de um período que o hábito não viveu inteiro;",
+          "enquanto o hábito está pausado, nem nos períodos que tiveram pausa;",
+          "com o hábito arquivado."
+        ],
+        "Enquanto a situação continua (o hábito segue atrasado, por exemplo), o alerta dispara de novo em cada avaliação, mas sai no máximo 1 email por dia para cada hábito, juntando meta e custo, com o link da configuração do alerta. Se você salvar a configuração depois da hora escolhida, a avaliação de hoje não acontece: o alerta vale a partir da próxima."
+      ]
+    },
+    {
+      "id": "cost",
+      "title": "Custo",
+      "paragraphs": [
+        "O custo é um valor em dinheiro, sem símbolo de moeda, com até 2 casas. Ele é definido de um destes jeitos:",
+        [
+          "por hábito: um valor fixo em cada marcação, de quem quer que marque. Ex.: uma lata de refrigerante por dia, a 8,00;",
+          "por marcação: cada marcação tem o seu valor, com o do hábito como padrão. Ex.: o valor de cada aposta. Ele pode ser mudado nos detalhes da marcação."
+        ],
+        "O custo fica gravado na marcação quando ela é criada. Mudar o custo do hábito não muda o gasto passado: se a lata passa de 8,00 para 9,00, as marcações antigas continuam com 8,00. Marcações feitas com o custo desligado ficam sem valor.",
+        "O limite de gasto (por semana, mês ou ano) é opcional e alimenta o alerta de custo. O gasto e o limite aparecem no relatório."
+      ]
+    },
+    {
+      "id": "report",
+      "title": "Relatório e export",
+      "paragraphs": [
+        "Em “Relatório”, no menu, você escolhe o período (até 5 anos) e os hábitos, inclusive os arquivados, e vê o resumo de cada um. Também escolhe o que aparece: pontuação, recompensa, punição, custo, duração, observação e autor. Cada informação só aparece nos hábitos com o recurso ligado, e a observação começa desligada.",
+        "Dá para exportar:",
+        [
+          "imagem PNG de 1080 × 1350, boa para redes sociais, com o mapa de calor do período, a pontuação e o resultado de cada hábito (quando ligados) e as informações escolhidas. Onde o navegador permite, ela vai direto para o compartilhamento do aparelho; senão, é baixada. A imagem nunca traz emails nem observações;",
+          "CSV, uma linha por marcação (hábito, data, horário, autor, duração, custo e observação), sem as colunas desligadas ou não escolhidas;",
+          "JSON, com a configuração, as marcações e o resumo de cada período."
+        ],
+        "Tudo é gerado no seu navegador, e o relatório não tem link público. “Exportar tudo” leva todos os hábitos, de todo o período."
+      ]
+    },
+    {
+      "id": "history",
+      "title": "Histórico",
+      "paragraphs": [
+        "Em “Histórico”, no menu, ficam os eventos dos hábitos que você acessa: quem marcou, desmarcou ou editou uma marcação e quando, as mudanças na configuração, as pausas, os arquivamentos e o que mudou no compartilhamento. Dá para filtrar por hábito, pessoa, evento e período.",
+        "Quem entra num hábito vê o histórico inteiro dele. Convites enviados, cancelados e recusados só aparecem para o dono. A configuração de alertas, que é pessoal, não aparece. O que uma conta excluída fez aparece como de “usuário removido”."
+      ]
+    },
+    {
+      "id": "account",
+      "title": "Conta",
+      "paragraphs": [
+        "Não há senha. Para entrar, você digita o email e recebe um código de 6 dígitos, que vale por 10 minutos e uma vez só. A conta é criada quando você confirma o primeiro código. A sessão dura 60 dias e se renova enquanto você usa o app.",
+        "Na tela de conta você escolhe o idioma dos emails (que vira também o da tela) e o fuso, sai deste aparelho ou de todos (útil se perder um aparelho) e exclui a conta.",
+        "O email não muda pela tela: peça a troca a {{supportEmail}}, escrevendo do email atual da conta. O suporte confirma o email novo antes de trocar, e depois você entra de novo em todos os aparelhos.",
+        "Excluir a conta pede um código enviado por email e é imediato. Somem a conta, os hábitos dos quais você é dono, com todas as marcações (também as dos convidados, que recebem um email), sua participação em hábitos de outras pessoas, seus convites e seus alertas. Suas marcações em hábitos de outras pessoas ficam, como de “usuário removido”. Os dados saem das cópias de segurança em até 8 dias. Antes de excluir, você pode exportar tudo."
+      ]
+    },
+    {
+      "id": "contact",
+      "title": "Dúvidas",
+      "paragraphs": [
+        "Dúvidas, problemas ou sugestões: escreva para {{supportEmail}}."
+      ]
+    }
+  ]
+}

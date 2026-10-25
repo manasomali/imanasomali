@@ -140,7 +140,8 @@
   transition: border-color var(--transition);
 }
 
-.iconButton:hover {
+.iconButton:hover,
+.activeIcon {
   border-color: var(--fg);
 }
 
@@ -149,7 +150,7 @@
 }
 
 /* Abaixo disto os links (hábitos, relatório, histórico, convites, conta, sair, admin e a volta ao
-   site) não cabem numa linha com o idioma e o tema: vira o menu de abrir */
+   site) não cabem numa linha com o idioma, a ajuda e o tema: vira o menu de abrir */
 @media (max-width: 1200px) {
   .toggle {
     display: inline-flex;
@@ -189,9 +190,13 @@
   }
 
   .controls {
-    justify-content: space-between;
     padding-top: 1.25rem;
     border-top: 1px solid var(--border-soft);
+  }
+
+  /* Idioma à esquerda; ajuda e tema à direita */
+  .languages {
+    margin-right: auto;
   }
 
   .language {

@@ -1,0 +1,32 @@
+/* Título e ícone de ajuda na mesma linha; o título quebra antes de empurrar o ícone para fora.
+   Alinhados pela linha de base (o ícone fica sobre a linha do texto), que não depende da margem
+   de cada título */
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.row > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Área de toque de 2.5rem, maior que o ícone */
+.link {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--muted);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.link:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+}
