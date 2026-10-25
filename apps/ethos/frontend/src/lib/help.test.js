@@ -7,7 +7,7 @@ import { COST_WARNING_PERCENT, DEFAULT_HOUR, formatHour, weeklyPaceStart } from 
 import { MIN_COLOR_CONTRAST } from './customColor';
 import { weekdayNames } from './format';
 import { DEFAULT_SCORE_THRESHOLD, MAX_MARKS_PER_DAY, PERIOD_DAYS } from './habitForm';
-import { HELP_FALLBACK_LANGUAGE, HELP_SECTIONS, loadHelp } from './help';
+import { HELP_FALLBACK_LANGUAGE, HELP_LINKS, HELP_SECTIONS, loadHelp } from './help';
 import { SUPPORT_EMAIL } from './legal';
 import { HABIT_COLORS } from './palette';
 
@@ -22,18 +22,24 @@ for (const [path, content] of Object.entries(FILES)) {
 const MARK = '{{supportEmail}}';
 const WEEK_SECONDS = 7 * 24 * 60 * 60;
 
-/** Todos os textos (títulos, parágrafos e itens de lista). */
+/** O texto de um bloco: o parágrafo, os itens da lista ou o rótulo do link. */
+function blockTexts(block) {
+  if (Array.isArray(block)) return block;
+  return typeof block === 'object' ? [block.label] : [block];
+}
+
+/** Todos os textos (títulos, parágrafos, itens de lista e rótulos de link). */
 function texts(document) {
   return [
     document.title,
-    ...document.sections.flatMap((section) => [section.title, ...section.paragraphs.flat()]),
+    ...document.sections.flatMap((section) => [section.title, ...section.paragraphs.flatMap(blockTexts)]),
   ];
 }
 
 /** O texto de uma seção, num espaço só entre as palavras (o Intl usa espaços especiais). */
 function sectionText(language, id) {
   const section = RAW[language].sections.find((item) => item.id === id);
-  return normalize(section.paragraphs.flat().join(' '));
+  return normalize(section.paragraphs.flatMap(blockTexts).join(' '));
 }
 
 function normalize(text) {
@@ -75,7 +81,10 @@ describe('help texts', () => {
     const shape = (document) =>
       document.sections.map((section) => ({
         id: section.id,
-        blocks: section.paragraphs.map((block) => (Array.isArray(block) ? block.length : 'p')),
+        blocks: section.paragraphs.map((block) => {
+          if (Array.isArray(block)) return block.length;
+          return typeof block === 'object' ? `link ${block.href}` : 'p';
+        }),
       }));
 
     expect(RAW.pt.sections.map((section) => section.id)).toEqual([...HELP_SECTIONS]);
@@ -98,12 +107,39 @@ describe('help texts', () => {
         expect(isText(section.title), at).toBe(true);
         expect(section.paragraphs.length, at).toBeGreaterThan(0);
         for (const block of section.paragraphs) {
+          if (block !== null && typeof block === 'object' && !Array.isArray(block)) {
+            // Link externo: só os da lista, sempre https, com um rótulo de texto
+            expect(Object.keys(block).sort(), at).toEqual(['href', 'label']);
+            expect(HELP_LINKS, at).toContain(block.href);
+            expect(isText(block.label), at).toBe(true);
+            continue;
+          }
           const items = Array.isArray(block) ? block : [block];
 
           expect(items.length, at).toBeGreaterThan(0);
           expect(items.every(isText), at).toBe(true);
         }
       }
+    }
+  });
+
+  it('links only to https addresses of the list, each one used', () => {
+    for (const href of HELP_LINKS) {
+      expect(new URL(href).protocol).toBe('https:');
+      for (const language of LANGUAGES) {
+        const used = RAW[language].sections.some((section) =>
+          section.paragraphs.some((block) => block?.href === href),
+        );
+        expect(used, `${language}: ${href}`).toBe(true);
+      }
+    }
+  });
+
+  it('credits the inspiration by name', () => {
+    for (const language of LANGUAGES) {
+      const inspiration = sectionText(language, 'inspiration');
+      expect(inspiration).toContain('Every Day Goal Calendar');
+      expect(inspiration).toContain('Simone Giertz');
     }
   });
 

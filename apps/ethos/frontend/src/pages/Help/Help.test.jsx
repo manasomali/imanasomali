@@ -50,10 +50,22 @@ describe('help page', () => {
       expect(within(contents).getByRole('link', { name: section.title }).getAttribute('href')).toBe(
         `${BASENAME}${PATHS.help}#${section.id}`,
       );
-      // Parágrafos como <p> e listas como <ul>, sempre como texto
-      const paragraphs = section.paragraphs.filter((block) => !Array.isArray(block));
+      // Parágrafos como <p>, listas como <ul> e links como <a> num <p>, sempre como texto
+      const paragraphs = section.paragraphs
+        .filter((block) => !Array.isArray(block))
+        .map((block) => (typeof block === 'object' ? block.label : block));
       const lists = section.paragraphs.filter((block) => Array.isArray(block));
+      const links = section.paragraphs.filter(
+        (block) => typeof block === 'object' && !Array.isArray(block),
+      );
       expect([...element.querySelectorAll('p')].map((p) => p.textContent)).toEqual(paragraphs);
+      expect(
+        [...element.querySelectorAll('a')].map((a) => ({
+          href: a.getAttribute('href'),
+          label: a.textContent,
+          rel: a.getAttribute('rel'),
+        })),
+      ).toEqual(links.map((link) => ({ ...link, rel: 'noopener noreferrer' })));
       expect([...element.querySelectorAll('ul')].map((ul) =>
         [...ul.querySelectorAll('li')].map((li) => li.textContent),
       )).toEqual(lists);

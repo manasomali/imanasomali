@@ -5,8 +5,9 @@
 //
 // Formato de cada arquivo (texto puro, nunca HTML nem Markdown; o React escapa tudo):
 //   { "title": "...", "sections": [{ "id": "...", "title": "...", "paragraphs": [...] }] }
-// Cada item de `paragraphs` é um parágrafo (string) ou uma lista (array de strings, um item cada).
-// `id` é igual em pt e en (serve de âncora). O único marcador é {{supportEmail}}, trocado aqui
+// Cada item de `paragraphs` é um parágrafo (string), uma lista (array de strings, um item cada) ou
+// um link externo ({"href": "https://...", "label": "..."}, só na ajuda, com o endereço na lista
+// HELP_LINKS de src/lib/help.js). `id` é igual em pt e en (serve de âncora). O único marcador é {{supportEmail}}, trocado aqui
 // pelo SUPPORT_EMAIL. Os testes (src/lib/legal.test.js) conferem tudo isso.
 
 /**
@@ -41,6 +42,12 @@ function fill(text) {
   return text.replaceAll(SUPPORT_EMAIL_MARK, SUPPORT_EMAIL);
 }
 
+function fillBlock(block) {
+  if (Array.isArray(block)) return block.map(fill);
+  if (typeof block === 'object') return { href: block.href, label: fill(block.label) };
+  return fill(block);
+}
+
 /** Troca o marcador dos textos de um documento, sem alterar o objeto recebido. */
 export function prepareLegalDocument(raw) {
   return {
@@ -48,9 +55,7 @@ export function prepareLegalDocument(raw) {
     sections: raw.sections.map((section) => ({
       id: section.id,
       title: section.title,
-      paragraphs: section.paragraphs.map((block) =>
-        Array.isArray(block) ? block.map(fill) : fill(block),
-      ),
+      paragraphs: section.paragraphs.map(fillBlock),
     })),
   };
 }

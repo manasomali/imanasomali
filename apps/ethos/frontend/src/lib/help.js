@@ -1,8 +1,8 @@
 // Ajuda do app (ETH-40). Os textos ficam em src/help/<idioma>.json, no mesmo formato dos textos
 // legais (src/lib/legal.js): texto puro, nunca HTML nem Markdown (o React escapa tudo),
 //   { "title": "...", "sections": [{ "id": "...", "title": "...", "paragraphs": [...] }] }
-// com cada item de `paragraphs` um parágrafo (string) ou uma lista (array de strings). O único
-// marcador é {{supportEmail}}. Cada idioma vira um chunk com hash, baixado só quando a tela pede.
+// com cada item de `paragraphs` um parágrafo (string), uma lista (array de strings) ou um link
+// externo ({"href", "label"}, com o endereço em HELP_LINKS). O único marcador é {{supportEmail}}. Cada idioma vira um chunk com hash, baixado só quando a tela pede.
 //
 // A ajuda descreve o que o app faz HOJE: as regras vêm do backend (app/score.py,
 // app/alerts/service.py, app/marks/service.py, app/sharing/service.py, app/auth/deletion.py).
@@ -18,6 +18,7 @@ import { prepareLegalDocument } from './legal';
  */
 export const HELP_SECTIONS = Object.freeze([
   'about',
+  'inspiration',
   'marks',
   'goal',
   'not-doing',
@@ -32,6 +33,12 @@ export const HELP_SECTIONS = Object.freeze([
   'account',
   'contact',
 ]);
+
+/**
+ * Links externos que a ajuda pode ter (só https). O teste confere que todo link dos JSON está aqui,
+ * para um endereço novo passar por revisão.
+ */
+export const HELP_LINKS = Object.freeze(['https://yetch.studio/products/every-day-goal-calendar']);
 
 // Idioma usado quando não há texto no pedido (o mesmo fallbackLng do i18n)
 export const HELP_FALLBACK_LANGUAGE = 'en';

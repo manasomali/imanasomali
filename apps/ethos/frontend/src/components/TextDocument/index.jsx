@@ -6,8 +6,8 @@ import styles from './styles.module.css';
 // Documento de texto puro com seções (termos, privacidade e ajuda): título, uma nota opcional
 // embaixo dele (`note`, ex.: a versão dos termos), o sumário e as seções. Tudo vai como texto (o
 // React escapa tudo), nunca como HTML. Cada seção tem o `id` do JSON, que serve de âncora
-// (/termos#account); cada item de `paragraphs` é um parágrafo (texto) ou uma lista (array de
-// textos). `language` é o idioma do texto que veio (pode ser o de reserva), para o `lang`.
+// (/termos#account); cada item de `paragraphs` é um parágrafo (texto), uma lista (array de
+// textos) ou um link externo ({href, label}, num parágrafo próprio). `language` é o idioma do texto que veio (pode ser o de reserva), para o `lang`.
 export default function TextDocument({ language, title, note = null, sections, contentsLabel }) {
   const { hash } = useLocation();
 
@@ -42,17 +42,27 @@ export default function TextDocument({ language, title, note = null, sections, c
           className={styles.section}
         >
           <h2 id={`${section.id}-title`}>{section.title}</h2>
-          {section.paragraphs.map((block, index) =>
-            Array.isArray(block) ? (
-              <ul key={index}>
-                {block.map((item, itemIndex) => (
-                  <li key={itemIndex}>{item}</li>
-                ))}
-              </ul>
-            ) : (
-              <p key={index}>{block}</p>
-            ),
-          )}
+          {section.paragraphs.map((block, index) => {
+            if (Array.isArray(block)) {
+              return (
+                <ul key={index}>
+                  {block.map((item, itemIndex) => (
+                    <li key={itemIndex}>{item}</li>
+                  ))}
+                </ul>
+              );
+            }
+            if (typeof block === 'object') {
+              return (
+                <p key={index}>
+                  <a href={block.href} rel="noopener noreferrer">
+                    {block.label}
+                  </a>
+                </p>
+              );
+            }
+            return <p key={index}>{block}</p>;
+          })}
         </section>
       ))}
     </article>
