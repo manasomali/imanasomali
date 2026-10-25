@@ -18,6 +18,13 @@ const HABIT_NAV = Object.freeze([
   },
   // Todo papel: o dono gerencia, os outros veem os membros e podem sair
   { section: HABIT_SECTION.sharing, i18nKey: 'habit.sections.sharing', visible: () => true },
+  // Dono e editor; viewer não liga alertas e, abrindo o endereço, vê "sem permissão"
+  // (pages/HabitAlerts)
+  {
+    section: HABIT_SECTION.alerts,
+    i18nKey: 'habit.sections.alerts',
+    visible: (habit) => habit.role !== 'viewer',
+  },
 ]);
 
 export default function HabitNav({ habit }) {

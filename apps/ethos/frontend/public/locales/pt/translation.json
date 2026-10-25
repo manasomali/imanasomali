@@ -281,7 +281,8 @@
       "report": "Relatório",
       "settings": "Configuração",
       "sharing": "Compartilhamento",
-      "history": "Histórico"
+      "history": "Histórico",
+      "alerts": "Alertas"
     },
     "status": {
       "paused": "Pausado",
@@ -900,5 +901,74 @@
       "month": "mês",
       "year": "ano"
     }
+  },
+  "habit_alerts": {
+    "title": "Alertas",
+    "intro": "Os alertas chegam por email quando este hábito precisa de atenção. A configuração é só sua: cada pessoa que marca o hábito escolhe os próprios alertas.",
+    "forbidden": "Sem permissão: quem só visualiza o hábito não configura nem recebe alertas.",
+    "archived": "Este hábito está arquivado: nenhum alerta dispara e a configuração só pode ser lida. Desarquive para mudar.",
+    "paused": "Este hábito está pausado: nenhum alerta dispara enquanto ele estiver pausado, nem nos períodos que tiveram pausa.",
+    "groups": {
+      "what": "O que avisar",
+      "when": "Quando avaliar"
+    },
+    "goal_enabled": "Alerta de meta",
+    "cost_enabled": "Alerta de custo",
+    "goal_rule": {
+      "min": "Dispara quando o hábito fica atrasado no ritmo {{of_period}}: feito menos do que a parte da meta que o tempo já passado pede (arredondada para baixo).",
+      "min_single": "Com essa meta, o ritmo só pede a marcação no fim do período, então este alerta não chega a disparar.",
+      "exact": "Dispara quando o hábito passa da meta {{of_period}} ou fica atrasado no ritmo: feito menos do que a parte da meta que o tempo já passado pede (arredondada para baixo).",
+      "exact_single": "Dispara quando o hábito passa da meta {{of_period}}. Com essa meta, o ritmo só pede a marcação no fim do período, então o atraso não dispara.",
+      "max": "Dispara quando o hábito atinge ou passa da meta {{of_period}}.",
+      "never": "Dispara na primeira marcação {{of_period}}.",
+      "unknown": "Não foi possível ler a meta deste hábito."
+    },
+    "of_period": {
+      "week": "da semana",
+      "month": "do mês",
+      "year": "do ano"
+    },
+    "this_period": {
+      "week": "nesta semana",
+      "month": "neste mês",
+      "year": "neste ano"
+    },
+    "pace_example": {
+      "half": "Ex.: na metade do período, ter feito menos que a metade da meta (arredondada para baixo) já é atraso.",
+      "week": "Ex.: numa semana sem nenhuma marcação, o hábito fica atrasado a partir de {{weekday}} às {{time}}, e o alerta sai na primeira avaliação depois disso."
+    },
+    "starts_on": "Este hábito foi criado {{this_period}}: este alerta só pode disparar a partir de {{date}}.",
+    "cost_rule": {
+      "week": "Avisa quando o gasto da semana chega a {{percent}}% do limite ({{limit}}) e de novo quando passa dele.",
+      "month": "Avisa quando o gasto do mês chega a {{percent}}% do limite ({{limit}}) e de novo quando passa dele.",
+      "year": "Avisa quando o gasto do ano chega a {{percent}}% do limite ({{limit}}) e de novo quando passa dele."
+    },
+    "hour": "Hora",
+    "time_zone": "No seu fuso horário, {{timeZone}}. Para mudar o fuso, vá à <account>sua conta</account>.",
+    "frequency": "Frequência",
+    "frequencies": {
+      "daily": "Todo dia",
+      "weekly": "Uma vez por semana"
+    },
+    "frequency_hint": "O alerta é avaliado nessa hora: todo dia ou só no dia da semana escolhido.",
+    "weekday": "Dia da semana",
+    "weekday_choose": "Escolha o dia",
+    "weekday_hint": "O alerta semanal é avaliado só nesse dia.",
+    "errors": {
+      "hour_invalid": "Escolha uma hora da lista.",
+      "frequency_invalid": "Escolha a frequência.",
+      "weekday_required": "Escolha o dia da semana do alerta semanal.",
+      "weekday_invalid": "Escolha um dia da semana da lista."
+    },
+    "notes": {
+      "one_per_day": "Sai no máximo 1 email por dia para este hábito, juntando meta e custo.",
+      "creation": "Nenhum alerta dispara no período (semana, mês ou ano) em que o hábito foi criado: o ritmo seria medido desde o começo de um período que o hábito não viveu inteiro.",
+      "save_after_hour": "Se você salvar depois da hora escolhida, a avaliação de hoje não acontece: o alerta vale a partir da próxima ocorrência."
+    },
+    "save": "Salvar alertas",
+    "saving": "Salvando…",
+    "saved": "Alertas salvos.",
+    "last_sent": "Último email de alerta: {{when}}.",
+    "never_sent": "Nenhum email de alerta enviado ainda."
   }
 }
