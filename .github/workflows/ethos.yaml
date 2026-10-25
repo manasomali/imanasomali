@@ -13,6 +13,8 @@ on:
       # Lido pelos testes: nomes do .env.example = app.env + smtp.env (backend) e SUPPORT_EMAIL
       # dos textos legais (frontend)
       - "infra/apps/ethos/app.env"
+      # Headers de segurança (CSP) que o vite preview do E2E copia
+      - "infra/apps/ethos/nginx.conf"
       # Prazos dos backups, conferidos contra a política de privacidade (frontend)
       - "infra/scripts/snapshot.sh"
       - "infra/lib/backups.sh"
@@ -33,6 +35,8 @@ on:
       # Lido pelos testes: nomes do .env.example = app.env + smtp.env (backend) e SUPPORT_EMAIL
       # dos textos legais (frontend)
       - "infra/apps/ethos/app.env"
+      # Headers de segurança (CSP) que o vite preview do E2E copia
+      - "infra/apps/ethos/nginx.conf"
       # Prazos dos backups, conferidos contra a política de privacidade (frontend)
       - "infra/scripts/snapshot.sh"
       - "infra/lib/backups.sh"
@@ -260,6 +264,94 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # E2E (Playwright, só Chromium) contra o stack local: backend com banco novo e SMTP falso
+  # (backend/tests/e2e_stack.py) e o build de produção no vite preview. Como funciona: seção "E2E"
+  # do apps/ethos/README.md
+  e2e:
+    name: 🎭 E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/ethos/frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
+
+      # No rollback (workflow_dispatch), um commit anterior ao E2E não tem a suíte: o job passa
+      - name: Suíte E2E no commit
+        id: suite
+        run: |
+          if [[ -f playwright.config.js ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::o commit não tem o E2E (apps/ethos/frontend/playwright.config.js)"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: astral-sh/setup-uv@v10.3.2
+        if: steps.suite.outputs.present == 'true'
+        with:
+          working-directory: apps/ethos/backend
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      # O stack do E2E roda com as dependências de dev do backend (aiosmtpd, trustme)
+      - name: Dependências do backend
+        if: steps.suite.outputs.present == 'true'
+        working-directory: apps/ethos/backend
+        run: uv sync --frozen
+
+      - uses: actions/setup-node@v4
+        if: steps.suite.outputs.present == 'true'
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: apps/ethos/frontend/package-lock.json
+
+      - name: Dependências do frontend
+        if: steps.suite.outputs.present == 'true'
+        run: npm ci
+
+      # O navegador fica em cache por versão do Playwright; as bibliotecas do sistema (apt) não
+      - name: Versão do Playwright
+        id: playwright
+        if: steps.suite.outputs.present == 'true'
+        run: echo "version=$(npx playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache do Chromium
+        id: browser-cache
+        if: steps.suite.outputs.present == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Instalar o Chromium
+        if: steps.suite.outputs.present == 'true' && steps.browser-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps --only-shell chromium
+
+      - name: Bibliotecas do Chromium
+        if: steps.suite.outputs.present == 'true' && steps.browser-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: E2E
+        if: steps.suite.outputs.present == 'true'
+        run: npm run e2e
+
+      # Relatório HTML e traces (abrir com npx playwright show-report / show-trace)
+      - name: Guardar o relatório do Playwright
+        if: failure() && steps.suite.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/ethos/frontend/playwright-report/
+            apps/ethos/frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   # Os scripts do deploy (apps/ethos/deploy/), sempre os do commit do workflow
   scripts:
     name: 🧰 Scripts do deploy
@@ -286,7 +378,7 @@ jobs:
   # restart (migração) → health check → front → limpeza. Qualquer falha para o job ali
   deploy:
     name: 🚀 Deploy
-    needs: [prepare, backend, frontend, scripts]
+    needs: [prepare, backend, frontend, e2e, scripts]
     if: needs.prepare.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     environment: production

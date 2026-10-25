@@ -354,6 +354,7 @@ npm run preview                            # serve o dist/ localmente
 | `src/lib/` | Utilitários sem React, com cobertura mínima de 80% (abaixo) |
 | `src/test/` | Setup dos testes: MSW (`server`, `api(path)`, `activeBanner(banner)`), `renderApp(path)`, `meFixture()`, `createTestI18n()`, `axe`, `readFrontendFile()`; do painel de admin, `src/test/admin.js` (`ADMIN`, `signedIn`, `accountFixture`, `bannerFixture`, `trackRequests`); do compartilhamento, `src/test/sharing.js` (`mockSharingApi`, `memberFixture`, `pendingInviteFixture`, `receivedInviteFixture`, `writes`); dos alertas, `src/test/alerts.js` (`alertFixture`, `mockAlertsApi({alerts, fail})`) |
 | `tests/` | Testes do build de produção, no Node |
+| `e2e/`, `playwright.config.js` | E2E com o Playwright contra o stack local (abaixo, em "E2E"); fora do `npm test` |
 | `build-targets.js` | Converte o `browserslist` do `package.json` no `build.target` do Vite |
 
 ### `src/lib/`
@@ -502,19 +503,56 @@ O `axe` no jsdom não mede contraste. Por isso `src/styles/palette.test.js` calc
 
 `tests/build.test.js` roda o `vite build` de verdade em pastas temporárias e confere que os tokens de `packages/tokens` entram no CSS do ethos (e que trocar um token, por uma cópia apontada pelo alias `@tokens`, muda o CSS gerado), que o `index.html` carrega o `theme-init.js` no `<head>` sem `defer` e que não há script nem estilo inline.
 
+### E2E
+
+Testes de ponta a ponta com o [Playwright](https://playwright.dev/) (só Chromium) em `e2e/`, contra o app de verdade: backend, banco, SMTP e o build de produção do front. Ficam fora do `npm test` (o vitest só lê `src/` e `tests/`, e a cobertura só `src/lib/`).
+
+```bash
+cd apps/ethos/frontend
+npm ci
+npx playwright install chromium            # uma vez (no Linux, --with-deps instala as bibliotecas)
+(cd ../backend && uv sync)                 # o stack usa as dependências de dev do backend
+npm run e2e                                # sobe o stack, roda tudo e derruba
+npx playwright test e2e/habits.spec.js --project desktop-light   # um arquivo, um projeto
+npx playwright show-report                 # relatório HTML (no CI, o artifact playwright-report)
+```
+
+O `playwright.config.js` sobe o stack sozinho (`webServer`) e o derruba no fim, sem reaproveitar servidores que já estejam rodando:
+
+- **Backend** (`backend/tests/e2e_stack.py`, com `uv run --frozen` na pasta do backend): um banco SQLite novo em `e2e/.stack/` (fora do git, apagado e recriado a cada execução), migrado pelo `alembic upgrade head`; o servidor SMTP falso dos testes do backend (`tests/fake_smtp.py`, com STARTTLS e login obrigatórios, como o provedor); e a API pelo uvicorn, com `--root-path /api/ethos`, `APP_ENV=dev`, `EMAIL_BACKEND=smtp` e `APP_URL` igual à origem do front (a checagem de `Origin` vale como em produção). O certificado do SMTP falso vem de uma CA de teste (`trustme`) gravada em `e2e/.stack/`, e o processo confia nela por `SSL_CERT_FILE` (a variável do OpenSSL, lida pelo `ssl.create_default_context()` do `SmtpBackend`): o app manda o email pelo caminho de produção inteiro (STARTTLS com o certificado verificado, login, envio), sem nenhum ajuste no código do app. O teto global de códigos sobe para 10 mil; os limites por email continuam os de produção.
+- **Caixa de entrada**: o mesmo processo expõe os emails recebidos pelo SMTP falso em `http://127.0.0.1:47832/emails?to=<endereço>` (`[{to, subject, text}]`, na ordem de chegada; só em 127.0.0.1). É por ela que os testes leem o código de login e o de exclusão, como a pessoa leria o email: nenhum atalho no backend.
+- **Front**: `vite build` (o `vite.config.js` de sempre, o mesmo build do deploy) e `vite preview` com `e2e/vite.config.js`, que serve o `dist/` em `/ethos/`, repassa `/api/ethos/*` para o backend tirando o prefixo (como o nginx) e põe nas páginas os headers de segurança do `location /ethos/` de `infra/apps/ethos/nginx.conf`, lidos do próprio arquivo. A fixture `page` dos testes falha com qualquer violação dessa CSP ou erro de JavaScript na página.
+- **Portas**: 47830 (front), 47831 (API) e 47832 (caixa de entrada), sempre em `127.0.0.1`; o SMTP pega uma porta livre. Para rodar duas cópias ao mesmo tempo, troque por `E2E_FRONT_PORT`, `E2E_API_PORT` e `E2E_MAIL_PORT` (`e2e/env.js`).
+- **Cookie em http**: o cookie `__Host-ethos_session` é `Secure`, e o Chromium trata `http://127.0.0.1` (e `localhost`) como origem segura: guarda e manda o cookie sem https. O teste de login confere o nome, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/` e a falta de `Domain`. Por isso o stack usa `127.0.0.1`, e não um nome `*.localhost`, sem certificado local e sem mudar o backend.
+
+Projetos: `desktop-light`, `desktop-dark`, `mobile-light` e `mobile-dark` (Desktop Chrome e Pixel 7, com `prefers-color-scheme` claro e escuro), todos em pt-BR, no fuso `America/Sao_Paulo` e com `reducedMotion: 'reduce'` (o CSS desliga as transições, e o axe mede o contraste das cores finais, não de uma no meio da animação). Cada teste roda nos quatro, com contas próprias (`uniqueEmail`), em paralelo.
+
+| Arquivo | O quê |
+|---|---|
+| `habits.spec.js` | Login pelo código do email (e o aceite dos termos, se o modal aparecer: conta nova já nasce com eles aceitos), o cookie da sessão, criar um hábito, marcar e desmarcar hoje pelos botões do painel do dia, com o dia no calendário (conferindo depois de recarregar) |
+| `sharing.spec.js` | Dois contextos do navegador (`otherPage`): a convidada entra, o dono convida com "Pode marcar", o email do convite chega, ela aceita em Convites, marca hoje, e o dono vê a marcação e o membro |
+| `report.spec.js` | Relatório do ano e o "Baixar CSV": nome do arquivo, BOM, cabeçalho em pt, CRLF e a linha da marcação (com aspas no nome com vírgula) |
+| `account.spec.js` | Exclusão da conta: o que some, o "Exportar tudo (CSV)", o código de exclusão do email e a confirmação; termina no login com o aviso, o email de conta excluída e a sessão encerrada. O backend aceita 1 código por minuto por email (login e exclusão contados juntos), então o teste pede o código de novo a cada 5 s até o minuto passar (`toPass`, com o 429 na tela enquanto isso): cerca de 1 min por projeto |
+| `theme.spec.js` | Sem escolha salva, o tema segue o sistema. O site não sobe no E2E: uma página fora de `/ethos/` no mesmo servidor (mesma origem, como o site em produção) grava `localStorage.theme`, e o ethos abre com esse tema (`data-theme` e a cor de fundo de `packages/tokens/tokens.css`); a troca no menu do ethos grava a mesma chave, que o site lê. Também confere que a página sai com a CSP |
+
+O axe (`@axe-core/playwright`, WCAG 2.1 A e AA, `expectAccessible`) roda nas telas principais (inicial, aba do hábito, compartilhamento, convites, relatório, exclusão e login) em cada projeto, então mede o contraste nos dois temas, o que o `vitest-axe` no jsdom não faz.
+
+Regras: seletores por papel e nome acessível (`getByRole`, `getByLabel`), com os textos em pt; nada de `waitForTimeout` (espere pelo estado da tela ou da API com `expect`, `expect.poll` ou `toPass`); cada teste cria as próprias contas com `uniqueEmail` e não depende de outro. Os passos comuns ficam em `e2e/support.js` (`login`, `createHabit`, `todayCell`/`selectToday`/`toggleToday`, `goByMenu`/`openMenu`, que abre o menu no celular, `inbox`/`codeFromEmail` e `expectAccessible`).
+
 ## CI
 
-O workflow [ethos.yaml](../../.github/workflows/ethos.yaml) roda em PRs e em push na `main` que tocam `apps/ethos/**`, `packages/**`, o próprio workflow ou os arquivos de infra que os testes leem (`infra/apps/ethos/app.conf`, `infra/apps/ethos/app.env`, `infra/provision.sh`, `infra/scripts/snapshot.sh`, `infra/scripts/restore-test.sh`, `infra/lib/backups.sh`, `infra/config.env`, `infra/lib/common.sh` e `infra/lib/packages.sh`). Em PRs, só as checagens:
+O workflow [ethos.yaml](../../.github/workflows/ethos.yaml) roda em PRs e em push na `main` que tocam `apps/ethos/**`, `packages/**`, o próprio workflow ou os arquivos de infra que os testes leem (`infra/apps/ethos/app.conf`, `infra/apps/ethos/app.env`, `infra/apps/ethos/nginx.conf`, `infra/provision.sh`, `infra/scripts/snapshot.sh`, `infra/scripts/restore-test.sh`, `infra/lib/backups.sh`, `infra/config.env`, `infra/lib/common.sh` e `infra/lib/packages.sh`). Em PRs, só as checagens:
 
 - backend: `uv lock --check`, `uv sync --frozen`, `ruff check`, `ruff format --check`, `pytest --cov` e 100% de cobertura nos módulos de `FULL_COVERAGE`;
 - frontend: `npm ci`, `npm run lint`, `npm run build` e `npm test`;
+- E2E: `uv sync --frozen` no backend, `npm ci`, o Chromium do Playwright (em cache por versão; as bibliotecas do sistema saem do apt a cada execução) e `npm run e2e` (ver "E2E", acima). Em falha, o relatório HTML e os traces ficam no artifact `playwright-report` por 7 dias (`npx playwright show-report <pasta>` ou `npx playwright show-trace <trace.zip>`). Num rollback para um commit anterior ao E2E, o job passa sem rodar nada;
 - scripts do deploy (`deploy/`): `shellcheck`, `test-deploy-scripts.sh` (limpeza de assets e migrações do rollback) e `test-vm.sh`, que roda o `vm.sh` num Ubuntu 24.04 com o uv e o Python instalados pelas funções do provision: `.venv`, migração e `/health` como `app-ethos`, backup e restart. Depois, com o banco populado pelo `seed`, ensaia o [infra/RESTORE.md](../../infra/RESTORE.md): backup, uma exclusão de verdade com a linha no journald, o `restore-test.sh` do `backup-verify.yaml` (com um Litestream falso), o ensaio numa cópia, o restore do `pre-deploy-<sha>.db` e o `reapply-deletions` pelo `systemd-run`, duas vezes.
 
 Em push na `main` e no `workflow_dispatch`, o workflow também faz o deploy.
 
 ## Deploy
 
-O job `deploy` só começa depois que as checagens (backend, frontend e scripts) passam: um teste quebrado para o workflow antes de qualquer passo na VM. Ele roda em push na `main` que muda o que vai para a VM (`apps/ethos/backend/`, `apps/ethos/frontend/`, `apps/ethos/deploy/`, `packages/` ou o próprio workflow). Um push que só muda arquivos lidos pelos testes (os de `infra/`, este README) roda as checagens sem deploy. Em PRs, nunca há deploy.
+O job `deploy` só começa depois que as checagens (backend, frontend, E2E e scripts) passam: um teste quebrado para o workflow antes de qualquer passo na VM. Ele roda em push na `main` que muda o que vai para a VM (`apps/ethos/backend/`, `apps/ethos/frontend/`, `apps/ethos/deploy/`, `packages/` ou o próprio workflow). Um push que só muda arquivos lidos pelos testes (os de `infra/`, este README) roda as checagens sem deploy. Em PRs, nunca há deploy.
 
 ### Antes do primeiro deploy
 
@@ -558,6 +596,80 @@ Actions → Ethos → Run workflow, a partir da `main`, com o SHA completo do co
 - **Migrações só aditivas**: criar tabela ou coluna (anulável ou com default). Remover ou renomear só num deploy seguinte, quando nenhum código no ar (nem o de um rollback) usa mais aquilo. É o que permite o rollback sem `downgrade` e o código anterior rodando com o banco novo durante o deploy.
 - **Nunca apague nem renomeie um arquivo de migração já publicado**: o rollback busca na `main` as migrações que o banco já tem.
 - **Mudança de infra entra num PR anterior ao do app**: unit nova, variável nova no `app.env`, porta, versão do Python. O Infra e o ethos rodam em paralelo, sem ordem garantida entre eles; o deploy confere a unit, as pastas e o Python e falha com mensagem clara se o provision ainda não rodou.
+
+## Go-live
+
+Checklist manual de produção, antes de divulgar o ethos. Os comandos com `ssh` rodam a partir de uma máquina com acesso à VM (`<REMOTE_USER>@<REMOTE_HOST>`, os mesmos dos secrets do deploy); `voce@example.com` é o seu email. Nunca cole um código, token ou cookie de produção em issue, PR ou chat. Copie a lista para o PR de go-live e marque cada item com o resultado.
+
+- [ ] **Email fora do spam no Gmail e no Outlook.** Entre em `https://manasomali.com/ethos/entrar` com uma conta Gmail e com uma Outlook/Hotmail. O código ("Seu código de acesso ao ethos") precisa chegar na caixa de entrada, não no spam nem em "Outros". No Gmail, "Mostrar original" (no Outlook, "Exibir" → "Exibir detalhes da mensagem") deve mostrar `SPF: PASS`, `DKIM: PASS` e `DMARC: PASS` para `manasomali.com`. Os registros do domínio:
+
+  ```bash
+  dig +short TXT manasomali.com          # SPF, com o include do provedor (Brevo)
+  dig +short TXT _dmarc.manasomali.com   # DMARC
+  dig +short MX manasomali.com           # MX do suporte@
+  ```
+
+  O DKIM fica no seletor que o painel do Brevo mostra (Senders, Domains & Dedicated IPs → Domains), conferido por ele como "Authenticated".
+- [ ] **Primeiro admin.** Entre uma vez no app com o email do admin (isso cria a conta) e, na VM:
+
+  ```bash
+  ssh <REMOTE_USER>@<REMOTE_HOST>
+  sudo systemd-run --quiet --pipe --wait --collect \
+    --uid=app-ethos --gid=app-ethos \
+    --working-directory=/opt/apps/ethos \
+    -p EnvironmentFile=/etc/infra/smtp.env \
+    -p EnvironmentFile=/etc/infra/apps/ethos.env \
+    /opt/apps/ethos/.venv/bin/python -m app.cli create-admin voce@example.com
+  ```
+
+  A saída mostra o id da conta. Recarregue o app: o menu ganha o link "Admin" (detalhes em "Comandos de operação").
+- [ ] **Memória do `app-ethos` abaixo de 150M** (a unit tem `MemoryMax=150M`: acima disso o kernel mata o processo). Depois de um uso normal (login, alguns hábitos, marcações, relatório e export), na VM:
+
+  ```bash
+  systemctl status app-ethos --no-pager          # linha "Memory: ... (max: 150.0M ...)"
+  systemctl show app-ethos -p MemoryCurrent -p MemoryPeak -p MemoryMax -p NRestarts
+  journalctl -u app-ethos --since today --no-pager | grep -iE 'oom|killed' || echo "sem OOM"
+  ```
+
+  `MemoryCurrent` e `MemoryPeak` em bytes, abaixo de 157286400 (150M), com folga; `NRestarts=0`.
+- [ ] **Rate limit do nginx** (`/api/ethos/auth/`: 10 por minuto por IP, rajada de 5). Sem login e sem mandar email:
+
+  ```bash
+  for i in $(seq 1 12); do curl -s -o /dev/null -w '%{http_code} ' https://manasomali.com/api/ethos/auth/me; done; echo
+  ```
+
+  Esperado: `401` nas primeiras (uma mais a rajada de 5) e `429` nas seguintes. Em 25/10/2026 deu `401` ×6 e `429` ×6. Seu IP fica limitado nas rotas de login por cerca de um minuto.
+- [ ] **Rate limit do backend** (1 código por minuto e 5 por hora por email) e a checagem de `Origin`. Espere um minuto depois do item anterior (senão o nginx responde 429 antes do backend). Manda um email de verdade para você:
+
+  ```bash
+  req() { curl -s -o /dev/null -w '%{http_code}\n' -X POST https://manasomali.com/api/ethos/auth/code/request \
+    -H 'Content-Type: application/json' "$@" -d '{"email":"voce@example.com"}'; }
+  req -H 'Origin: https://manasomali.com'   # 202 (o código chega)
+  req -H 'Origin: https://manasomali.com'   # 429 (segundo pedido no mesmo minuto)
+  req                                       # 403 (sem Origin: proteção contra CSRF)
+  ```
+
+  Na tela, o mesmo aparece ao pedir o código, clicar em "Usar outro email" e pedir de novo para o mesmo email: "Muitas tentativas. Tente mais tarde."
+- [ ] **Cookie com `__Host-`, `Secure`, `HttpOnly` e `SameSite=Lax`.** Depois de entrar, no Chrome: DevTools → Application → Storage → Cookies → `https://manasomali.com`. O cookie `__Host-ethos_session` tem HttpOnly ✓, Secure ✓, SameSite `Lax`, Path `/` e Domain `manasomali.com` sem ponto na frente (host-only, sem `Domain` no header). Em DevTools → Network, no `POST code/verify`, o header da resposta é `set-cookie: __Host-ethos_session=<token>; HttpOnly; Max-Age=5184000; Path=/; SameSite=lax; Secure`. Pelo terminal, com um código recém-chegado (o token sai trocado por `<token>`):
+
+  ```bash
+  curl -s -i -X POST https://manasomali.com/api/ethos/auth/code/verify \
+    -H 'Origin: https://manasomali.com' -H 'Content-Type: application/json' \
+    -d '{"email":"voce@example.com","code":"<código>","timezone":"America/Sao_Paulo","locale":"pt"}' \
+    | grep -i '^set-cookie' | sed -E 's/=[^;]+;/=<token>;/'
+  ```
+
+  Essa sessão fica aberta por 60 dias: depois, em Conta, use "Sair de todos os aparelhos".
+- [ ] **Monitor externo gratuito do health check, com aviso por email.** Por exemplo, no [UptimeRobot](https://uptimerobot.com/) (plano Free): Add New Monitor → tipo HTTP(s) (ou Keyword, com `"status":"ok"`), URL `https://manasomali.com/api/ethos/health`, intervalo de 5 minutos, alerta para o seu email. Confira o aviso com "Test notification" (ou parando o serviço por um minuto: `sudo systemctl stop app-ethos`, esperar o email, `sudo systemctl start app-ethos`). O endpoint devolve `{"status":"ok"}` com 200 depois de um `SELECT 1` no banco (503 `database_unavailable` sem ele; 502 do nginx com o serviço parado).
+- [ ] **Requests do Object Storage, uma semana depois do go-live.** O Always Free inclui 50 mil requisições de API do Object Storage por mês, e o Litestream com `LITESTREAM_SYNC_INTERVAL=1m` (em `infra/config.env`) gasta perto de 45 mil com escrita contínua. No console da OCI: Observability & Management → Monitoring → Service Metrics, compartimento do bucket, namespace `oci_objectstorage`, métrica `AllRequests`, estatística Sum, intervalo de 1 dia, filtro `resourceDisplayName` = o bucket (`S3_BUCKET`), nos últimos 7 dias. Projeção do mês = soma dos 7 dias × 30 / 7. Se passar de 40 mil (80% da cota), suba o intervalo num PR do Infra (`LITESTREAM_SYNC_INTERVAL=5m` em `infra/config.env`; o provision reinicia o Litestream; o intervalo é a perda máxima de dados num desastre) e meça de novo uma semana depois. Anote no PR de go-live o total da semana e a projeção.
+- [ ] **Lighthouse com acessibilidade ≥ 90.** No Chrome, numa janela anônima: DevTools → Lighthouse → Mode "Navigation", categoria Accessibility, Device "Mobile" e depois "Desktop", em `https://manasomali.com/ethos/entrar`. Para as telas com login (`/ethos/`, a aba de um hábito, `/ethos/relatorio`, `/ethos/conta`), entre antes na mesma janela e desmarque "Clear storage" nas opções do Lighthouse, senão ele mede o login. Pela linha de comando, só as telas públicas:
+
+  ```bash
+  npx lighthouse https://manasomali.com/ethos/entrar --only-categories=accessibility --view                    # celular (padrão)
+  npx lighthouse https://manasomali.com/ethos/entrar --only-categories=accessibility --preset=desktop --view
+  ```
+
+  Anote a nota de cada tela, nos dois temas (o ícone de tema do menu). O E2E já roda o axe nas telas principais nos dois temas e nos dois tamanhos (ver "E2E"); o Lighthouse confere o site publicado.
 
 ## Migração
 
@@ -627,8 +739,8 @@ O ethos não importa código do site. O que ele usa fora de `apps/ethos/` (confe
 
 | Fora de `apps/ethos/` | Quem usa | Ao tirar |
 |---|---|---|
-| `packages/tokens/tokens.css` (e o contrato do `localStorage` em `packages/tokens/README.md`) | `frontend/vite.config.js` (alias `@tokens` e `server.fs.allow`), `src/index.css`, `src/lib/customColor.js` (`?raw`), `src/styles/palette.test.js` e `tests/build.test.js` | copiar para o repo novo e apontar o alias e os dois testes para a cópia |
-| `infra/apps/ethos/` (`app-ethos.service`, `ethos-alerts.service`, `ethos-alerts.timer`, `nginx.conf`, `nginx-http.conf`, `app.conf`, `app.env`) | o provision (units, nginx e `/etc/infra/apps/ethos.env`); `backend/tests/test_env_files.py`, `frontend/src/lib/legal.test.js` e `help.test.js` leem o `app.env`; o `check-python-version.sh` lê o `app.conf` | levar como a config de deploy do repo novo e apontar os testes para a cópia |
+| `packages/tokens/tokens.css` (e o contrato do `localStorage` em `packages/tokens/README.md`) | `frontend/vite.config.js` (alias `@tokens` e `server.fs.allow`), `src/index.css`, `src/lib/customColor.js` (`?raw`), `src/styles/palette.test.js`, `tests/build.test.js` e `e2e/theme.spec.js` | copiar para o repo novo e apontar o alias e os dois testes para a cópia |
+| `infra/apps/ethos/` (`app-ethos.service`, `ethos-alerts.service`, `ethos-alerts.timer`, `nginx.conf`, `nginx-http.conf`, `app.conf`, `app.env`) | o provision (units, nginx e `/etc/infra/apps/ethos.env`); `backend/tests/test_env_files.py`, `frontend/src/lib/legal.test.js` e `help.test.js` leem o `app.env`; `frontend/e2e/vite.config.js` lê os headers do `nginx.conf`; o `check-python-version.sh` lê o `app.conf` | levar como a config de deploy do repo novo e apontar os testes para a cópia |
 | `infra/databases.txt` (linha `ethos`) e a tabela de portas do `infra/README.md` | usuário `app-ethos`, pasta do banco, Litestream e snapshots; `check-ports.sh` | no monorepo, sair só depois de o banco estar no destino (tirar a linha mantém os dados, mas sem backup) |
 | `infra/provision.sh`, `infra/scripts/snapshot.sh`, `infra/scripts/restore-test.sh`, `infra/lib/backups.sh`, `infra/lib/common.sh`, `infra/lib/packages.sh`, `infra/config.env` | lidos pelos testes: `test_env_files.py` (a linha do `smtp.env` no provision), `legal.test.js` e `help.test.js` (prazos dos backups) e `deploy/test-vm.sh` (uv, Python, snapshot e restore-test) | trocar por constantes ou cópias no repo novo |
 | `.github/workflows/ethos.yaml` | CI e deploy (os `paths` citam os arquivos de `infra/` acima) | copiar, trocando `apps/ethos/` pela raiz |
