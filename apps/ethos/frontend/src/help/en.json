@@ -65,14 +65,13 @@
         "The score comes turned off. When you turn it on, in the habit settings, it shows a number from 0 to 100, the threshold and the result, and unlocks the reward and the punishment, which are just reminders.",
         "The score is the percentage of the counted periods (weeks, months or years, as in the goal) in which the goal was met, rounded to the nearest whole number (half up). E.g. a goal met in 7 of 10 weeks gives 70; in 2 of 3, it gives 67.",
         "It is a success when the score is equal to or higher than the threshold (from 1 to 100, default 70), and a failure when it is lower. With a threshold of 70, 7 of 10 weeks is a success, and 6 of 10 is a failure.",
-        "The counted periods go from the first full period after the habit was created to the one before the current one. Left out:",
+        "The counted periods go from the period in which the habit was created to the current one, inclusive. A weekly habit created on a Wednesday already counts that week.",
+        "The current period counts with what has been marked in it so far, even before it ends. That is why the score goes up and down during the period: halfway through the week, a minimum goal not reached yet counts as missed, and it counts as met as soon as you reach N. Left out:",
         [
-          "the period in which the habit was created, which started halfway: a weekly habit created on a Wednesday only starts counting on the next Monday;",
-          "the current period, which has not ended yet;",
-          "the days before the habit was created, even if marked;",
-          "every period that had a pause."
+          "the days before the habit was created, even if marked (in the period of creation, only what came after it counts);",
+          "every period that had a pause, the current one included."
         ],
-        "With no counted period (e.g. in the first week of a weekly habit), “No data yet” shows instead of a number. “No data yet” is neither a success nor a failure.",
+        "With no counted period (e.g. a habit paused since it was created), “No data yet” shows instead of a number. “No data yet” is neither a success nor a failure.",
         "The score is not saved: it is worked out on the spot, from the marks and the current goal, in your time zone. Changing the goal recalculates the whole history."
       ]
     },
@@ -82,7 +81,7 @@
       "paragraphs": [
         "Only the owner pauses, archives, unarchives and deletes, in the habit settings.",
         "A paused habit stays on the screen and can be marked, but the periods that had any paused time do not count in the score, and no alert goes out while it is paused or in those periods.",
-        "An archived habit leaves the main screen and goes to “Archived habits”. It becomes read only: it takes no marks, its settings do not change, no alert goes out and nobody can be invited. The score freezes on the archiving date, and the habit does not count towards the habit limit.",
+        "An archived habit leaves the main screen and goes to “Archived habits”. It becomes read only: it takes no marks, its settings do not change, no alert goes out and nobody can be invited. The score freezes on the archiving date: the period of archiving counts with what was marked until then, and the habit does not count towards the habit limit.",
         "When you unarchive it (if there is room in the habit limit), the habit goes back to its previous status. The time it spent archived becomes a pause: it could not be marked then, so those periods do not count as a missed goal.",
         "Deleting the habit also deletes all its marks, the guests’ ones included, and its history. The members get an email about it. It cannot be undone."
       ]
@@ -155,7 +154,7 @@
       "id": "report",
       "title": "Report and export",
       "paragraphs": [
-        "In “Report”, in the menu, you choose the period (up to 5 years) and the habits, archived ones included, and see a summary of each one. You also choose what shows: score, reward, punishment, cost, duration, note and author. Each piece of information only shows on habits with that feature on, and the note starts off.",
+        "In “Report”, in the menu, you choose the period (up to 5 years) and the habits, archived ones included, and see a summary of each one. “Periods with the goal met” counts the goal periods (weeks, months or years) of the report, from the period of creation to the current one (or the one of archiving), which counts with what has been marked so far, as in the score. Unlike the score, periods with a pause are not left out of this count. You also choose what shows: score, reward, punishment, cost, duration, note and author. Each piece of information only shows on habits with that feature on, and the note starts off.",
         "You can export:",
         [
           "a 1080 × 1350 PNG image, good for social media, with the heat map of the period, the score and the result of each habit (when on) and the chosen information. Where the browser allows it, it goes straight to the device’s share menu; otherwise, it is downloaded. The image never has emails or notes;",

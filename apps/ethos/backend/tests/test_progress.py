@@ -25,7 +25,7 @@ SP = ZoneInfo("America/Sao_Paulo")
 TOKYO = ZoneInfo("Asia/Tokyo")
 # Quarta-feira, 12:00 em São Paulo
 NOW = datetime(2026, 3, 25, 15, 0, tzinfo=UTC)
-# Uma quarta-feira: a semana da criação (3/3/2025) não conta na pontuação
+# Uma quarta-feira: a semana da criação (3/3/2025) é a primeira da pontuação
 CREATED = datetime(2025, 3, 5, 15, 0, tzinfo=UTC)
 MARCH = ("2026-03-01", "2026-03-31")
 # 2026-03-01 com dígitos arábico-índicos (U+0660 a U+0669): o \d de um regex os aceitaria
@@ -450,6 +450,21 @@ def test_score_is_the_current_score(client, ana, db_session):
 
     assert in_2025["habit"]["score"] == detail["score"]
     assert detail["score"]["value"] is not None
+
+
+def test_score_ignores_marks_before_creation_in_the_creation_week(client, ana, db_session):
+    # Criado agora (quarta 25/03): a semana atual é a da criação e a única considerada. O
+    # relatório lê todas as marcações, mas a da segunda, antes da criação, não entra na
+    # pontuação (entra nos períodos, que são os números do que foi marcado)
+    model = habit(db_session, ana, score_enabled=True, goal_count=1, created_at=NOW)
+    mark(db_session, model, at("2026-03-23"))
+
+    item = only(ok(client, ana))
+    detail = client.get(f"/habits/{model.id}", headers=ana.headers).json()
+
+    assert item["habit"]["score"] == detail["score"] == {"value": 0, "success": False}
+    this_week = next(p for p in item["periods"] if p["first_day"] == "2026-03-23")
+    assert (this_week["value"], this_week["met"]) == (1, True)
 
 
 def test_score_disabled(client, ana, db_session):

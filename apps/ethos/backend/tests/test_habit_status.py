@@ -31,7 +31,7 @@ from tests.habit_helpers import (
 IP = "203.0.113.7"
 # Quarta-feira
 NOW = datetime(2026, 3, 25, 12, 0, tzinfo=UTC)
-# Segunda-feira: a semana da criação (2 a 8 de fevereiro) fica fora da pontuação
+# Segunda-feira: a semana da criação (2 a 8 de fevereiro) é a primeira da pontuação
 CREATED = datetime(2026, 2, 2, 13, 0, tzinfo=UTC)
 ACTIONS = ("pause", "resume", "archive", "unarchive")
 ARCHIVED = {"error": "habit_archived", "field": None}
@@ -222,8 +222,9 @@ def test_parallel_pauses_open_one_interval(engine, db_session, ana):
 
 
 def test_paused_periods_are_left_out_of_the_score(client, ana, db_session, clock):
-    # Semanas consideradas em 25/03: 9/02 a 16/03 (6). Marcadas: as 3 de fevereiro
-    marks = (at(10, 2), at(17, 2), at(24, 2))
+    # Semanas consideradas em 25/03: da criação (2/02) até a atual (23/03), 8. Marcadas: as 4
+    # de fevereiro e a atual
+    marks = (at(3, 2), at(10, 2), at(17, 2), at(24, 2), at(24))
     habit = scored_habit(db_session, ana, *marks)
     control = scored_habit(db_session, ana, *marks)
 
@@ -235,7 +236,8 @@ def test_paused_periods_are_left_out_of_the_score(client, ana, db_session, clock
     clock.move_to(NOW)
 
     assert score_of(client, ana, habit.id) == {"value": 100, "success": True}
-    assert score_of(client, ana, control.id) == {"value": 50, "success": False}
+    # 5 de 8 = 62,5
+    assert score_of(client, ana, control.id) == {"value": 63, "success": False}
 
 
 def test_paused_habit_is_still_writable(ana):
@@ -327,12 +329,12 @@ def test_unarchive_not_archived_changes_nothing(client, ana, db_session):
 
 
 def test_score_frozen_after_archive_while_time_passes(client, ana, db_session, clock):
-    # Cumpridas só as semanas de 9 e 16/02
-    habit = scored_habit(db_session, ana, at(10, 2), at(17, 2))
+    # Cumpridas as semanas de 2, 9, 16 e 23/02 (esta na terça, antes do arquivamento)
+    habit = scored_habit(db_session, ana, at(3, 2), at(10, 2), at(17, 2), at(24, 2))
     clock.move_to(at(25, 2))
     done(client, ana, habit.id, "archive")
 
-    # Arquivado numa quarta (25/02): a semana de 23/02 é a "atual" e as duas anteriores contam
+    # Arquivado numa quarta (25/02): a semana de 23/02 é a "atual", com o valor até ali
     expected = {"value": 100, "success": True}
     for instant in (at(25, 2), NOW, NOW + timedelta(days=50)):
         clock.move_to(instant)
@@ -342,24 +344,25 @@ def test_score_frozen_after_archive_while_time_passes(client, ana, db_session, c
 
 
 def test_score_without_archive_keeps_counting(client, ana, db_session):
-    # Contraprova do teste acima: sem arquivar, as semanas vazias de 23/02 a 16/03 entram
-    habit = scored_habit(db_session, ana, at(10, 2), at(17, 2))
-    assert score_of(client, ana, habit.id) == {"value": 33, "success": False}
+    # Contraprova do teste acima: sem arquivar, as semanas vazias de 2/03 a 23/03 entram
+    habit = scored_habit(db_session, ana, at(3, 2), at(10, 2), at(17, 2), at(24, 2))
+    assert score_of(client, ana, habit.id) == {"value": 50, "success": False}
 
 
 def test_unarchived_time_stays_out_of_the_score(client, ana, db_session, clock):
-    habit = scored_habit(db_session, ana, at(10, 2), at(17, 2))
+    habit = scored_habit(db_session, ana, at(3, 2), at(10, 2), at(17, 2))
     clock.move_to(at(25, 2))
     done(client, ana, habit.id, "archive")
     clock.move_to(at(18))
     done(client, ana, habit.id, "unarchive")
 
-    # Semanas de 23/02 a 16/03 pausadas (o tempo arquivado); a de 23/03 é a atual
+    # Semanas de 23/02 a 16/03 pausadas (o tempo arquivado); a de 23/03 é a atual, ainda sem
+    # marcação: 3 de 4
     clock.move_to(NOW)
-    assert score_of(client, ana, habit.id) == {"value": 100, "success": True}
-    # Uma semana depois, a de 23/03 conta (sem marcação): 2 de 3
+    assert score_of(client, ana, habit.id) == {"value": 75, "success": True}
+    # Uma semana depois, a de 30/03 também conta (sem marcação): 3 de 5
     clock.move_to(NOW + timedelta(days=7))
-    assert score_of(client, ana, habit.id) == {"value": 67, "success": False}
+    assert score_of(client, ana, habit.id) == {"value": 60, "success": False}
 
 
 # --- limite de hábitos ao desarquivar ---

@@ -29,7 +29,8 @@ Saída:
 - `evaluate()` é a função única da pontuação e do ritmo. Devolve `Evaluation`:
   - `periods`: os períodos considerados, do mais antigo ao mais novo, cada um com
     valor, meta cumprida e gasto;
-  - `score`: 0 a 100, ou `None` ("sem dados") quando nenhum período é considerado;
+  - `score`: 0 a 100, ou `None` ("sem dados") quando nenhum período é considerado
+    (ex.: todos pausados, ou `now` antes da criação);
   - `success`: `score >= score_threshold`, ou `None` junto com "sem dados";
   - `pace`: o ritmo do período atual, para o alerta de meta, ou `None` quando o
     alerta não deve ser avaliado (período da criação, pausa no período, arquivado).
@@ -46,9 +47,17 @@ Regras (ethos-plan.md, "meta e periodicidade", "pontuação", "pausar e arquivar
 - Valor do período: com duração ligada, a soma dos minutos das marcações,
   comparada com N * `duration_minutes`; senão, o número de marcações (várias por
   dia) ou o número de dias com pelo menos uma marcação (toggle).
-- Períodos considerados: do primeiro período completo depois da criação até o
-  anterior ao atual, sem os períodos que tiveram pausa. Arquivado congela em
-  `archived_at`: o período do arquivamento passa a ser o "atual".
+- Períodos considerados: do período da criação até o atual, inclusive, sem os
+  períodos que tiveram pausa. O atual entra com o valor de agora, mesmo
+  incompleto: no meio da semana, uma meta mínima ainda não atingida conta como não
+  cumprida, e a pontuação oscila ao longo do período. O da criação entra também
+  (senão contaria enquanto é o atual e sumiria quando fecha). Arquivado congela em
+  `archived_at`: o período do arquivamento passa a ser o "atual", com o valor até
+  o arquivamento.
+- Marcações antes de `created_at` (histórico registrado depois) e, no arquivado,
+  depois de `archived_at` ficam fora da pontuação. No período atual entram todas as
+  marcações dele: o backend recusa marcação mais de 1 min no futuro, então "até
+  agora" é o que já foi marcado (o ritmo conta do mesmo jeito).
 - Pontuação: porcentagem de períodos cumpridos, arredondada meio para cima com
   inteiros (`floor(x + 0.5)`), nunca com o `round` do Python.
 - Ritmo: `esperado = N * segundos passados // segundos do período`, só inteiros.
@@ -57,7 +66,7 @@ Regras (ethos-plan.md, "meta e periodicidade", "pontuação", "pausar e arquivar
 - Recursos desligados (duração, custo) são ignorados, mesmo com dados guardados.
 """
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import Literal
@@ -303,6 +312,18 @@ def _paused(period: Period, pauses: Sequence[Pause]) -> bool:
     return False
 
 
+def _scored_marks(habit: Habit, marks: Iterable[Mark]) -> Iterator[Mark]:
+    """As marcações que a pontuação vê: a partir da criação e, no arquivado, até o arquivamento.
+    O ritmo usa as mesmas: ele não avalia o período da criação nem o hábito arquivado."""
+    archived_at = habit.archived_at
+    for mark in marks:
+        if mark.marked_at < habit.created_at:
+            continue
+        if archived_at is not None and mark.marked_at > archived_at:
+            continue
+        yield mark
+
+
 def _resolve_now(now: datetime | None) -> datetime:
     if now is None:
         return datetime.now(UTC)
@@ -352,14 +373,14 @@ def evaluate(
     now = _resolve_now(now)
     pauses = tuple(pauses)
     kind = habit.goal_period
-    buckets = _bucket(marks, kind, tz)
+    buckets = _bucket(_scored_marks(habit, marks), kind, tz)
     creation = period_at(habit.created_at, kind, tz)
     frozen_at = now if habit.archived_at is None else min(now, habit.archived_at)
     current = period_at(frozen_at, kind, tz)
 
     results: list[PeriodResult] = []
-    period = period_containing(creation.end_day, kind, tz)
-    while period.first_day < current.first_day:
+    period = creation
+    while period.first_day <= current.first_day:
         if not _paused(period, pauses):
             results.append(_summarize(habit, period, buckets.get(period.first_day, ())))
         period = period_containing(period.end_day, kind, tz)

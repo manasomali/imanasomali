@@ -44,8 +44,9 @@ def load_marks(
     """Marcações de cada hábito (todos os ids presentes na resposta, mesmo sem marcação).
 
     Com `since_creation`, só as feitas a partir da criação do hábito: as anteriores (histórico
-    registrado depois) nunca entram na pontuação nem no ritmo, que começam no primeiro período
-    completo depois da criação.
+    registrado depois) nunca entram na pontuação nem no ritmo. A pontuação começa no período da
+    criação, e o ritmo, no seguinte. O `score.py` também as ignora: o filtro aqui só evita
+    carregar o que não vai ser usado.
     """
     marks: dict[int, list[score.Mark]] = {habit_id: [] for habit_id in habit_ids}
     if not marks:
