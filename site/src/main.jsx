@@ -6,6 +6,7 @@ import './i18n';
 import Main from './pages/Main';
 import About from './pages/About';
 import Projects from './pages/Projects';
+import Apps from './pages/Apps';
 import Publications from './pages/Publications';
 import Page404 from './pages/Page404';
 
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/" element={<Main />} />
           <Route path="/about" element={<About />} />
           <Route path="/projects" element={<Projects />} />
+          <Route path="/apps" element={<Apps />} />
           <Route path="/publications" element={<Publications />} />
           <Route path="*" element={<Page404 />} />
         </Routes>

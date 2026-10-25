@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+<rect width="1600" height="1000" fill="#ffffff"/>
+<text x="120" y="555" fill="#000000" font-family="'Fira Mono', ui-monospace, Menlo, Consolas, monospace" font-size="150" font-weight="700">ethos</text>
+<g fill="#f5f5f5">
+  <rect x="904" y="192" width="112" height="112" rx="10"/>
+  <rect x="1030" y="192" width="112" height="112" rx="10"/>
+  <rect x="1156" y="192" width="112" height="112" rx="10"/>
+  <rect x="1282" y="192" width="112" height="112" rx="10"/>
+  <rect x="1408" y="192" width="112" height="112" rx="10"/>
+  <rect x="652" y="318" width="112" height="112" rx="10"/>
+  <rect x="778" y="318" width="112" height="112" rx="10"/>
+  <rect x="904" y="318" width="112" height="112" rx="10"/>
+  <rect x="1030" y="318" width="112" height="112" rx="10"/>
+  <rect x="1156" y="318" width="112" height="112" rx="10"/>
+  <rect x="1282" y="318" width="112" height="112" rx="10"/>
+  <rect x="1408" y="318" width="112" height="112" rx="10"/>
+  <rect x="652" y="444" width="112" height="112" rx="10"/>
+  <rect x="778" y="444" width="112" height="112" rx="10"/>
+  <rect x="904" y="444" width="112" height="112" rx="10"/>
+  <rect x="1030" y="444" width="112" height="112" rx="10"/>
+  <rect x="1156" y="444" width="112" height="112" rx="10"/>
+  <rect x="1282" y="444" width="112" height="112" rx="10"/>
+  <rect x="1408" y="444" width="112" height="112" rx="10"/>
+  <rect x="652" y="570" width="112" height="112" rx="10"/>
+  <rect x="778" y="570" width="112" height="112" rx="10"/>
+  <rect x="904" y="570" width="112" height="112" rx="10"/>
+  <rect x="1030" y="570" width="112" height="112" rx="10"/>
+  <rect x="1156" y="570" width="112" height="112" rx="10"/>
+  <rect x="1282" y="570" width="112" height="112" rx="10"/>
+  <rect x="1408" y="570" width="112" height="112" rx="10"/>
+  <rect x="652" y="696" width="112" height="112" rx="10"/>
+  <rect x="778" y="696" width="112" height="112" rx="10"/>
+  <rect x="904" y="696" width="112" height="112" rx="10"/>
+  <rect x="1030" y="696" width="112" height="112" rx="10"/>
+  <rect x="1156" y="696" width="112" height="112" rx="10"/>
+</g>
+<g fill="#595959" font-family="'Fira Mono', ui-monospace, Menlo, Consolas, monospace" font-size="30" text-anchor="middle">
+  <text x="960" y="232">1</text>
+  <text x="1086" y="232">2</text>
+  <text x="1212" y="232">3</text>
+  <text x="1338" y="232">4</text>
+  <text x="1464" y="232">5</text>
+  <text x="708" y="358">6</text>
+  <text x="834" y="358">7</text>
+  <text x="960" y="358">8</text>
+  <text x="1086" y="358">9</text>
+  <text x="1212" y="358">10</text>
+  <text x="1338" y="358">11</text>
+  <text x="1464" y="358">12</text>
+  <text x="708" y="484">13</text>
+  <text x="834" y="484">14</text>
+  <text x="960" y="484">15</text>
+  <text x="1086" y="484">16</text>
+  <text x="1212" y="484">17</text>
+  <text x="1338" y="484">18</text>
+  <text x="1464" y="484">19</text>
+  <text x="708" y="610">20</text>
+  <text x="834" y="610">21</text>
+  <text x="960" y="610">22</text>
+  <text x="1086" y="610">23</text>
+  <text x="1212" y="610" fill="#000000" font-weight="700" text-decoration="underline">24</text>
+  <text x="1338" y="610">25</text>
+  <text x="1464" y="610">26</text>
+  <text x="708" y="736">27</text>
+  <text x="834" y="736">28</text>
+  <text x="960" y="736">29</text>
+  <text x="1086" y="736">30</text>
+  <text x="1212" y="736">31</text>
+</g>
+<g>
+  <circle cx="934" cy="276" r="10" fill="#15803d"/>
+  <circle cx="960" cy="276" r="10" fill="#2563eb"/>
+  <circle cx="986" cy="276" r="10" fill="#db2777"/>
+  <circle cx="1086" cy="276" r="10" fill="#15803d"/>
+  <circle cx="1199" cy="276" r="10" fill="#15803d"/>
+  <circle cx="1225" cy="276" r="10" fill="#2563eb"/>
+  <circle cx="1325" cy="276" r="10" fill="#15803d"/>
+  <circle cx="1351" cy="276" r="10" fill="#b45309"/>
+  <circle cx="1451" cy="276" r="10" fill="#db2777"/>
+  <circle cx="1477" cy="276" r="10" fill="#b45309"/>
+  <circle cx="695" cy="402" r="10" fill="#15803d"/>
+  <circle cx="721" cy="402" r="10" fill="#2563eb"/>
+  <circle cx="834" cy="402" r="10" fill="#15803d"/>
+  <circle cx="947" cy="402" r="10" fill="#15803d"/>
+  <circle cx="973" cy="402" r="10" fill="#2563eb"/>
+  <circle cx="1073" cy="402" r="10" fill="#15803d"/>
+  <circle cx="1099" cy="402" r="10" fill="#db2777"/>
+  <circle cx="1199" cy="402" r="10" fill="#15803d"/>
+  <circle cx="1225" cy="402" r="10" fill="#2563eb"/>
+  <circle cx="1325" cy="402" r="10" fill="#15803d"/>
+  <circle cx="1351" cy="402" r="10" fill="#b45309"/>
+  <circle cx="1464" cy="402" r="10" fill="#b45309"/>
+  <circle cx="682" cy="528" r="10" fill="#15803d"/>
+  <circle cx="708" cy="528" r="10" fill="#2563eb"/>
+  <circle cx="734" cy="528" r="10" fill="#db2777"/>
+  <circle cx="834" cy="528" r="10" fill="#15803d"/>
+  <circle cx="947" cy="528" r="10" fill="#15803d"/>
+  <circle cx="973" cy="528" r="10" fill="#2563eb"/>
+  <circle cx="1086" cy="528" r="10" fill="#15803d"/>
+  <circle cx="1186" cy="528" r="10" fill="#15803d"/>
+  <circle cx="1212" cy="528" r="10" fill="#2563eb"/>
+  <circle cx="1238" cy="528" r="10" fill="#db2777"/>
+  <circle cx="1325" cy="528" r="10" fill="#15803d"/>
+  <circle cx="1351" cy="528" r="10" fill="#b45309"/>
+  <circle cx="1464" cy="528" r="10" fill="#b45309"/>
+  <circle cx="695" cy="654" r="10" fill="#15803d"/>
+  <circle cx="721" cy="654" r="10" fill="#2563eb"/>
+  <circle cx="821" cy="654" r="10" fill="#15803d"/>
+  <circle cx="847" cy="654" r="10" fill="#db2777"/>
+  <circle cx="947" cy="654" r="10" fill="#15803d"/>
+  <circle cx="973" cy="654" r="10" fill="#2563eb"/>
+  <circle cx="1086" cy="654" r="10" fill="#15803d"/>
+  <circle cx="1199" cy="654" r="10" fill="#15803d"/>
+  <circle cx="1225" cy="654" r="10" fill="#2563eb"/>
+</g>
+</svg>
