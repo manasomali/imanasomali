@@ -6,7 +6,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 
 export default [
-  { ignores: ['dist', 'coverage'] },
+  { ignores: ['dist', 'coverage', 'playwright-report', 'test-results', 'e2e/.stack'] },
   js.configs.recommended,
   react.configs.flat.recommended,
   react.configs.flat['jsx-runtime'],
@@ -23,6 +23,14 @@ export default [
     settings: { react: { version: 'detect' } },
     rules: {
       'react/prop-types': 'off',
+    },
+  },
+  // E2E (Playwright) no Node: sem React. O `use` das fixtures não é o hook do React
+  {
+    files: ['e2e/**/*.js', 'playwright.config.js'],
+    languageOptions: { globals: globals.node },
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
     },
   },
 ];

@@ -13,6 +13,12 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Playwright (E2E do ethos): resultados, relatório e o stack local (banco, CA de teste)
+test-results/
+playwright-report/
+blob-report/
+apps/ethos/frontend/e2e/.stack/
+
 # Python
 .venv/
 __pycache__/
