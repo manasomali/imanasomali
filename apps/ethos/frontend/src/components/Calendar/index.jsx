@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { moveColumnDay, moveDay } from '../../lib/calendar';
 import { DEFAULT_CALENDAR_VIEW } from '../../lib/calendarView';
-import { calendarWeekdayNames, formatMonth, formatMonthYear } from '../../lib/format';
+import {
+  calendarWeekdayNames,
+  formatMonth,
+  formatMonthShort,
+  formatMonthYear,
+} from '../../lib/format';
 import MonthColumn from './MonthColumn';
 import MonthGrid from './MonthGrid';
 import styles from './styles.module.css';
@@ -10,9 +15,9 @@ import styles from './styles.module.css';
 // Os meses de uma faixa (calendarRange em src/lib/calendarRange.js: um mês, 3 meses ou o ano) na
 // visão `view` (src/lib/calendarView.js): na grade, um bloco por mês em semanas (MonthGrid; a
 // semana começa no domingo, WEEK_START); nas colunas, uma coluna por mês com os dias de cima para
-// baixo (MonthColumn), lado a lado, rolando na horizontal dentro do próprio calendário quando não
-// cabem. O desenho só percorre `range.months` e usa `range.first`/`range.last` como limites do
-// foco. Os dias são botões com foco itinerante: só um fica na ordem do Tab e as setas andam entre
+// baixo (MonthColumn), com os dias do tamanho dos da grade, lado a lado, rolando na horizontal
+// dentro do próprio calendário quando não cabem. O desenho só percorre `range.months` e usa
+// `range.first`/`range.last` como limites do foco. Os dias são botões com foco itinerante: só um fica na ordem do Tab e as setas andam entre
 // eles, então a faixa inteira custa uma parada de Tab. Na grade, um dia para os lados e uma semana
 // para cima e para baixo (moveDay); nas colunas, um dia para cima e para baixo e o mesmo dia no mês
 // vizinho para os lados (moveColumnDay); Home/End: começo e fim do mês nas duas. `dayProps(day)` dá
@@ -77,38 +82,41 @@ export default function Calendar({
     }
   }, [columns, first]);
 
-  const Month = columns ? MonthColumn : MonthGrid;
-
   const onFocus = useCallback((event) => {
     const day = event.target.dataset?.day;
     if (day) setFocused(day);
   }, []);
 
+  // As duas visões tiram o tamanho do dia da mesma regra (--day-size, em styles.module.css), que
+  // depende da largura do `.frame` (container query), e não do que está dentro dele
   return (
-    <div
-      ref={container}
-      className={columns ? styles.columns : styles.months}
-      data-range={range.kind}
-      data-view={view}
-      role="group"
-      aria-label={label}
-    >
-      {months.map((month) => (
-        <Month
-          key={`${month.year}-${month.month}`}
-          month={month}
-          title={
-            withYear
-              ? formatMonthYear(month.year, month.month, language)
-              : formatMonth(month.month, language)
-          }
-          weekdays={weekdays}
-          tabStop={tabStop}
-          dayProps={dayProps}
-          onKeyDown={onKeyDown}
-          onFocus={onFocus}
-        />
-      ))}
+    <div className={styles.frame}>
+      <div
+        ref={container}
+        className={columns ? styles.columns : styles.months}
+        data-range={range.kind}
+        data-view={view}
+        role="group"
+        aria-label={label}
+      >
+        {months.map((month) => {
+          const key = `${month.year}-${month.month}`;
+          const title = withYear
+            ? formatMonthYear(month.year, month.month, language)
+            : formatMonth(month.month, language);
+          const shared = { month, title, tabStop, dayProps, onKeyDown, onFocus };
+          return columns ? (
+            <MonthColumn
+              key={key}
+              {...shared}
+              shortName={formatMonthShort(month.month, language)}
+              withYear={withYear}
+            />
+          ) : (
+            <MonthGrid key={key} {...shared} weekdays={weekdays} />
+          );
+        })}
+      </div>
     </div>
   );
 }

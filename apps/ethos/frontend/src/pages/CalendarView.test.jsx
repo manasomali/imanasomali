@@ -23,10 +23,13 @@ function calendarGroup() {
   return screen.getByRole('group', { name: /^Calendar for / });
 }
 
-/** Cada mês na tela: `{name, days}`, com os dias ("AAAA-MM-DD") do mês, na ordem. */
+/**
+ * Cada mês na tela: `{name, days}`, com o nome completo (nas colunas, o do leitor de tela; o visível
+ * é abreviado) e os dias ("AAAA-MM-DD") do mês, na ordem.
+ */
 function shownMonths() {
   return [...calendarGroup().querySelectorAll('section')].map((section) => ({
-    name: section.querySelector('h3').textContent,
+    name: (section.querySelector('h3 .visually-hidden') ?? section.querySelector('h3')).textContent,
     days: [...section.querySelectorAll('[data-day]')].map((day) => day.dataset.day),
   }));
 }
@@ -101,10 +104,17 @@ describe('calendar view: habit tab', () => {
       expect(days.every((day) => day.startsWith(`2024-${month}-`))).toBe(true);
     });
     expect(container.querySelectorAll('[data-day]')).toHaveLength(366);
-    // Cada dia com o dia da semana (1º de janeiro de 2024 foi uma segunda) e um espaço antes de
-    // cada domingo
+    // Nas colunas, o nome do mês aparece abreviado (a coluna tem a largura de um dia), e o leitor
+    // de tela ouve o nome completo
+    expect(
+      [...calendarGroup().querySelectorAll('h3 [aria-hidden="true"]')].map((name) => name.textContent),
+    ).toEqual(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
+    expect(screen.getByRole('region', { name: 'September' })).toBeDefined();
+    // Sem o dia da semana nas colunas, como na grade: só o número; o aria-label continua com a
+    // data completa. Uma linha antes de cada domingo (1º de janeiro de 2024 foi uma segunda)
     const newYear = dayButton('Monday, January 1, 2024');
-    expect(newYear.textContent).toBe('1Mon');
+    expect(newYear.textContent).toBe('1');
+    expect(newYear.getAttribute('aria-label')).toBe('Monday, January 1, 2024. Not marked');
     expect(newYear.dataset.weekStart).toBeUndefined();
     expect(dayButton('Sunday, January 7, 2024').dataset.weekStart).toBe('true');
     expect(dayButton('Saturday, January 6, 2024').dataset.weekStart).toBeUndefined();
@@ -317,6 +327,21 @@ describe('calendar view: habit tab', () => {
     renderApp('/habits/1?range=3months&month=2026-02&day=2025-12-31&view=columns');
 
     const lastDay = await findDay('Wednesday, December 31, 2025');
+    // Com dois anos na tela, o ano vai embaixo do nome abreviado, e o rótulo tem os dois
+    expect(shownMonths().map((month) => month.name)).toEqual([
+      'December 2025',
+      'January 2026',
+      'February 2026',
+    ]);
+    expect(
+      [...calendarGroup().querySelectorAll('h3')].map((name) =>
+        [...name.querySelectorAll('[aria-hidden="true"]')].map((part) => part.textContent),
+      ),
+    ).toEqual([
+      ['Dec', '2025'],
+      ['Jan', '2026'],
+      ['Feb', '2026'],
+    ]);
     // Uma parada de Tab no calendário: o dia escolhido
     expect(lastDay.tabIndex).toBe(0);
     expect(calendarGroup().querySelectorAll('[tabindex="0"]')).toHaveLength(1);
@@ -391,7 +416,8 @@ describe('calendar view: habit tab', () => {
     const multi = renderApp('/habits/2?range=month&view=columns');
     const counted = await findDay('Tuesday, March 3, 2026');
     await waitFor(() => expect(counted.getAttribute('aria-label')).toBe('Tuesday, March 3, 2026. 3 marks'));
-    expect(counted.textContent).toBe('3Tue3');
+    // O número do dia e o contador, sem o dia da semana
+    expect(counted.textContent).toBe('33');
     expect(await axe(multi.container)).toHaveNoViolations();
   });
 });

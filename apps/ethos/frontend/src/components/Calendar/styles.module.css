@@ -1,15 +1,64 @@
+/* O tamanho do dia: uma regra só para as duas visões (grade e colunas), para não divergirem.
+   --day-size vem da largura do calendário (.frame, um container de inline-size; cqi é 1% dela):
+   - um mês: o mês tem até 28rem e o dia é 1/7 dele, sem os vãos;
+   - 3 meses e o ano: os meses lado a lado, quantos couberem com no mínimo 15.5rem cada
+     (--months-per-row, pelas @container abaixo), dividindo a largura toda.
+   A grade usa --day-size nas 7 colunas de cada mês; as colunas, na largura de cada mês. O dia é
+   quadrado nas duas (.day). Ninguém mais redefine o tamanho do dia: styles.test.js confere */
+.frame {
+  container-type: inline-size;
+}
+
+.months,
+.columns {
+  --day-gap: 0.2rem;
+  --month-gap: 1.25rem;
+  --months-per-row: 1;
+  --month-width: calc(
+    (100cqi - (var(--months-per-row) - 1) * var(--month-gap)) / var(--months-per-row)
+  );
+  --day-size: calc((var(--month-width) - 6 * var(--day-gap)) / 7);
+}
+
+/* Um mês só: dias maiores, sem esticar a grade pela largura toda do desktop */
+.months[data-range='month'],
+.columns[data-range='month'] {
+  --month-width: min(28rem, 100cqi);
+}
+
+/* Mais um mês por linha a cada 15.5rem + o vão (2 com 32.25rem, 3 com 49rem, 4 com 65.75rem) */
+@container (min-width: 32.25rem) {
+  .months,
+  .columns {
+    --months-per-row: 2;
+  }
+}
+
+@container (min-width: 49rem) {
+  .months,
+  .columns {
+    --months-per-row: 3;
+  }
+}
+
+@container (min-width: 65.75rem) {
+  .months,
+  .columns {
+    --months-per-row: 4;
+  }
+}
+
 /* Meses lado a lado no desktop; no celular, um embaixo do outro (rolagem vertical) */
 .months {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
-  gap: 1.5rem 1.25rem;
+  grid-template-columns: repeat(var(--months-per-row), var(--month-width));
+  gap: 1.5rem var(--month-gap);
   /* A dica dos pontos não pode criar rolagem horizontal na página */
   overflow-x: clip;
 }
 
-/* Um mês só: dias maiores, sem esticar a grade pela largura toda do desktop */
 .months[data-range='month'] {
-  grid-template-columns: minmax(0, 28rem);
+  grid-template-columns: var(--month-width);
 }
 
 .month {
@@ -25,8 +74,8 @@
 .weekdays,
 .grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.2rem;
+  grid-template-columns: repeat(7, var(--day-size));
+  gap: var(--day-gap);
 }
 
 .weekdays {
@@ -51,9 +100,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
+  width: var(--day-size);
   min-width: 0;
+  /* min-height 0: quadrado mesmo com muitos pontos (sem ele, o aspect-ratio deixa o conteúdo
+     esticar a altura) */
+  min-height: 0;
   aspect-ratio: 1;
-  min-height: 2.25rem;
   padding: 0.15rem 0 0;
   background: var(--surface);
   border: 2px solid transparent;
@@ -164,18 +216,16 @@
   display: block;
 }
 
-/* Visão em colunas: cada mês uma coluna, lado a lado, com os dias de cima para baixo. Quando não
-   cabem (o ano no celular ou numa tela estreita), o calendário rola na horizontal por dentro, sem
-   rolar a página; o foco nos dias (setas) leva a rolagem junto. O espaço em volta (e o mesmo
-   scroll-padding) deixa o anel de foco (2px a 3px do botão) aparecer nas colunas das pontas.
-   `position: relative` faz o offsetLeft das colunas contar a partir do calendário (Calendar rola
-   até a coluna do dia escolhido) */
+/* Visão em colunas: cada mês uma coluna da largura de um dia (--day-size, a mesma regra da
+   grade), lado a lado, com os dias de cima para baixo. Quando não cabem (o ano no celular), o
+   calendário rola na horizontal por dentro, sem rolar a página; o foco nos dias (setas) leva a
+   rolagem junto. O espaço em volta (e o mesmo scroll-padding) deixa o anel de foco (2px a 3px do
+   botão) aparecer nas colunas das pontas. `position: relative` faz o offsetLeft das colunas contar
+   a partir do calendário (Calendar rola até a coluna do dia escolhido) */
 .columns {
   position: relative;
   display: grid;
-  /* Larga o bastante para "September" e os pontos; sem esticar pela largura toda do desktop (com
-     um mês ou 3, a marcação ficaria longe do número) */
-  grid-auto-columns: minmax(5.25rem, 12rem);
+  grid-auto-columns: var(--day-size);
   grid-auto-flow: column;
   gap: 0.5rem;
   padding: 0.35rem 0.35rem 0.75rem;
@@ -188,37 +238,30 @@
   min-width: 0;
 }
 
-/* Nome do mês numa linha (o nome mais longo cabe na coluna mais estreita); com o ano, quebra
-   entre as palavras */
+/* O nome abreviado do mês cabe na largura de um dia; com o ano, ele vai na linha de baixo */
 .columns .monthName {
   font-size: var(--text-sm);
+  line-height: 1.2;
+  text-align: center;
   overflow-wrap: normal;
+}
+
+.monthYear {
+  display: block;
+  font-size: 0.7rem;
 }
 
 .columnDays {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--day-gap);
 }
 
-/* O dia vira uma linha: número, dia da semana e a marcação (pontos, "+N" ou contador) à direita.
-   Altura fixa: os dias de um mês ficam na mesma altura dos de outro com a mesma posição na
-   coluna, com ou sem pontos */
-.columns .day {
-  flex-direction: row;
-  align-items: center;
-  gap: 0.35rem;
-  aspect-ratio: auto;
-  height: 2rem;
-  min-height: 0;
-  padding: 0 0.35rem;
-}
-
-/* Uma linha entre as semanas, no vão entre os dias (sem mudar a altura: o dia 10 de um mês fica
-   na altura do dia 10 dos outros). O vão é de 0.25rem e o botão tem borda de 2px */
+/* Uma linha entre as semanas, no meio do vão entre os dias (sem mudar a altura: o dia 10 de um mês
+   fica na altura do dia 10 dos outros). O botão tem borda de 2px */
 .columns .day[data-week-start]::before {
   position: absolute;
-  top: calc(-2px - 0.125rem - 0.5px);
+  top: calc(-2px - var(--day-gap) / 2 - 0.5px);
   right: 0;
   left: 0;
   height: 1px;
@@ -226,35 +269,22 @@
   content: '';
 }
 
-.columns .number {
-  min-width: 2ch;
-  text-align: right;
-}
-
-.weekday {
-  font-size: 0.7rem;
-}
-
-/* Até 4 pontos e o "+N" em duas linhas de 3, para caber na coluna estreita */
-.columns .dots {
-  display: grid;
-  grid-template-columns: repeat(3, auto);
-  justify-items: center;
-  margin: 0 0 0 auto;
-  padding: 0;
-}
-
-.columns .count {
-  position: static;
-  margin-left: auto;
-  font-size: 0.7rem;
-}
-
-/* A dica fica na largura do dia: não estica a rolagem das colunas */
+/* A dica não pode esticar a rolagem das colunas: até 8rem, centrada no dia e, nas colunas das
+   pontas, presa à borda de fora do dia, crescendo para dentro. Com 3 colunas ou mais (3 meses e o
+   ano) e dias de 2.1rem ou mais (o menor, no desktop, tem 2.2rem), cabe nelas; com uma (um mês),
+   a rolagem é mais larga que a dica */
 .columns .tooltip {
-  right: 0;
+  max-width: 8rem;
+  overflow-wrap: break-word;
+}
+
+.columns .column:first-child .tooltip {
   left: 0;
-  width: auto;
-  max-width: none;
+  transform: none;
+}
+
+.columns .column:last-child:not(:first-child) .tooltip {
+  right: 0;
+  left: auto;
   transform: none;
 }
