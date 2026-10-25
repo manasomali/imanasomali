@@ -66,6 +66,8 @@ describe('terms acceptance', () => {
     expect(terms.getAttribute('href')).toBe(`${BASENAME}${PATHS.terms}`);
     expect(privacy.getAttribute('href')).toBe(`${BASENAME}${PATHS.privacy}`);
     expect(terms.getAttribute('target')).toBe('_blank');
+    // Enquanto o modal está aberto, a tela não chama a API
+    expect(calls.other).toEqual([]);
 
     await user.click(within(dialog).getByRole('button', { name: 'Accept and continue' }));
 
@@ -73,7 +75,6 @@ describe('terms acceptance', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(container.hasAttribute('inert')).toBe(false);
     expect(calls.accepted).toEqual([{ terms_version: TERMS_VERSION }]);
-    expect(calls.other).toEqual([]);
   });
 
   it('keeps the focus inside the dialog', async () => {
