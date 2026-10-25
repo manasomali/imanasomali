@@ -274,7 +274,8 @@
     "sections": {
       "label": "Seções do hábito",
       "calendar": "Calendário",
-      "report": "Relatório"
+      "report": "Relatório",
+      "settings": "Configuração"
     },
     "status": {
       "paused": "Pausado",
@@ -301,7 +302,8 @@
     "archived": {
       "title": "Hábitos arquivados",
       "empty": "Nenhum hábito arquivado."
-    }
+    },
+    "new_habit": "Novo hábito"
   },
   "legal": {
     "version": "Versão {{version}}",
@@ -487,5 +489,179 @@
     "cannot_block_self": "Você não pode bloquear a sua própria conta.",
     "network_error": "Sem conexão com o servidor. Confira a internet e tente de novo.",
     "unknown": "Algo deu errado. Tente de novo."
+  },
+  "new_habit": {
+    "title": "Novo hábito",
+    "intro": "Dê um nome, escolha a cor e a meta. Os recursos extras vêm desligados e podem ser ligados agora ou depois, na configuração do hábito.",
+    "create": "Criar hábito",
+    "back": "Voltar para os hábitos"
+  },
+  "habit_settings": {
+    "title": "Configuração",
+    "save": "Salvar configuração",
+    "saved": "Configuração salva.",
+    "archived_notice": "Este hábito está arquivado: a configuração fica só leitura. Desarquive para editar.",
+    "status": {
+      "title": "Pausar e arquivar",
+      "current": {
+        "active": "Este hábito está ativo.",
+        "paused": "Este hábito está pausado.",
+        "archived": "Este hábito está arquivado."
+      },
+      "pause": "Pausar",
+      "pause_hint": "Os períodos com pausa não contam na pontuação e não disparam alertas. Dá para continuar marcando.",
+      "pause_done": "Hábito pausado.",
+      "resume": "Retomar",
+      "resume_hint": "Volta a contar na pontuação e nos alertas a partir de agora.",
+      "resume_done": "Hábito retomado.",
+      "archive": "Arquivar",
+      "archive_hint": "Sai da tela principal, fica só leitura e a pontuação congela. Não conta no limite de hábitos. Dá para desarquivar depois.",
+      "archive_done": "Hábito arquivado.",
+      "unarchive": "Desarquivar",
+      "unarchive_hint": "Volta para a tela principal e passa a contar no limite de hábitos ativos e pausados.",
+      "unarchive_done": "Hábito desarquivado."
+    },
+    "delete": {
+      "title": "Apagar o hábito",
+      "hint": "Apaga o hábito para todos que participam dele. Não dá para desfazer.",
+      "open": "Apagar hábito",
+      "confirm_title": "Apagar {{habit}}?",
+      "warning": "Apaga o hábito com todas as marcações, inclusive as dos convidados, além dos convites, dos alertas e do histórico. Os convidados recebem um email avisando. Não dá para desfazer.",
+      "confirm": "Apagar para sempre",
+      "deleting": "Apagando…",
+      "cancel": "Cancelar"
+    }
+  },
+  "habit_form": {
+    "groups": {
+      "identity": "Hábito",
+      "goal": "Meta",
+      "features": "Recursos"
+    },
+    "name": "Nome",
+    "code": "Sigla (opcional)",
+    "code_hint": "Até 4 letras ou números. Quando definida, aparece no lugar do nome.",
+    "description": "Descrição (opcional)",
+    "color": "Cor",
+    "colors": {
+      "red": "Vermelho",
+      "orange": "Laranja",
+      "amber": "Âmbar",
+      "yellow": "Amarelo",
+      "lime": "Verde-limão",
+      "green": "Verde",
+      "teal": "Verde-azulado",
+      "cyan": "Ciano",
+      "blue": "Azul",
+      "indigo": "Anil",
+      "violet": "Violeta",
+      "pink": "Rosa"
+    },
+    "goal_type": "Tipo da meta",
+    "goal_types": {
+      "min": "Pelo menos",
+      "max": "No máximo",
+      "exact": "Exatamente"
+    },
+    "goal_count": "Quantas vezes",
+    "goal_count_hint": "De {{min}} a {{max}} neste período.",
+    "goal_period": "Por",
+    "periods": {
+      "week": "semana",
+      "month": "mês",
+      "year": "ano"
+    },
+    "features": {
+      "multi_mark": "Mais de uma marcação por dia",
+      "multi_mark_hint": "Desligado, cada dia é marcado ou não (um clique). Ligado, cada marcação conta.",
+      "duration_enabled": "Duração",
+      "duration_enabled_hint": "Cada marcação tem minutos, e a meta compara a soma dos minutos do período.",
+      "notes_enabled": "Observação",
+      "notes_enabled_hint": "Cada marcação pode ter um texto livre, como lembrete.",
+      "score_enabled": "Pontuação",
+      "score_enabled_hint": "Mostra a pontuação de 0 a 100 e o sucesso ou a falha. Libera recompensa e punição.",
+      "cost_enabled": "Custo",
+      "cost_enabled_hint": "Um valor em dinheiro por marcação, somado no relatório, com limite opcional."
+    },
+    "kept": {
+      "multi_mark": "Dias com várias marcações passam a contar como um dia marcado. As marcações extras ficam guardadas e voltam a contar se você religar.",
+      "duration_enabled": "Os minutos do hábito e das marcações ficam guardados e voltam quando você religar.",
+      "notes_enabled": "As observações das marcações ficam guardadas e voltam quando você religar.",
+      "score_enabled": "O limite, a recompensa e a punição ficam guardados e voltam quando você religar.",
+      "cost_enabled": "Os valores do hábito e das marcações ficam guardados e voltam quando você religar."
+    },
+    "duration_minutes": "Duração padrão (minutos)",
+    "duration_minutes_hint": "De 1 a {{max}} minutos. É a duração de cada marcação, que pode ser mudada nos detalhes dela.",
+    "score_threshold": "Limite de sucesso",
+    "score_threshold_hint": "De 1 a 100 (padrão 70). Pontuação igual ou maior é sucesso.",
+    "reward": "Recompensa (opcional)",
+    "reward_hint": "Um lembrete para quando der sucesso.",
+    "punishment": "Punição (opcional)",
+    "punishment_hint": "Um lembrete para quando der falha.",
+    "cost_level": "Como o custo é definido",
+    "cost_levels": {
+      "habit": "Por hábito: um valor fixo em cada marcação",
+      "mark": "Por marcação: cada marcação tem o seu valor"
+    },
+    "cost_cents_habit": "Valor de cada marcação",
+    "cost_cents_mark": "Valor padrão das marcações (opcional)",
+    "money_hint": "Sem símbolo de moeda, com até 2 casas, como {{example}}.",
+    "cost_limit_period": "Limite de gasto",
+    "no_limit": "Sem limite",
+    "limit_periods": {
+      "week": "Por semana",
+      "month": "Por mês",
+      "year": "Por ano"
+    },
+    "cost_limit_cents": "Valor do limite",
+    "counter": "{{n}}/{{max}} caracteres",
+    "unchanged": "Nada mudou para salvar.",
+    "saving": "Salvando…",
+    "errors": {
+      "required": "Preencha este campo.",
+      "too_long": "Use no máximo {{max}} caracteres.",
+      "invalid_chars": "Tire os caracteres invisíveis ou de controle.",
+      "invalid_code": "Use de 1 a 4 letras sem acento ou números.",
+      "goal_range": "Use um número inteiro de {{min}} a {{max}}.",
+      "duration_range": "Use minutos inteiros, de 1 a 1440.",
+      "threshold_range": "Use um número inteiro de 1 a 100.",
+      "invalid_money": "Informe um valor válido, como 12,50."
+    },
+    "invalid": {
+      "name": "Nome inválido: use de 1 a 60 caracteres, numa linha só.",
+      "code": "Sigla inválida: use de 1 a 4 letras sem acento ou números.",
+      "description": "Descrição inválida: use no máximo 500 caracteres.",
+      "color": "Escolha uma das cores da paleta.",
+      "goal_type": "Escolha o tipo da meta.",
+      "goal_count": "Este número não vale para esta meta. Pelo menos 1 vez, exceto em \"no máximo\", e não mais do que cabe no período.",
+      "goal_period": "Escolha o período da meta.",
+      "duration_minutes": "Informe a duração em minutos inteiros, de 1 a 1440.",
+      "score_threshold": "Use um número inteiro de 1 a 100.",
+      "reward": "Recompensa inválida: use no máximo 140 caracteres, com a pontuação ligada.",
+      "punishment": "Punição inválida: use no máximo 140 caracteres, com a pontuação ligada.",
+      "cost_level": "Escolha como o custo é definido.",
+      "cost_cents": "Informe um valor válido. No custo por hábito, ele é obrigatório.",
+      "cost_limit_cents": "Informe um valor válido para o limite.",
+      "cost_limit_period": "Escolha o período do limite."
+    }
+  },
+  "goal_preview": {
+    "label": "Meta:",
+    "invalid": "escolha um número válido para ver a meta.",
+    "never": "nenhuma vez por {{period}}.",
+    "min_one": "pelo menos {{count}} vez por {{period}}.",
+    "min_other": "pelo menos {{count}} vezes por {{period}}.",
+    "max_one": "no máximo {{count}} vez por {{period}}.",
+    "max_other": "no máximo {{count}} vezes por {{period}}.",
+    "exact_one": "exatamente {{count}} vez por {{period}}.",
+    "exact_other": "exatamente {{count}} vezes por {{period}}.",
+    "minutes_min": "Com a duração ligada, conta a soma dos minutos: pelo menos {{total}} min por {{period}}.",
+    "minutes_max": "Com a duração ligada, conta a soma dos minutos: no máximo {{total}} min por {{period}}.",
+    "minutes_exact": "Com a duração ligada, conta a soma dos minutos: exatamente {{total}} min por {{period}}.",
+    "period": {
+      "week": "semana",
+      "month": "mês",
+      "year": "ano"
+    }
   }
 }

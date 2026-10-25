@@ -9,6 +9,12 @@ import styles from './styles.module.css';
 // HabitLayout em src/routes.jsx
 const HABIT_NAV = Object.freeze([
   { section: HABIT_SECTION.calendar, i18nKey: 'habit.sections.calendar', visible: () => true },
+  // A tela também volta para o calendário se quem abre não é o dono (pages/HabitSettings)
+  {
+    section: HABIT_SECTION.settings,
+    i18nKey: 'habit.sections.settings',
+    visible: (habit) => habit.role === 'owner',
+  },
 ]);
 
 export default function HabitNav({ habit }) {
