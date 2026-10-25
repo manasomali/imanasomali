@@ -11,12 +11,16 @@ import { activeBanner, api, server } from './test/server';
 
 const OTHER_TIMEZONE = browserTimezone() === 'Asia/Tokyo' ? 'Europe/Lisbon' : 'Asia/Tokyo';
 
-/** GET /auth/me devolvendo o usuário dado e registrando toda escrita que chegar na API. */
+/**
+ * GET /auth/me devolvendo o usuário dado, sem hábitos, e registrando qualquer outra chamada que
+ * chegar na API.
+ */
 function signedIn(overrides = {}) {
   const writes = [];
   server.use(
     http.get(api('/auth/me'), () => HttpResponse.json(meFixture(overrides))),
     activeBanner(),
+    http.get(api('/habits'), () => HttpResponse.json({ habits: [] })),
     http.all(api('/*'), ({ request }) => {
       writes.push(`${request.method} ${new URL(request.url).pathname}`);
       return HttpResponse.json({ error: 'not_found', field: null }, { status: 404 });

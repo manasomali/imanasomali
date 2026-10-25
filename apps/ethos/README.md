@@ -327,17 +327,19 @@ npm run preview                            # serve o dist/ localmente
 | `public/locales/{pt,en}/translation.json` | Traduções, baixadas em runtime (não vão no bundle) |
 | `src/main.jsx` | Inicia o i18n, cria o router e o QueryClient (`createApp`) e monta o `App` |
 | `src/bootstrap.js` | `createApp()`: router com `basename="/ethos"` e QueryClient ligados (401 em qualquer chamada leva para o login) |
-| `src/routes.jsx` | Todas as rotas. Tela que exige sessão é filha de `RequireSession`; tela pública (login, termos, privacidade) fica fora. O painel de admin é filho de `RequireAdmin` |
-| `src/paths.js` | `BASENAME` e `PATHS` (`/`, `/entrar`, `/conta`, `/admin`, `/admin/contas/:userId`, `/admin/banners`) e `adminUserPath(id)`. Use as constantes, nunca o caminho escrito à mão |
+| `src/routes.jsx` | Todas as rotas. Tela que exige sessão é filha de `RequireSession`; tela pública (login, termos, privacidade) fica fora. O painel de admin é filho de `RequireAdmin`; a aba do hábito (`/habits/:habitId`) tem as seções como rotas filhas do `HabitLayout` |
+| `src/paths.js` | `BASENAME` e `PATHS` (`/`, `/entrar`, `/conta`, `/habits/:habitId`, `/admin`, `/admin/contas/:userId`, `/admin/banners`), `adminUserPath(id)`, `HABIT_SECTION` (seções da aba do hábito), `habitPath(id, seção, query)` e `parseHabitId`. Use as constantes, nunca o caminho escrito à mão |
 | `src/i18n.js` | `createI18n()`, `LANGUAGES` e a detecção do idioma (mesma chave do site, `i18nextLng`; `pt-BR` vira `pt`) |
 | `src/index.css` | Estilos globais. Importa as fontes, `@tokens/tokens.css` (alias para `packages/tokens`) e a paleta |
 | `src/styles/palette.css` | As 12 cores dos hábitos (`--habit-<nome>`) nos dois temas |
 | `src/api/auth.js` | `useMe()`/`fetchMe()` (`GET /auth/me`, chave `meQueryKey`), `useCachedMe()` (o usuário já carregado, sem buscar: para o que aparece também nas telas públicas, como o menu), `verifyCode()`, `apiLocale()` |
 | `src/api/banners.js` | `useActiveBanner()` (`GET /banners/active`, sem login, chave `activeBannerQueryKey`) |
 | `src/api/admin.js` | Endpoints de `/admin` (chaves em `adminKeys`): `useAccounts`, `useAccountHabits`, `blockAccount`, `unblockAccount`, `changeAccountEmail`, `deleteAccount`, `useBanners`, `createBanner`, `updateBanner`, `endBanner` |
-| `src/components/` | `Layout` (pular para o conteúdo, menu, banner, `<main>`, rodapé), `Menu` (links, link do admin só para `is_admin`, volta ao site, idioma, tema), `Banner`, `RequireSession`, `RequireAdmin`, `TimezoneNotice`, `ErrorMessage`, `PageTitle` |
-| `src/pages/` | Telas: `Admin/` (contas, conteúdo dos hábitos de uma conta e banners) e as provisórias `Home`, `Login` (destino do 401), `Account` (destino do aviso de fuso) e `NotFound` |
-| `src/hooks/useTheme.js` | Tema atual e a troca (botão do menu) |
+| `src/api/habits.js` | `useHabits({archived})`, `useHabit(id)`, `fetchHabits`, `fetchHabit`, `canMark(habit)` e as chaves `habitKeys` |
+| `src/api/marks.js` | Marcações por ano (`useYearMarks`, `useYearMarksOfHabits`, `fetchYearMarks`), escritas otimistas (`useToggleMark`, `useCreateMark`, `useDeleteMark`) e `useUpdateMark`, `afterMarksChanged`, chaves `markKeys` |
+| `src/components/` | `Layout` (pular para o conteúdo, menu, banner, `<main>`, rodapé), `Menu` (links, link do admin só para `is_admin`, volta ao site, idioma, tema), `Banner`, `RequireSession`, `RequireAdmin`, `TimezoneNotice`, `ErrorMessage`, `PageTitle`; do calendário: `YearCalendar` (+ `DayCell`), `YearNav`, `DayPanel`, `MarkItem`, `HabitTabs`, `HabitNav`, `HabitScore` |
+| `src/pages/` | Telas: `Home` (calendário de todos os hábitos), `Habit` (`HabitLayout`, a aba do hábito), `HabitCalendar`, `Admin/` (contas, conteúdo dos hábitos de uma conta e banners), `NotFound`; provisórias: `Login` (destino do 401) e `Account` (destino do aviso de fuso) |
+| `src/hooks/` | `useTheme` (tema atual e a troca), `useCalendarParams` (ano e dia na URL), `useHabitContext` (o hábito dentro das seções da aba) |
 | `src/legal/{pt,en}/{terms,privacy}.json` | Textos dos termos de uso e da política de privacidade (abaixo, em "Termos e privacidade") |
 | `src/lib/` | Utilitários sem React, com cobertura mínima de 80% (abaixo) |
 | `src/test/` | Setup dos testes: MSW (`server`, `api(path)`, `activeBanner(banner)`), `renderApp(path)`, `meFixture()`, `createTestI18n()`, `axe`, `readFrontendFile()`; do painel de admin, `src/test/admin.js` (`ADMIN`, `signedIn`, `accountFixture`, `bannerFixture`, `trackRequests`) |
@@ -351,6 +353,7 @@ npm run preview                            # serve o dist/ localmente
 - `session.js`: `redirectToLogin(router)` vai para `/entrar` guardando o caminho atual em `state.from` (no histórico, nunca na URL); `returnPath(location)` devolve esse caminho depois do login, só se for interno.
 - `errors.js`: `errorKey(error, i18n.exists)` dá `errors.<codigo>`, ou `errors.unknown` para código sem tradução e erro que não veio da API. Na tela, use o componente `ErrorMessage` (com `onRetry` opcional).
 - `time.js`: dias locais como `"AAAA-MM-DD"`. `dayBounds(dia, fuso)` dá `{start, end}` (fim exclusivo) em UTC, o que o `POST /habits/{id}/toggle` espera; `pastDayNoon(dia, fuso)` dá 12:00 local em UTC; `markedAtFor(dia, fuso, agora)` dá o `marked_at` (hoje: o instante atual; passado: 12:00 local; futuro: `RangeError`). Também `today`, `localDate`, `addDays`, `parseDate`, `zonedTimeToUtc`, `browserTimezone`, `isValidTimezone`, `sameTimezone`. Hora que não existe ou se repete (horário de verão) segue o backend (`fold=0`).
+- `calendar.js`: meses e dias do ano (semana na segunda), `yearRange(ano, fuso)` (o `from`/`to` do ano em UTC), `marksByDay`, `overviewByDay` e `splitDots` (até 4 pontos e o "+N"), `moveDay` (setas), `parseYear`/`parseDay` (URL), `MIN_YEAR`. `format.js`: dias, meses e horas formatados pelo idioma. `duration.js`: `parseDuration` e `MAX_DURATION_MINUTES`.
 - `money.js`: `formatMoney(centavos, idioma)` sem símbolo, com 2 casas (`1.234,50` / `1,234.50`); `parseMoney(texto, idioma)` lê o que a pessoa digitou e devolve centavos ou `null`; `MAX_MONEY_CENTS`.
 - `palette.js`: `HABIT_COLORS` (os 12 nomes de `HabitColor`) e `isHabitColor`. `color.js`: `contrastRatio`, `relativeLuminance` (WCAG), para escolher a cor de um texto sobre a cor de um hábito.
 - `legal.js`: `TERMS_VERSION`, `SUPPORT_EMAIL` e `loadLegalDocument(nome, idioma)` (abaixo, em "Termos e privacidade").
@@ -358,6 +361,13 @@ npm run preview                            # serve o dist/ localmente
 - `datetime.js`: `formatDateTime(instante, fuso, idioma)` e o valor de um `<input type="datetime-local">` no fuso de quem vê (`toDateTimeLocal`, `fromDateTimeLocal`).
 - `banner.js`: texto do banner no idioma da tela (`bannerText`), o "fechar" lembrado por id em `ethos:banners-dismissed` (`dismissBanner`, `isBannerDismissed`; guarda os últimos 20), o contador de 280 caracteres como a API conta (`bannerTextLength`: sem os espaços das pontas, um por caractere Unicode) e o formulário do admin (`bannerForm`, `bannerPayload`, `bannerStatus`).
 - `admin.js`: filtros da listagem de contas (`accountQuery`), a confirmação digitando o email (`confirmsEmail`) e o id da conta na URL (`parseUserId`).
+
+### Calendários e marcação
+
+- **Rotas:** `/` é a aba principal (todos os hábitos ativos e pausados; os arquivados ficam numa seção à parte) e `/habits/:habitId` a aba do hábito (`HabitLayout`: cabeçalho, pontuação e o submenu `HabitNav`), com o calendário como rota índice. Ano e dia escolhidos ficam na URL (`?year=2025&day=2025-03-04`). Seção nova do hábito (configuração, compartilhamento, alertas): rota filha do `HabitLayout` em `src/routes.jsx` com o caminho de `HABIT_SECTION`, um item no `HABIT_NAV` de `components/HabitNav` e `useHabitContext()` para receber `{habit, timeZone}`. O caminho dos alertas é fixo (`/habits/:habitId/alerts`, o link do email; `src/paths.test.js` confere com o backend).
+- **Cache:** `habitKeys.list({archived})` e `habitKeys.detail(id)` para os hábitos; `markKeys.year(id, ano, fuso)` guarda todas as marcações do ano local de um hábito, compartilhada pelas duas abas. Uma request por hábito e ano (páginas de 1000, seguindo o `next_cursor`). Mudou a configuração de um hábito: invalide `habitKeys.all` (as marcações não mudam).
+- **Escritas:** `useToggleMark`, `useCreateMark` e `useDeleteMark` mudam a tela na hora e desfazem a mudança se a API falhar; quando dois cliques no mesmo hábito se cruzam ou a resposta não bate com o que a tela supôs, o ano é buscado de novo ao fim da última escrita. Toda escrita termina em `afterMarksChanged`, que atualiza a pontuação (só se ligada); telas com dados derivados das marcações (relatório) invalidam ali o que guardam.
+- **Teclado:** o ano é uma parada de Tab só; as setas andam entre os dias (Home/End: começo e fim do mês) e Enter/Espaço acionam. Dia futuro fica `aria-disabled` (continua focável e lido).
 
 ### Regras para as próximas telas
 

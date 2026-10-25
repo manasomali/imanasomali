@@ -180,6 +180,101 @@
       "ended_done": "Banner {{id}} encerrado."
     }
   },
+  "habit_tabs": {
+    "label": "Hábitos",
+    "all": "Todos os hábitos"
+  },
+  "calendar": {
+    "label": "Calendário de {{year}}",
+    "previous_year": "Ano anterior ({{year}})",
+    "next_year": "Próximo ano ({{year}})",
+    "loading": "Carregando as marcações…",
+    "day_future": "{{date}}. Dia futuro, não pode ser marcado",
+    "day_marked": "{{date}}. Marcado",
+    "day_unmarked": "{{date}}. Não marcado",
+    "day_no_marks": "{{date}}. Sem marcações",
+    "day_count_one": "{{date}}. {{count}} marcação",
+    "day_count_other": "{{date}}. {{count}} marcações",
+    "day_habits": "{{date}}. Marcados: {{habits}}",
+    "day_nothing": "{{date}}. Nada marcado"
+  },
+  "day_panel": {
+    "title": "Dia",
+    "choose": "Escolha um dia no calendário para ver as marcações.",
+    "marked": "Marcado",
+    "unmarked": "Não marcado",
+    "no_marks": "Sem marcações",
+    "count_one": "{{count}} marcação",
+    "count_other": "{{count}} marcações",
+    "mark": "Marcar este dia",
+    "unmark": "Desmarcar este dia",
+    "add": "Adicionar marcação",
+    "marks": "Marcações do dia"
+  },
+  "overview": {
+    "habits": "Hábitos neste dia",
+    "mark": "Marcar",
+    "mark_label": "Marcar {{habit}}",
+    "unmark": "Desmarcar",
+    "unmark_label": "Desmarcar {{habit}}",
+    "add": "Adicionar",
+    "add_label": "Adicionar uma marcação em {{habit}}"
+  },
+  "mark": {
+    "time": "Horário",
+    "author": "Por",
+    "removed_user": "Usuário removido",
+    "duration": "Duração",
+    "duration_minutes": "Duração (minutos)",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "cost": "Custo",
+    "note": "Observação",
+    "saving": "Salvando…",
+    "edit": "Editar",
+    "edit_label": "Editar a marcação das {{time}}",
+    "delete": "Apagar",
+    "delete_label": "Apagar a marcação das {{time}}",
+    "confirm_delete": "Confirmar exclusão",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "date_fixed": "A data de uma marcação não muda. Para trocar, apague e adicione outra.",
+    "invalid_note": "A observação está longa demais ou tem caracteres não permitidos.",
+    "invalid_duration": "Informe minutos inteiros, de 1 a 1440.",
+    "invalid_cost": "Informe um valor válido, como 12,50."
+  },
+  "habit": {
+    "sections": {
+      "label": "Seções do hábito",
+      "calendar": "Calendário"
+    },
+    "status": {
+      "paused": "Pausado",
+      "archived": "Arquivado"
+    },
+    "role": {
+      "editor": "Compartilhado com você: pode marcar",
+      "viewer": "Compartilhado com você: só visualização"
+    },
+    "read_only_archived": "Este hábito está arquivado e só pode ser lido. Desarquive para marcar de novo.",
+    "read_only_viewer": "Você pode ver este hábito, mas não marcar.",
+    "score": {
+      "label": "Pontuação",
+      "value": "{{value}}/100",
+      "no_data": "Sem dados ainda",
+      "threshold": "Limite",
+      "result": "Resultado",
+      "success": "Sucesso",
+      "failure": "Falha"
+    }
+  },
+  "home": {
+    "empty": "Você ainda não tem hábitos.",
+    "archived": {
+      "title": "Hábitos arquivados",
+      "empty": "Nenhum hábito arquivado."
+    }
+  },
   "errors": {
     "bad_request": "Não foi possível entender o pedido. Recarregue a página e tente de novo.",
     "unauthorized": "Sua sessão acabou. Entre de novo.",

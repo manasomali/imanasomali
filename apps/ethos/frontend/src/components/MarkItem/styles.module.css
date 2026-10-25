@@ -1,0 +1,106 @@
+.item {
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+.item[data-pending] {
+  color: var(--muted);
+}
+
+.details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+}
+
+.details dt {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.details dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.note {
+  flex-basis: 100%;
+}
+
+.note dd {
+  font-weight: 500;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.button,
+.primary,
+.danger {
+  padding: 0.25rem 0.75rem;
+  background: transparent;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--surface-hover);
+}
+
+.primary,
+.danger {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.primary:disabled {
+  cursor: progress;
+}
+
+.form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.field label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.field [aria-invalid='true'] {
+  border-style: dashed;
+}
+
+.fieldError {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}

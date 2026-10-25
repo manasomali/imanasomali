@@ -1,0 +1,33 @@
+.score {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+}
+
+.score div {
+  display: flex;
+  flex-direction: column;
+}
+
+.score dt {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.score dd {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.result {
+  padding-inline: 0.5rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.result[data-success='true'] {
+  background: var(--fg);
+  color: var(--bg);
+}

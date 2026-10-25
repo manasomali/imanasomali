@@ -5,6 +5,8 @@ import Account from './pages/Account';
 import AdminAccounts from './pages/Admin/Accounts';
 import AdminBanners from './pages/Admin/Banners';
 import AdminUserHabits from './pages/Admin/UserHabits';
+import HabitLayout from './pages/Habit';
+import HabitCalendar from './pages/HabitCalendar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
@@ -30,6 +32,13 @@ export const routes = [
               { path: PATHS.adminUser, element: <AdminUserHabits /> },
               { path: PATHS.adminBanners, element: <AdminBanners /> },
             ],
+          },
+          {
+            // Aba do hábito. Seções novas entram como filhas, com `path: HABIT_SECTION.<nome>`
+            // (ex.: { path: HABIT_SECTION.alerts, element: <HabitAlerts /> }), e no HabitNav
+            path: PATHS.habit,
+            element: <HabitLayout />,
+            children: [{ index: true, element: <HabitCalendar /> }],
           },
         ],
       },

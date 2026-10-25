@@ -1,0 +1,19 @@
+.panel {
+  padding: 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.heading {
+  margin-bottom: 0.75rem;
+  font-size: var(--text-lg);
+}
+
+.heading::first-letter {
+  text-transform: uppercase;
+}
+
+.hint {
+  color: var(--muted);
+}

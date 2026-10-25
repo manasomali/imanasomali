@@ -1,0 +1,35 @@
+import { describe, expect, it } from 'vitest';
+import { formatDateTime, formatLongDay, formatMonth, formatTime, weekdayNames } from './format';
+
+describe('dates for the screen', () => {
+  it('formats a local day without shifting it by the time zone', () => {
+    expect(formatLongDay('2026-03-04', 'en')).toBe('Wednesday, March 4, 2026');
+    expect(formatLongDay('2026-03-04', 'pt')).toBe('quarta-feira, 4 de março de 2026');
+    expect(formatLongDay('2026-01-01', 'en')).toBe('Thursday, January 1, 2026');
+  });
+
+  it('names months and weekdays, starting on Monday', () => {
+    expect(formatMonth(3, 'en')).toBe('March');
+    expect(formatMonth(12, 'pt')).toBe('dezembro');
+
+    const weekdays = weekdayNames('en');
+    expect(weekdays.map((day) => day.long)).toEqual([
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ]);
+    expect(weekdays[0].short).toBe('M');
+  });
+
+  it('shows instants in the viewer time zone', () => {
+    const instant = '2026-03-04T15:05:00Z';
+
+    expect(formatTime(instant, 'America/Sao_Paulo', 'pt')).toBe('12:05');
+    expect(formatTime(instant, 'Asia/Tokyo', 'en')).toBe('12:05 AM');
+    expect(formatDateTime(instant, 'America/Sao_Paulo', 'en')).toBe('Mar 4, 2026, 12:05 PM');
+  });
+});

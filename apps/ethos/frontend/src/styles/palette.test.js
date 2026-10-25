@@ -10,6 +10,7 @@ const tokens = readCustomProperties(readFrontendFile('../../../packages/tokens/t
 const models = readFrontendFile('../backend/app/models.py');
 
 const MIN_CONTRAST = 3;
+const MIN_TEXT_CONTRAST = 4.5;
 
 const themes = {
   light: { palette: palette.get(LIGHT), tokens: tokens.get(LIGHT) },
@@ -57,6 +58,14 @@ describe('habit palette', () => {
 
       expect(contrastRatio(color, base['--bg'])).toBeGreaterThanOrEqual(MIN_CONTRAST);
       expect(contrastRatio(color, base['--surface'])).toBeGreaterThanOrEqual(MIN_CONTRAST);
+    });
+
+    // O dia marcado no calendário escreve o número em var(--bg) sobre a cor do hábito: texto
+    // pequeno, então 4,5:1 (WCAG AA)
+    it.each(HABIT_COLORS)(`%s has at least ${MIN_TEXT_CONTRAST}:1 as a background for text`, (name) => {
+      expect(contrastRatio(colors[`--habit-${name}`], base['--bg'])).toBeGreaterThanOrEqual(
+        MIN_TEXT_CONTRAST,
+      );
     });
   });
 });

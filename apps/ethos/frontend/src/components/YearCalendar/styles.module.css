@@ -1,0 +1,160 @@
+/* Meses lado a lado no desktop; no celular, um embaixo do outro (rolagem vertical) */
+.year {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
+  gap: 1.5rem 1.25rem;
+  /* A dica dos pontos não pode criar rolagem horizontal na página */
+  overflow-x: clip;
+}
+
+.month {
+  min-width: 0;
+}
+
+.monthName {
+  margin-bottom: 0.4rem;
+  font-size: var(--text-base);
+  text-transform: capitalize;
+}
+
+.weekdays,
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.2rem;
+}
+
+.weekdays {
+  margin-bottom: 0.2rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.offset1 { grid-column: span 1; }
+.offset2 { grid-column: span 2; }
+.offset3 { grid-column: span 3; }
+.offset4 { grid-column: span 4; }
+.offset5 { grid-column: span 5; }
+.offset6 { grid-column: span 6; }
+
+.day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  aspect-ratio: 1;
+  min-height: 2.25rem;
+  padding: 0.15rem 0 0;
+  background: var(--surface);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color var(--transition), border-color var(--transition);
+}
+
+@media (hover: hover) {
+  .day:hover {
+    border-color: var(--border-soft);
+  }
+}
+
+.day[aria-current='date'] .number {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.day[data-selected] {
+  border-color: var(--fg);
+}
+
+/* Texto em var(--bg) sobre a cor do hábito: contraste de 4,5:1 nos dois temas
+   (src/styles/palette.test.js) */
+.day[data-marked] {
+  background: var(--habit-color, var(--muted));
+  color: var(--bg);
+}
+
+.day[data-marked][data-selected] {
+  border-color: var(--fg);
+  box-shadow: inset 0 0 0 2px var(--bg);
+}
+
+.day[data-pending] {
+  border-style: dashed;
+  border-color: var(--fg);
+}
+
+.day[aria-disabled='true'] {
+  background: transparent;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.number {
+  font-variant-numeric: tabular-nums;
+}
+
+.count {
+  position: absolute;
+  right: 0.15rem;
+  bottom: 0.05rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  max-width: 100%;
+  margin-top: auto;
+  padding-bottom: 0.2rem;
+}
+
+.dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--habit-color, var(--muted));
+}
+
+.extra {
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Siglas dos hábitos marcados no dia, no hover e no foco */
+.tooltip {
+  position: absolute;
+  bottom: calc(100% + 0.3rem);
+  left: 50%;
+  z-index: 10;
+  display: none;
+  width: max-content;
+  max-width: 12rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--fg);
+  color: var(--bg);
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: normal;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.day:hover .tooltip,
+.day:focus-visible .tooltip {
+  display: block;
+}

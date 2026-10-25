@@ -1,0 +1,31 @@
+.nav {
+  margin-block: 1.25rem 1.5rem;
+}
+
+.nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: inline-block;
+  padding: 0.3rem 0.85rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.link:hover {
+  background: var(--surface-hover);
+}
+
+.active,
+.active:hover {
+  background: var(--fg);
+  color: var(--bg);
+}

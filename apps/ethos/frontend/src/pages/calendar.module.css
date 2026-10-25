@@ -1,0 +1,88 @@
+/* Calendário e painel do dia, na aba principal e na aba do hábito. O painel vem antes no HTML:
+   no celular fica em cima (o dia de hoje à mão, sem rolar o ano); no desktop, ao lado, fixo na
+   rolagem */
+.layout {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.calendar {
+  min-width: 0;
+}
+
+.status {
+  margin-bottom: 0.75rem;
+  color: var(--muted);
+}
+
+@media (min-width: 64rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    align-items: start;
+  }
+
+  /* Painel alto (várias marcações, formulário aberto) rola por dentro, senão o fim dele só
+     apareceria no fim do ano */
+  .panel {
+    position: sticky;
+    top: calc(var(--header-height) + 1rem);
+    grid-column: 2;
+    grid-row: 1;
+    max-height: calc(100dvh - var(--header-height) - 2rem);
+    overflow-y: auto;
+  }
+
+  .calendar {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
+
+.state {
+  margin-bottom: 0.75rem;
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.primary {
+  padding: 0.35rem 0.9rem;
+  background: var(--fg);
+  color: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondary {
+  padding: 0.35rem 0.9rem;
+  background: transparent;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondary:hover {
+  background: var(--surface-hover);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.feedback {
+  margin-bottom: 0.75rem;
+}
