@@ -15,6 +15,7 @@ import { useCallback } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { meQueryKey } from './auth';
 import { habitKeys } from './habits';
+import { historyKeys } from './history';
 import { reportKeys } from './progress';
 import { apiFetch } from '../lib/api';
 import { marksByDay, yearOf, yearRange } from '../lib/calendar';
@@ -134,10 +135,12 @@ function resyncSet(queryClient) {
 
 /**
  * Depois que as marcações de um hábito mudaram: o relatório (src/api/report.js) guarda totais e
- * períodos derivados delas e é refeito; a pontuação (só se ligada) vem do GET /habits.
+ * períodos derivados delas e é refeito, o histórico ganhou eventos, e a pontuação (só se ligada)
+ * vem do GET /habits.
  */
 export function afterMarksChanged(queryClient, habit) {
   queryClient.invalidateQueries({ queryKey: reportKeys.all });
+  queryClient.invalidateQueries({ queryKey: historyKeys.all });
   if (!habit.score_enabled) return;
   queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
   queryClient.invalidateQueries({ queryKey: habitKeys.detail(habit.id) });

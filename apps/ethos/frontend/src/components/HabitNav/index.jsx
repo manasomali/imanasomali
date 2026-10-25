@@ -1,12 +1,13 @@
 import { Link, NavLink } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { HABIT_SECTION, habitPath, reportPath } from '../../paths';
+import { HABIT_SECTION, habitPath, historyPath, reportPath } from '../../paths';
 import styles from './styles.module.css';
 
 // Submenu da aba de um hábito. Cada tela nova do hábito (ETH-33 configuração, ETH-34
 // compartilhamento, ETH-35 alertas) entra aqui com o caminho de HABIT_SECTION e a regra de quem a
 // vê (`visible(habit)`; ex.: configuração só para `habit.role === 'owner'`), além da rota filha do
-// HabitLayout em src/routes.jsx
+// HabitLayout em src/routes.jsx. Depois das seções, o atalho para o histórico (rota de topo) já
+// filtrado pelo hábito
 const HABIT_NAV = Object.freeze([
   { section: HABIT_SECTION.calendar, i18nKey: 'habit.sections.calendar', visible: () => true },
   // A tela também volta para o calendário se quem abre não é o dono (pages/HabitSettings)
@@ -37,6 +38,11 @@ export default function HabitNav({ habit }) {
         <li>
           <Link to={reportPath({ habitIds: [habit.id] })} className={styles.link}>
             {t('habit.sections.report')}
+          </Link>
+        </li>
+        <li>
+          <Link to={historyPath(habit.id)} className={styles.link}>
+            {t('habit.sections.history')}
           </Link>
         </li>
       </ul>

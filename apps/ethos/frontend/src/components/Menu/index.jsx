@@ -14,6 +14,7 @@ const ICON_SIZE = 20;
 const links = [
   { to: PATHS.home, i18nKey: 'menu.habits', end: true },
   { to: PATHS.report, i18nKey: 'menu.report' },
+  { to: PATHS.history, i18nKey: 'menu.history' },
   { to: PATHS.invites, i18nKey: 'menu.invites', pending: true },
   { to: PATHS.account, i18nKey: 'menu.account' },
 ];

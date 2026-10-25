@@ -9,6 +9,7 @@ import HabitLayout from './pages/Habit';
 import HabitCalendar from './pages/HabitCalendar';
 import HabitSettings from './pages/HabitSettings';
 import HabitSharing from './pages/HabitSharing';
+import History from './pages/History';
 import Home from './pages/Home';
 import Invites from './pages/Invites';
 import Legal from './pages/Legal';
@@ -36,6 +37,7 @@ export const routes = [
           { path: PATHS.report, element: <Report /> },
           { path: PATHS.newHabit, element: <NewHabit /> },
           { path: PATHS.invites, element: <Invites /> },
+          { path: PATHS.history, element: <History /> },
           {
             element: <RequireAdmin />,
             children: [

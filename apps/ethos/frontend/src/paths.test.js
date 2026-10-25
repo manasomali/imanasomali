@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { HABIT_SECTION, PATHS, habitPath, parseHabitId } from './paths';
+import { HABIT_SECTION, PATHS, habitPath, historyPath, parseHabitId } from './paths';
 import { readFrontendFile } from './test/files';
+
+describe('history path', () => {
+  it('filters by the habit in the query', () => {
+    expect(historyPath()).toBe(PATHS.history);
+    expect(historyPath(3)).toBe(`${PATHS.history}?habit_id=3`);
+    expect(() => historyPath(0)).toThrow(TypeError);
+    expect(() => historyPath('3')).toThrow(TypeError);
+  });
+});
 
 describe('habit paths', () => {
   it('builds the path of each section, with the query', () => {

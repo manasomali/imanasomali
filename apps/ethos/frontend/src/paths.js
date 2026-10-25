@@ -16,6 +16,8 @@ export const PATHS = Object.freeze({
   // Criar um hábito. Caminho fixo antes de `/habits/:habitId` (a rota fixa ganha da dinâmica, e
   // "new" nunca é um id)
   newHabit: '/habits/new',
+  // Histórico de todos os hábitos; o filtro de um hábito vai na query (historyPath)
+  history: '/historico',
   // Aba de um hábito (HabitLayout). O calendário é a rota índice; as outras seções são rotas
   // filhas (`/habits/:habitId/<seção>`, ver HABIT_SECTION)
   habit: '/habits/:habitId',
@@ -57,6 +59,18 @@ export const HABIT_SECTION = Object.freeze({
   sharing: 'sharing',
   alerts: 'alerts',
 });
+
+/**
+ * Caminho do histórico, já filtrado pelo hábito `habitId` quando dado (`/historico?habit_id=3`). Os
+ * outros filtros também ficam na query (src/lib/history.js, `historySearch`).
+ */
+export function historyPath(habitId = null) {
+  if (habitId === null) return PATHS.history;
+  if (!Number.isSafeInteger(habitId) || habitId < 1) {
+    throw new TypeError(`id de hábito inválido: ${habitId}`);
+  }
+  return `${PATHS.history}?habit_id=${habitId}`;
+}
 
 /** Id de hábito do caminho (`:habitId`): inteiro positivo em texto, ou null. */
 export function parseHabitId(value) {
