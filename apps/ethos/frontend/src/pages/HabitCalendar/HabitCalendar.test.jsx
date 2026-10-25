@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { configure, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { BASENAME } from '../../paths';
@@ -8,8 +8,10 @@ import { deferred, habitFixture, markFixture, mockHabitsApi } from '../../test/h
 import { meFixture, renderApp } from '../../test/render';
 import { api, server } from '../../test/server';
 
-// Um ano inteiro de botões no jsdom (com axe) é pesado: folga para o CI
+// Um ano inteiro de botões no jsdom (com axe) é pesado: folga para o CI,
 vi.setConfig({ testTimeout: 15_000 });
+// e o primeiro desenho do ano pode passar de 1 s (o padrão do findBy/waitFor) com os testes em paralelo
+configure({ asyncUtilTimeout: 5_000 });
 
 // "Agora" de todos os testes: terça, 10 de março de 2026, 12:00 em São Paulo (UTC-3, sem horário
 // de verão)
