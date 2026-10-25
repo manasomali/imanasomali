@@ -163,3 +163,98 @@
 .day:focus-visible .tooltip {
   display: block;
 }
+
+/* Visão em colunas: cada mês uma coluna, lado a lado, com os dias de cima para baixo. Quando não
+   cabem (o ano no celular ou numa tela estreita), o calendário rola na horizontal por dentro, sem
+   rolar a página; o foco nos dias (setas) leva a rolagem junto. O espaço em volta (e o mesmo
+   scroll-padding) deixa o anel de foco (2px a 3px do botão) aparecer nas colunas das pontas.
+   `position: relative` faz o offsetLeft das colunas contar a partir do calendário (Calendar rola
+   até a coluna do dia escolhido) */
+.columns {
+  position: relative;
+  display: grid;
+  /* Larga o bastante para "September" e os pontos; sem esticar pela largura toda do desktop (com
+     um mês ou 3, a marcação ficaria longe do número) */
+  grid-auto-columns: minmax(5.25rem, 12rem);
+  grid-auto-flow: column;
+  gap: 0.5rem;
+  padding: 0.35rem 0.35rem 0.75rem;
+  overflow-x: auto;
+  scroll-padding-inline: 0.35rem;
+  overscroll-behavior-x: contain;
+}
+
+.column {
+  min-width: 0;
+}
+
+/* Nome do mês numa linha (o nome mais longo cabe na coluna mais estreita); com o ano, quebra
+   entre as palavras */
+.columns .monthName {
+  font-size: var(--text-sm);
+  overflow-wrap: normal;
+}
+
+.columnDays {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* O dia vira uma linha: número, dia da semana e a marcação (pontos, "+N" ou contador) à direita.
+   Altura fixa: os dias de um mês ficam na mesma altura dos de outro com a mesma posição na
+   coluna, com ou sem pontos */
+.columns .day {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  aspect-ratio: auto;
+  height: 2rem;
+  min-height: 0;
+  padding: 0 0.35rem;
+}
+
+/* Uma linha entre as semanas, no vão entre os dias (sem mudar a altura: o dia 10 de um mês fica
+   na altura do dia 10 dos outros). O vão é de 0.25rem e o botão tem borda de 2px */
+.columns .day[data-week-start]::before {
+  position: absolute;
+  top: calc(-2px - 0.125rem - 0.5px);
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--border-soft);
+  content: '';
+}
+
+.columns .number {
+  min-width: 2ch;
+  text-align: right;
+}
+
+.weekday {
+  font-size: 0.7rem;
+}
+
+/* Até 4 pontos e o "+N" em duas linhas de 3, para caber na coluna estreita */
+.columns .dots {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-items: center;
+  margin: 0 0 0 auto;
+  padding: 0;
+}
+
+.columns .count {
+  position: static;
+  margin-left: auto;
+  font-size: 0.7rem;
+}
+
+/* A dica fica na largura do dia: não estica a rolagem das colunas */
+.columns .tooltip {
+  right: 0;
+  left: 0;
+  width: auto;
+  max-width: none;
+  transform: none;
+}

@@ -1,5 +1,5 @@
-/* Faixa e botões de anterior/próximo à esquerda, o tipo da faixa à direita; no celular, o tipo
-   desce para a linha de baixo */
+/* Faixa e botões de anterior/próximo à esquerda, o tipo da faixa e a visão à direita; no celular,
+   as escolhas descem para a linha de baixo (e a visão para a seguinte, se não couber) */
 .nav {
   display: flex;
   flex-wrap: wrap;
@@ -47,8 +47,14 @@
   cursor: not-allowed;
 }
 
-/* Tipo da faixa: botões de rádio num bloco segmentado */
-.kinds {
+/* Tipo da faixa e visão: botões de rádio em blocos segmentados */
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.choice {
   display: inline-flex;
   margin: 0;
   padding: 0;
@@ -58,16 +64,19 @@
 }
 
 /* O rádio fica escondido dentro do rótulo (relative), sem pular a rolagem ao receber foco */
-.kind {
+.item {
   position: relative;
   display: flex;
 }
 
-.kind + .kind {
+.item + .item {
   border-left: 2px solid var(--border);
 }
 
 .option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.35rem 0.8rem;
   font-weight: 700;
   white-space: nowrap;

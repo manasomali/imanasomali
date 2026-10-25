@@ -34,7 +34,8 @@ export default function Home() {
   // RequireSession só desenha as rotas com o usuário carregado
   const timeZone = useMe().data.timezone;
   const current = today(timeZone);
-  const { range, day, previous, next, move, setKind, setDay } = useCalendarParams(current);
+  const { range, day, view, previous, next, move, setKind, setDay, setView } =
+    useCalendarParams(current);
   const habits = useHabits();
   const list = habits.data ?? NO_HABITS;
   const marks = useMarksOfHabits(list, range.years, timeZone);
@@ -72,10 +73,12 @@ export default function Home() {
       <>
         <CalendarNav
           range={range}
+          view={view}
           previous={previous}
           next={next}
           onMove={move}
           onKindChange={setKind}
+          onViewChange={setView}
         />
         <div className={calendar.layout}>
           <div className={calendar.panel}>
@@ -107,6 +110,7 @@ export default function Home() {
             )}
             <Calendar
               range={range}
+              view={view}
               label={t('calendar.label', { period: formatPeriod(range, language) })}
               initialFocus={day ?? current}
               dayProps={dayProps}

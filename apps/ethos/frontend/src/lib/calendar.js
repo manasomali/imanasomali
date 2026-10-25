@@ -154,29 +154,65 @@ export function overviewByDay(habits, byHabit, max = MAX_DOTS) {
   return result;
 }
 
-// Teclas que movem o foco no calendário e quantos dias cada uma anda
+// Teclas que movem o foco na grade e quantos dias cada uma anda
 const STEPS = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
 
+// Home e End: o primeiro e o último dia do mês de `value`
+function monthEdge(value, key) {
+  if (key === 'Home') return `${value.slice(0, 8)}01`;
+  const { year, month } = parseDate(value);
+  return `${value.slice(0, 8)}${pad(daysInMonth(year, month))}`;
+}
+
+function clampDay(value, first, last) {
+  if (value < first) return first;
+  if (value > last) return last;
+  return value;
+}
+
 /**
- * Dia que recebe o foco quando a tecla `key` é apertada em `value`, dentro de `[first, last]`;
- * null se a tecla não move. Setas andam 1 dia (esquerda/direita) ou 1 semana (cima/baixo); Home e
- * End vão ao primeiro e ao último dia do mês.
+ * Dia que recebe o foco na grade quando a tecla `key` é apertada em `value`, dentro de
+ * `[first, last]`; null se a tecla não move. Setas andam 1 dia (esquerda/direita) ou 1 semana
+ * (cima/baixo); Home e End vão ao primeiro e ao último dia do mês.
  */
 export function moveDay(value, key, first, last) {
   let next;
-  if (key in STEPS) {
-    next = addDays(value, STEPS[key]);
-  } else if (key === 'Home') {
-    next = `${value.slice(0, 8)}01`;
-  } else if (key === 'End') {
-    const { year, month } = parseDate(value);
-    next = `${value.slice(0, 8)}${pad(daysInMonth(year, month))}`;
-  } else {
-    return null;
-  }
-  if (next < first) return first;
-  if (next > last) return last;
-  return next;
+  if (key in STEPS) next = addDays(value, STEPS[key]);
+  else if (key === 'Home' || key === 'End') next = monthEdge(value, key);
+  else return null;
+  return clampDay(next, first, last);
+}
+
+/**
+ * O mesmo dia `step` meses para frente (1) ou para trás (−1); no mês mais curto, o último dia
+ * dele (31 de março − 1 mês = 28 ou 29 de fevereiro).
+ */
+export function shiftMonthDay(value, step) {
+  const { year, month, day } = parseDate(value);
+  const index = year * 12 + month - 1 + step;
+  const nextYear = Math.floor(index / 12);
+  const nextMonth = (index % 12) + 1;
+  const nextDay = Math.min(day, daysInMonth(nextYear, nextMonth));
+  return `${yearText(nextYear)}-${pad(nextMonth)}-${pad(nextDay)}`;
+}
+
+// Setas na visão em colunas: cima/baixo andam 1 dia, esquerda/direita 1 mês (uma coluna)
+const COLUMN_STEPS = { ArrowUp: -1, ArrowDown: 1 };
+const COLUMN_MONTHS = { ArrowLeft: -1, ArrowRight: 1 };
+
+/**
+ * Como moveDay, na visão em colunas (cada mês uma coluna, os dias de cima para baixo): cima e
+ * baixo andam 1 dia (do último dia de um mês para o primeiro do próximo); esquerda e direita vão
+ * para o mesmo dia na coluna vizinha (shiftMonthDay); Home e End como na grade. Também fica
+ * dentro de `[first, last]`.
+ */
+export function moveColumnDay(value, key, first, last) {
+  let next;
+  if (key in COLUMN_STEPS) next = addDays(value, COLUMN_STEPS[key]);
+  else if (key in COLUMN_MONTHS) next = shiftMonthDay(value, COLUMN_MONTHS[key]);
+  else if (key === 'Home' || key === 'End') next = monthEdge(value, key);
+  else return null;
+  return clampDay(next, first, last);
 }
 
 const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];

@@ -63,8 +63,9 @@ export function formatPeriod(range, locale) {
 }
 
 /**
- * Iniciais dos dias da semana e os nomes completos (para leitores), de segunda a domingo: o índice
- * é o `weekday` da API (0 = segunda). Para o cabeçalho do calendário, use calendarWeekdayNames.
+ * Nomes dos dias da semana, de segunda a domingo: o índice é o `weekday` da API (0 = segunda).
+ * `short` é a inicial ("S"), `abbr` a abreviação sem ponto ("seg", "Mon": as colunas do calendário)
+ * e `long` o nome completo (para leitores). Na ordem do calendário, use calendarWeekdayNames.
  */
 export function weekdayNames(locale) {
   // 2024-01-01 foi uma segunda
@@ -72,6 +73,7 @@ export function weekdayNames(locale) {
     const date = dayDate(`2024-01-0${index + 1}`);
     return {
       short: formatter(locale, { timeZone: 'UTC', weekday: 'narrow' }).format(date),
+      abbr: formatter(locale, { timeZone: 'UTC', weekday: 'short' }).format(date).replace(/\.$/, ''),
       long: formatter(locale, { timeZone: 'UTC', weekday: 'long' }).format(date),
     };
   });
