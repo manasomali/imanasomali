@@ -113,7 +113,9 @@ describe('time zone', () => {
     expect(timezone.textContent).toContain('Current account time zone: America/Sao Paulo (UTC-03:00)');
 
     await user.type(within(timezone).getByRole('searchbox'), 'lisbon');
+    // O resultado, com o escolhido no topo (não some com a busca)
     expect(within(list).getAllByRole('option').map((option) => option.value)).toEqual([
+      'America/Sao_Paulo',
       'Europe/Lisbon',
     ]);
     expect(within(timezone).getByText('1 time zone found.')).toBeDefined();
@@ -138,8 +140,12 @@ describe('time zone', () => {
     await user.type(within(timezone).getByRole('searchbox'), 'atlantis');
 
     expect(within(timezone).getByText('0 time zones found.')).toBeDefined();
-    expect(within(timezone).queryAllByRole('option')).toEqual([]);
-    // O escolhido continua o mesmo, mesmo fora da lista filtrada
+    // O escolhido continua na lista (e escolhido), mesmo sem bater com a busca
+    const list = within(timezone).getByRole('listbox', { name: 'Time zones' });
+    expect(within(list).getAllByRole('option').map((option) => option.value)).toEqual([
+      'America/Sao_Paulo',
+    ]);
+    expect(list.value).toBe('America/Sao_Paulo');
     expect(timezone.textContent).toContain('Selected: America/Sao Paulo');
   });
 

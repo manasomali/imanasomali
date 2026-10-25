@@ -29,7 +29,14 @@ export default function TimezoneForm({ me, suggested }) {
   const [options] = useState(() =>
     timezoneOptions({ extra: [me.timezone, suggested].filter(Boolean) }),
   );
-  const visible = useMemo(() => filterTimezones(options, query), [options, query]);
+  const found = useMemo(() => filterTimezones(options, query), [options, query]);
+  // O escolhido fica sempre na lista: no celular o seletor vira uma lista suspensa, que mostraria
+  // a primeira opção como escolhida se ele sumisse com a busca
+  const visible = useMemo(() => {
+    if (found.some((option) => option.value === selected)) return found;
+    const current = options.find((option) => option.value === selected);
+    return current ? [current, ...found] : found;
+  }, [options, found, selected]);
 
   const titleId = `${ids}-title`;
   const helpId = `${ids}-help`;
@@ -75,7 +82,7 @@ export default function TimezoneForm({ me, suggested }) {
             aria-controls={listId}
           />
           <p className={styles.muted} role="status">
-            {query.trim() ? t('pages.account.timezone.found', { count: visible.length }) : ''}
+            {query.trim() ? t('pages.account.timezone.found', { count: found.length }) : ''}
           </p>
         </div>
         <div className={styles.field}>
