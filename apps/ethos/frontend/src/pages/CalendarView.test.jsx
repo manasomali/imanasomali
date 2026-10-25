@@ -148,21 +148,25 @@ describe('calendar view: habit tab', () => {
     await user.click(screen.getByRole('radio', { name: '3 months' }));
 
     expect(calendarGroup().dataset.view).toBe('columns');
+    // A janela de 3 meses termina no mês escolhido
     expect(shownMonths().map((month) => [month.name, month.days.length])).toEqual([
+      ['January', 31],
       ['February', 28],
       ['March', 31],
-      ['April', 30],
     ]);
-    expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(21 + 30);
+    expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(21);
     expect(query(router).get('view')).toBe('columns');
 
     // Anterior e próximo mantêm a visão
     await user.click(screen.getByRole('button', { name: /^Previous 3 months \(/ }));
     expect(shownMonths().map((month) => [month.name, month.days.length])).toEqual([
-      ['November 2025', 30],
-      ['December 2025', 31],
-      ['January 2026', 31],
+      ['October', 31],
+      ['November', 30],
+      ['December', 31],
     ]);
+    expect(screen.getByRole('heading', { level: 2, name: /^Oct\s–\sDec 2025$/ })).toBeDefined();
+    await user.click(screen.getByRole('button', { name: /^Next 3 months \(/ }));
+    expect(shownMonths().map((month) => month.name)).toEqual(['January', 'February', 'March']);
     expect(calendarGroup().dataset.view).toBe('columns');
     expect(query(router).get('view')).toBe('columns');
     expect(await axe(container)).toHaveNoViolations();
@@ -219,7 +223,7 @@ describe('calendar view: habit tab', () => {
     await findDay('Tuesday, March 10, 2026');
     await user.click(screen.getByRole('radio', { name: 'Columns' }));
 
-    expect(shownMonths().map((month) => month.name)).toEqual(['February', 'March', 'April']);
+    expect(shownMonths().map((month) => month.name)).toEqual(['January', 'February', 'March']);
     expect(dayPanelTitle('Tuesday, March 10, 2026')).toBeDefined();
     expect(dayButton('Tuesday, March 10, 2026').dataset.selected).toBe('true');
     // A faixa da tela fica explícita na URL; hoje continua implícito
@@ -309,7 +313,8 @@ describe('calendar view: habit tab', () => {
     signedIn();
     mockHabitsApi({ habits: [habitFixture()] });
     const user = userEvent.setup();
-    renderApp('/habits/1?range=3months&month=2026-01&day=2025-12-31&view=columns');
+    // Dezembro, janeiro e fevereiro: a janela termina no mês da URL
+    renderApp('/habits/1?range=3months&month=2026-02&day=2025-12-31&view=columns');
 
     const lastDay = await findDay('Wednesday, December 31, 2025');
     // Uma parada de Tab no calendário: o dia escolhido
@@ -428,9 +433,9 @@ describe('calendar view: home', () => {
       'Sunday, March 1, 2026. Nothing marked',
     );
     expect(shownMonths().map((month) => [month.name, month.days.length])).toEqual([
+      ['January', 31],
       ['February', 28],
       ['March', 31],
-      ['April', 30],
     ]);
     expect(query(router).get('view')).toBe('columns');
     expect(await axe(container)).toHaveNoViolations();
