@@ -1,0 +1,53 @@
+.article {
+  max-width: var(--content-width);
+  margin-inline: auto;
+}
+
+.title {
+  font-size: var(--text-2xl);
+}
+
+.version {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.contents {
+  margin-block: 1.5rem 2rem;
+  padding: 1rem 1.25rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.contents ol {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.contents li + li {
+  margin-top: 0.25rem;
+}
+
+.section {
+  margin-top: 2rem;
+}
+
+.section h2 {
+  margin-bottom: 0.75rem;
+  font-size: var(--text-xl);
+}
+
+.section p,
+.section ul {
+  margin-block: 0 0.75rem;
+}
+
+.section ul {
+  padding-left: 1.5rem;
+}
+
+.section li + li {
+  margin-top: 0.25rem;
+}

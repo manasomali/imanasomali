@@ -9,6 +9,8 @@ export const PATHS = Object.freeze({
   admin: '/admin',
   adminUser: '/admin/contas/:userId',
   adminBanners: '/admin/banners',
+  terms: '/termos',
+  privacy: '/privacidade',
   // Aba de um hábito (HabitLayout). O calendário é a rota índice; as outras seções são rotas
   // filhas (`/habits/:habitId/<seção>`, ver HABIT_SECTION)
   habit: '/habits/:habitId',

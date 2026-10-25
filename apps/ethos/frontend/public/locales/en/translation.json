@@ -15,7 +15,10 @@
     "admin": "Admin"
   },
   "footer": {
-    "tagline": "ethos: an app for tracking habits"
+    "tagline": "ethos: an app for tracking habits",
+    "legal": "Legal texts",
+    "terms": "Terms of use",
+    "privacy": "Privacy policy"
   },
   "common": {
     "loading": "Loading…",
@@ -27,7 +30,21 @@
       "title": "Habits"
     },
     "login": {
-      "title": "Sign in"
+      "title": "Sign in",
+      "intro": "Enter your email and we will send you a 6-digit code. If you do not have an account yet, it is created when you confirm the code.",
+      "email": "Email",
+      "send_code": "Send code",
+      "sending": "Sending…",
+      "have_code": "I already have a code",
+      "code_sent": "We sent a 6-digit code to {{email}}. It is valid for 10 minutes. If it does not arrive, check your spam folder.",
+      "code": "6-digit code",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "resend": "Send a new code",
+      "resend_in": "Send a new code in {{seconds}} s",
+      "resent": "We sent a new code.",
+      "change_email": "Use another email",
+      "consent": "By continuing, you agree to the <terms>terms of use</terms> and the <privacy>privacy policy</privacy> (links open in a new tab)."
     },
     "account": {
       "title": "Account"
@@ -36,6 +53,12 @@
       "title": "Page not found",
       "text": "This address does not exist or has changed.",
       "back_home": "Back to habits"
+    },
+    "terms": {
+      "title": "Terms of use"
+    },
+    "privacy": {
+      "title": "Privacy policy"
     }
   },
   "timezone_notice": {
@@ -274,6 +297,20 @@
       "title": "Archived habits",
       "empty": "No archived habits."
     }
+  },
+  "legal": {
+    "version": "Version {{version}}",
+    "contents": "Contents"
+  },
+  "terms_modal": {
+    "title": "New terms of use",
+    "text": "We updated the terms of use and the privacy policy. To keep using ethos, read and accept the new version.",
+    "links": "Texts (open in a new tab)",
+    "accept": "Accept and continue",
+    "accepting": "Saving…",
+    "outdated": "A newer version of the terms was published while this page was open. Reload the page to read it.",
+    "reload": "Reload page",
+    "sign_out": "Sign out"
   },
   "errors": {
     "bad_request": "The request could not be understood. Reload the page and try again.",
