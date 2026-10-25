@@ -1,0 +1,18 @@
+# Regras do rsync do backend para /opt/apps/ethos/ (com --delete), lidas pelo ethos.yaml e pelo
+# test-vm.sh com --filter="merge <este arquivo>". O caminho começa na pasta apps/ethos/backend/.
+
+# .venv: criada na VM pelo uv sync. Fica de fora dos dois lados: nem é enviada nem é apagada
+- /.venv/
+
+# Só do lado de quem envia (hide): não sobem para a VM, e o --delete apaga o que existir lá com
+# esses nomes. O __pycache__ da VM é refeito pelo vm.sh install a cada deploy
+H /tests/
+H __pycache__/
+H .pytest_cache/
+H .ruff_cache/
+H .coverage
+H .coverage.*
+H .env
+H .env.*
+H *.db
+H *.db-*
