@@ -6,6 +6,7 @@ Aplicação de hábitos servida em `manasomali.com/ethos/`, com API em `manasoma
 |---|---|
 | `backend/` | API em Python + FastAPI, gerenciada pelo [uv](https://docs.astral.sh/uv/) |
 | `frontend/` | React + Vite, servido em `/ethos/` |
+| `deploy/` | Scripts do deploy (ver [Deploy](#deploy)), rodados pelo `ethos.yaml` |
 
 Back e front são independentes: cada um tem as suas dependências e o seu lockfile (`uv.lock` e `package-lock.json`). Nada aqui importa código do site; o que for compartilhado vem de `packages/`.
 
@@ -497,7 +498,56 @@ O `axe` no jsdom não mede contraste. Por isso `src/styles/palette.test.js` calc
 
 ## CI
 
-O workflow [ethos.yaml](../../.github/workflows/ethos.yaml) roda em PRs e em push na `main` que tocam `apps/ethos/**`, `packages/**`, o próprio workflow ou os arquivos de infra que os testes conferem (`infra/apps/ethos/app.conf`, `infra/apps/ethos/app.env`, `infra/provision.sh`, `infra/scripts/snapshot.sh` e `infra/lib/backups.sh`). Por enquanto só faz checagens, sem deploy:
+O workflow [ethos.yaml](../../.github/workflows/ethos.yaml) roda em PRs e em push na `main` que tocam `apps/ethos/**`, `packages/**`, o próprio workflow ou os arquivos de infra que os testes leem (`infra/apps/ethos/app.conf`, `infra/apps/ethos/app.env`, `infra/provision.sh`, `infra/scripts/snapshot.sh`, `infra/lib/backups.sh`, `infra/config.env`, `infra/lib/common.sh` e `infra/lib/packages.sh`). Em PRs, só as checagens:
 
 - backend: `uv lock --check`, `uv sync --frozen`, `ruff check`, `ruff format --check`, `pytest --cov` e 100% de cobertura nos módulos de `FULL_COVERAGE`;
-- frontend: `npm ci`, `npm run lint`, `npm run build` e `npm test`.
+- frontend: `npm ci`, `npm run lint`, `npm run build` e `npm test`;
+- scripts do deploy (`deploy/`): `shellcheck`, `test-deploy-scripts.sh` (limpeza de assets e migrações do rollback) e `test-vm.sh`, que roda o `vm.sh` num Ubuntu 24.04 com o uv e o Python instalados pelas funções do provision: `.venv`, migração e `/health` como `app-ethos`, backup e restart.
+
+Em push na `main` e no `workflow_dispatch`, o workflow também faz o deploy.
+
+## Deploy
+
+O job `deploy` só começa depois que as checagens (backend, frontend e scripts) passam: um teste quebrado para o workflow antes de qualquer passo na VM. Ele roda em push na `main` que muda o que vai para a VM (`apps/ethos/backend/`, `apps/ethos/frontend/`, `apps/ethos/deploy/`, `packages/` ou o próprio workflow). Um push que só muda arquivos lidos pelos testes (os de `infra/`, este README) roda as checagens sem deploy. Em PRs, nunca há deploy.
+
+### Antes do primeiro deploy
+
+- **Variável `ETHOS_URL`** no GitHub: Settings → Secrets and variables → Actions → Variables → New repository variable, com o endereço do site, só `https://<domínio>`, sem caminho e sem barra no fim (hoje, `https://manasomali.com`). O health check chama `$ETHOS_URL/api/ethos/health`. Nenhum domínio fica fixo no workflow: trocar de domínio é trocar a variável. Sem ela, o workflow falha logo no começo (job "Preparar o deploy"), sem tocar na VM.
+- **Secrets**: os mesmos do site e do Infra, já cadastrados no repositório: `REMOTE_HOST`, `REMOTE_USER`, `SERVER_SSH_KEY` e `SSH_KNOWN_HOSTS`. O job usa o environment `production`, como o Infra.
+- **Infra provisionado**: o workflow Infra precisa ter rodado com `infra/apps/ethos/` e a linha `ethos` do `databases.txt` (unit `app-ethos`, pastas, banco, uv e Python). O primeiro passo do deploy confere e, se faltar algo, falha pedindo para rodar o Infra.
+
+### Os passos
+
+| # | Passo | Onde |
+|---|---|---|
+| 1 | Checagens (needs) | runner |
+| 2 | `vm.sh check`: unit `app-ethos.service`, `/opt/apps/ethos` e `/var/www/ethos` graváveis, uv, o Python de `.python-version`, `sqlite3`, banco e pasta de backup | VM |
+| 3 | rsync de `backend/` para `/opt/apps/ethos/` com `--delete`, pelas regras de `deploy/backend.rsync-filter`: a `.venv` fica intocada; `tests/`, caches, `.env` e bancos locais não sobem | runner → VM |
+| 4 | `vm.sh install`: `uv sync --frozen --no-dev --no-build --compile-bytecode` com o Python de `/opt/uv/python` (nunca baixa um), e `compileall` de `app/` e `migrations/` | VM |
+| 5 | `vm.sh backup <sha>`: `sqlite3 .backup` como `app-ethos` em `/var/backups/sqlite/ethos/pre-deploy-<sha>.db` | VM |
+| 6 | `vm.sh restart`: `systemctl restart app-ethos`; o `ExecStartPre` roda `alembic upgrade head` | VM |
+| 7 | Health check: `$ETHOS_URL/api/ethos/health`, 10 tentativas, 3 s entre elas | runner |
+| 8 | rsync do `dist/` (o mesmo build que passou nos testes) para `/var/www/ethos/`, **sem** `--delete`, com o `index.html` por último | runner → VM |
+| 9 | `clean-assets.sh`: apaga de `/var/www/ethos/assets/` os arquivos com mais de 7 dias que não estão no build atual | VM |
+
+- Os passos na VM vão pelo SSH como `bash -s -- <comando> < deploy/vm.sh`: nada fica instalado lá. O usuário de deploy (com sudo sem senha) roda como `app-ethos` só o que lê o banco e grava o backup, e como root só o `systemctl`.
+- **Bytecode**: o projeto não é instalado na `.venv` (não tem `build-system`), então o `--compile-bytecode` do uv só cobre os pacotes. O `compileall` gera o de `app/` e `migrations/`, porque o `app-ethos` não grava na pasta do código (e a unit roda com `PYTHONDONTWRITEBYTECODE`).
+- **Backup**: o mesmo método do `snapshot.sh` (consistente com o WAL e com o Litestream), gravado primeiro como `.partial`, conferido com `integrity_check` e só então renomeado. Se o commit já tem um `pre-deploy-<sha>.db` (re-run, rollback para um commit já publicado), o primeiro fica, porque é o de antes da migração dele, e o novo ganha a hora no nome (`pre-deploy-<sha>-<AAAAMMDDTHHMMSSZ>.db`). Retenção: o `snapshot.sh` diário apaga os `*.db` com mais de 7 dias dessa pasta, estes inclusive. Cada deploy guarda uma cópia inteira do banco por 7 dias.
+- **Migração quebrada**: cada `upgrade` roda numa transação só, então o banco fica na revisão anterior. O serviço não sobe (`StartLimitBurst` da unit: 5 tentativas em 5 min), o `restart` falha, o job para no passo 6, e o front anterior continua no ar, falando com uma API fora do ar. Corrija com um commit novo ou faça o rollback. O log do Actions não mostra o journal (o repositório é público): na VM, `journalctl -u app-ethos -n 50 --no-pager`.
+- **Front sem `--delete`**: o nginx (`infra/apps/ethos/nginx.conf`) serve o `index.html` com `no-cache` e os arquivos de `assets/` (nome com hash) com cache de um ano e `immutable`. Uma aba aberta com a versão anterior continua carregando as telas dela, porque os assets antigos ficam por 7 dias; o `index.html` novo só entra depois de todos os assets que ele carrega. A idade conta a partir do último deploy que usou o arquivo: o rsync atualiza a data dos que continuam no build. Arquivos fora de `assets/` (`locales/`, `theme-init.js`) não têm hash e são sobrescritos no deploy.
+- **Ordem**: o backend novo entra antes do front novo, então o front nunca fica no ar com um backend mais velho que ele. Por isso a API precisa continuar atendendo o front anterior (mudanças compatíveis).
+- **Concorrência**: o job usa o grupo `ethos-deploy`, nunca dois deploys ao mesmo tempo. Os runs da `main` também andam um de cada vez e na ordem (grupo `ethos-checks-refs/heads/main`): um push que chega durante um deploy espera, e se chegarem vários, o GitHub cancela os pendentes do meio e publica só o mais novo. O grupo `infra` fica de fora (o GitHub mantém só um run pendente por grupo e cancelaria um deploy na fila atrás de um provision).
+
+### Rollback
+
+Actions → Ethos → Run workflow, a partir da `main`, com o SHA completo do commit a publicar (o anterior ao problema). O workflow só aceita um commit que esteja na `main`, roda as checagens desse commit (os módulos de `FULL_COVERAGE` que ainda não existiam nele são pulados) e faz os mesmos 9 passos com o código e o build dele. Os scripts do deploy são sempre os da `main`.
+
+- **Migrações não voltam**: o rollback não roda `downgrade`. Como as migrações são só aditivas, o código anterior funciona com o banco novo. Se o banco já está numa revisão que o commit antigo não conhece (rollback para antes de uma migração aplicada), o `alembic upgrade head` dele pararia com "Can't locate revision". Por isso o passo `keep-migrations.sh` lê a revisão do banco e leva junto, da `main`, os arquivos de migração que faltam até ela: o head do commit vira a revisão do banco e o upgrade não faz nada. Uma migração que falhou não fica aplicada e não é levada.
+- **Dados estragados por uma migração**: restaure o `pre-deploy-<sha>.db` do deploy que a aplicou, seguindo o [infra/RESTORE.md](../../infra/RESTORE.md), e faça o rollback do código.
+- Um push novo na `main` depois do rollback publica a `main` de novo.
+
+### Regras
+
+- **Migrações só aditivas**: criar tabela ou coluna (anulável ou com default). Remover ou renomear só num deploy seguinte, quando nenhum código no ar (nem o de um rollback) usa mais aquilo. É o que permite o rollback sem `downgrade` e o código anterior rodando com o banco novo durante o deploy.
+- **Nunca apague nem renomeie um arquivo de migração já publicado**: o rollback busca na `main` as migrações que o banco já tem.
+- **Mudança de infra entra num PR anterior ao do app**: unit nova, variável nova no `app.env`, porta, versão do Python. O Infra e o ethos rodam em paralelo, sem ordem garantida entre eles; o deploy confere a unit, as pastas e o Python e falha com mensagem clara se o provision ainda não rodou.

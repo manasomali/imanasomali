@@ -1,5 +1,7 @@
 name: Ethos
 
+# Checagens em PRs; checagens e deploy em push na main e no workflow_dispatch (rollback).
+# Como funciona e o que configurar: apps/ethos/README.md, seção "Deploy".
 on:
   push:
     branches: [main]
@@ -16,6 +18,10 @@ on:
       - "infra/lib/backups.sh"
       - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
+      # Usados pelo apps/ethos/deploy/test-vm.sh (uv e Python como o provision instala)
+      - "infra/config.env"
+      - "infra/lib/common.sh"
+      - "infra/lib/packages.sh"
   pull_request:
     paths:
       - "apps/ethos/**"
@@ -30,10 +36,22 @@ on:
       - "infra/lib/backups.sh"
       - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
+      # Usados pelo apps/ethos/deploy/test-vm.sh (uv e Python como o provision instala)
+      - "infra/config.env"
+      - "infra/lib/common.sh"
+      - "infra/lib/packages.sh"
+  # Rollback (ou deploy de um commit específico): Actions → Ethos → Run workflow, a partir da main
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "SHA completo (40 caracteres) de um commit da main. Rollback: o commit anterior"
+        required: true
+        type: string
 
-# Só checagens por enquanto; o deploy entra depois, com grupo próprio. Nunca o
-# grupo "infra": o GitHub mantém um run pendente por grupo e cancelaria um deploy
-# na fila atrás de um provision. Aqui, um push novo no mesmo PR cancela o anterior
+# Em PRs, um push novo cancela o run anterior do mesmo PR. Na main (push e workflow_dispatch), os
+# runs andam um de cada vez, na ordem: um mais novo espera e nunca é ultrapassado por um mais velho.
+# Nunca o grupo "infra": o GitHub mantém um run pendente por grupo e cancelaria um deploy na fila
+# atrás de um provision
 concurrency:
   group: ethos-checks-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -42,6 +60,85 @@ permissions:
   contents: read
 
 jobs:
+  # Só em push e workflow_dispatch: o commit a publicar, se o push muda o que vai para a VM, e o
+  # ETHOS_URL. Falha em segundos, sem esperar as checagens
+  prepare:
+    name: 🧭 Preparar o deploy
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+      deploy: ${{ steps.commit.outputs.deploy }}
+      url: ${{ steps.url.outputs.url }}
+    steps:
+      - name: Commit do deploy
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_COMMIT: ${{ inputs.commit }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # O que vai para a VM. O resto dos paths do workflow só alimenta os testes
+          deploy_paths='^(apps/ethos/(backend|frontend|deploy)/|packages/|\.github/workflows/ethos\.yaml$)'
+          deploy=true
+
+          if [[ $EVENT == workflow_dispatch ]]; then
+            # A definição do workflow (e os scripts do deploy) vem do branch escolhido no Run workflow
+            if [[ $GITHUB_REF != refs/heads/main ]]; then
+              echo "::error::Rode o workflow a partir da main (Use workflow from: main)"
+              exit 1
+            fi
+            if [[ ! $INPUT_COMMIT =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::commit: use o SHA completo (40 caracteres hexadecimais, minúsculos) de um commit da main"
+              exit 1
+            fi
+            # Só commits que passaram pela main: nunca um de um PR aberto ou de outro branch
+            if ! status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$INPUT_COMMIT...$GITHUB_SHA" --jq .status 2>/dev/null); then
+              echo "::error::commit $INPUT_COMMIT não encontrado no repositório"
+              exit 1
+            fi
+            if [[ $status != identical && $status != ahead ]]; then
+              echo "::error::$INPUT_COMMIT não é um commit da main"
+              exit 1
+            fi
+            sha=$INPUT_COMMIT
+            echo "::notice::deploy manual (rollback) de $sha"
+          else
+            sha=$GITHUB_SHA
+            # Push que só muda arquivos lidos pelos testes (infra/, README): checagens sem deploy. Na
+            # dúvida (before desconhecido, comparação com mais de 300 arquivos), faz o deploy
+            if [[ $BEFORE =~ ^[0-9a-f]{40}$ && ! $BEFORE =~ ^0+$ ]] \
+              && files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$GITHUB_SHA" --jq '.files[].filename' 2>/dev/null); then
+              count=$(grep -c . <<< "$files" || true)
+              if ((count < 300)) && ! grep -qE "$deploy_paths" <<< "$files"; then
+                deploy=false
+                echo "::notice::o push não muda o backend, o frontend, packages/ nem o deploy: só checagens"
+              fi
+            fi
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+
+      # Variável do repositório (Settings → Secrets and variables → Actions → Variables), não fixa
+      # aqui: trocar de domínio não mexe no workflow
+      - name: ETHOS_URL
+        id: url
+        if: steps.commit.outputs.deploy == 'true'
+        env:
+          ETHOS_URL: ${{ vars.ETHOS_URL }}
+        run: |
+          url=${ETHOS_URL%/}
+          if [[ -z $url ]]; then
+            echo "::error::Falta a variável ETHOS_URL: Settings → Secrets and variables → Actions → Variables → New repository variable, com o endereço do site (https://<domínio>, sem barra no fim)"
+            exit 1
+          fi
+          if [[ ! $url =~ ^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$ ]]; then
+            echo "::error::ETHOS_URL inválida: use só https://<domínio>, sem caminho (o health check usa \$ETHOS_URL/api/ethos/health)"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
   backend:
     name: 🐍 Backend
     runs-on: ubuntu-latest
@@ -49,7 +146,10 @@ jobs:
       run:
         working-directory: apps/ethos/backend
     steps:
+      # No workflow_dispatch, o commit escolhido; vazio (push e PR), o commit do evento
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
 
       # O setup-uv não publica mais tags de versão maior (v10), só a versão completa
       - uses: astral-sh/setup-uv@v10.3.2
@@ -81,9 +181,11 @@ jobs:
       # Política de testes: 100% de cobertura (linhas e ramos) nos módulos da lista,
       # lida do .coverage que o pytest acabou de gravar. Para exigir de outro módulo,
       # acrescente uma linha. Cada um é conferido sozinho, então um caminho errado
-      # também falha ("No data to report") em vez de passar calado
+      # também falha ("No data to report") em vez de passar calado. No rollback
+      # (workflow_dispatch), um módulo da lista que ainda não existia no commit é pulado
       - name: Cobertura de 100% nos módulos críticos
         env:
+          EVENT: ${{ github.event_name }}
           FULL_COVERAGE: |
             app/admin/accounts.py
             app/admin/banners.py
@@ -108,6 +210,10 @@ jobs:
             app/sharing/service.py
         run: |
           for module in $FULL_COVERAGE; do
+            if [[ $EVENT == workflow_dispatch && ! -f $module ]]; then
+              echo "::notice::$module não existe neste commit"
+              continue
+            fi
             uv run --no-sync coverage report --fail-under=100 --show-missing --include="$module"
           done
 
@@ -119,6 +225,8 @@ jobs:
         working-directory: apps/ethos/frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
 
       - uses: actions/setup-node@v4
         with:
@@ -136,3 +244,151 @@ jobs:
 
       - name: 🧪 Testes
         run: npm test
+
+      # O deploy publica exatamente este build (o que passou nos testes), sem buildar de novo
+      - name: Guardar o build para o deploy
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ethos-frontend
+          path: apps/ethos/frontend/dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  # Os scripts do deploy (apps/ethos/deploy/), sempre os do commit do workflow
+  scripts:
+    name: 🧰 Scripts do deploy
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: shellcheck -x apps/ethos/deploy/*.sh
+
+      - name: Limpeza de assets e migrações do rollback
+        run: bash apps/ethos/deploy/test-deploy-scripts.sh
+
+      - name: sqlite3
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends sqlite3
+
+      # uv e Python como o provision instala, .venv, migração e API como app-ethos, backup e restart
+      - name: Passos da VM (vm.sh)
+        run: sudo bash apps/ethos/deploy/test-vm.sh
+
+  # Os 9 passos do deploy: checagens (needs) → VM pronta → backend → dependências → backup →
+  # restart (migração) → health check → front → limpeza. Qualquer falha para o job ali
+  deploy:
+    name: 🚀 Deploy
+    needs: [prepare, backend, frontend, scripts]
+    if: needs.prepare.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    # Nunca dois deploys ao mesmo tempo (nem com o provision, que usa o grupo "infra")
+    concurrency:
+      group: ethos-deploy
+      cancel-in-progress: false
+    env:
+      SHA: ${{ needs.prepare.outputs.sha }}
+      ETHOS_URL: ${{ needs.prepare.outputs.url }}
+    steps:
+      # Scripts do deploy e migrações da main (commit do workflow); o código a publicar em target/
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            apps/ethos/deploy
+            apps/ethos/backend/migrations
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          path: target
+          sparse-checkout: apps/ethos/backend
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ethos-frontend
+          path: dist
+
+      - name: Configurar SSH
+        env:
+          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          echo "SSH=ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes" >> "$GITHUB_ENV"
+          echo "TARGET=$REMOTE_USER@$REMOTE_HOST" >> "$GITHUB_ENV"
+
+      # Os passos na VM vão como "bash -s" com o script no stdin: nada fica gravado lá
+      - name: VM pronta (unit, pastas, uv, Python, banco)
+        run: |
+          python=$(<target/apps/ethos/backend/.python-version)
+          $SSH "$TARGET" bash -s -- check "$python" < apps/ethos/deploy/vm.sh
+
+      # Rollback para antes de uma migração já aplicada: o alembic do commit antigo não acharia a
+      # revisão do banco. As migrações são só aditivas; o commit leva os arquivos que faltam
+      - name: Migrações já aplicadas no banco
+        run: |
+          revision=$($SSH "$TARGET" bash -s -- revision < apps/ethos/deploy/vm.sh)
+          bash apps/ethos/deploy/keep-migrations.sh \
+            target/apps/ethos/backend/migrations/versions apps/ethos/backend/migrations/versions "$revision"
+
+      - name: Enviar o backend
+        run: |
+          rsync -rlptz --chmod=D0755,F0644 --delete --filter="merge apps/ethos/deploy/backend.rsync-filter" \
+            -e "$SSH" target/apps/ethos/backend/ "$TARGET:/opt/apps/ethos/"
+
+      - name: Instalar dependências (uv sync) e bytecode
+        run: $SSH "$TARGET" bash -s -- install < apps/ethos/deploy/vm.sh
+
+      - name: Backup do banco (pre-deploy-<sha>.db)
+        run: $SSH "$TARGET" bash -s -- backup "$SHA" < apps/ethos/deploy/vm.sh
+
+      # Se a migração falhar, o serviço não sobe, o job para aqui e o front anterior fica no ar
+      - name: Reiniciar (migração no ExecStartPre)
+        run: $SSH "$TARGET" bash -s -- restart < apps/ethos/deploy/vm.sh
+
+      - name: Health check
+        run: |
+          url="$ETHOS_URL/api/ethos/health"
+          for attempt in $(seq 1 10); do
+            if curl -fsS --max-time 10 "$url"; then
+              echo
+              exit 0
+            fi
+            echo "tentativa $attempt de 10 falhou"
+            if ((attempt < 10)); then
+              sleep 3
+            fi
+          done
+          echo "::error::$url não respondeu 200 em 10 tentativas. O front anterior continua no ar. Na VM: journalctl -u app-ethos -n 50 --no-pager"
+          exit 1
+
+      # Sem --delete: os assets da versão anterior ficam para as abas abertas com ela. O index.html
+      # vai por último, quando tudo o que ele carrega já está lá
+      - name: Publicar o front
+        run: |
+          [[ -f dist/index.html && -d dist/assets ]] || { echo "::error::build do front sem index.html ou assets/"; exit 1; }
+          rsync -rlptz --chmod=D0755,F0644 --exclude=/index.html -e "$SSH" dist/ "$TARGET:/var/www/ethos/"
+          rsync -rlptz --chmod=F0644 -e "$SSH" dist/index.html "$TARGET:/var/www/ethos/index.html"
+
+      - name: Limpar assets com mais de 7 dias fora do build atual
+        run: |
+          mapfile -t files < <(cd dist/assets && find . -type f -printf '%P\n' | sort)
+          ((${#files[@]})) || { echo "::error::dist/assets vazio"; exit 1; }
+          # A lista vira argumentos do comando remoto: printf %q protege do shell da VM
+          args=$(printf '%q ' /var/www/ethos/assets 7 "${files[@]}")
+          $SSH "$TARGET" "bash -s -- $args" < apps/ethos/deploy/clean-assets.sh
+
+      - name: Resumo
+        run: |
+          {
+            echo "### ethos publicado"
+            echo
+            echo "- commit: \`$SHA\`"
+            echo "- health: $ETHOS_URL/api/ethos/health"
+          } >> "$GITHUB_STEP_SUMMARY"

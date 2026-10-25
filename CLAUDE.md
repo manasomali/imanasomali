@@ -41,7 +41,7 @@ CI also runs `nginx -t` against `infra/nginx/site.conf` in an `nginx:1.24` conta
 ## Deploy
 
 - **Website** (`.github/workflows/deploy.yaml`): pushes and PRs that touch `site/**`, `packages/**` or the workflow itself run `npm ci`, `npm run lint` and `npm run build` in `site/` on Node 22. A push to `main` then rsyncs `site/dist/` to `/var/www/html/` with `--delete`.
-- **Apps**: each app has its own `.github/workflows/<name>.yaml`, triggered by `apps/<name>/**`, `packages/**` and the workflow itself. It does not use the `infra` concurrency group.
+- **Apps**: each app has its own `.github/workflows/<name>.yaml`, triggered by `apps/<name>/**`, `packages/**` and the workflow itself. It does not use the `infra` concurrency group. The ethos deploy (push to `main`, or `workflow_dispatch` with a commit for rollback) runs the scripts in `apps/ethos/deploy/` over SSH after the checks pass; `apps/ethos/README.md` ("Deploy") describes the steps and rules. Check those scripts with `shellcheck -x apps/ethos/deploy/*.sh` and `bash apps/ethos/deploy/test-deploy-scripts.sh` (CI also runs `test-vm.sh` as root on Ubuntu 24.04).
 - **Infra** (`.github/workflows/infra.yaml`): pushes and PRs that touch `infra/**` run lint. A push to `main` also rsyncs `infra/` to `/opt/infra` and runs `provision.sh`. Credentials go to it over stdin, never as arguments. `backup-verify.yaml` runs a restore test every week. All infra jobs share the `infra` concurrency group.
 
 ## Infra (`infra/`)
