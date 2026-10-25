@@ -1,0 +1,39 @@
+.tabs {
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-soft);
+}
+
+.tabs ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0;
+  margin-bottom: -2px;
+  border-bottom: 2px solid transparent;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color var(--transition);
+}
+
+.tab:hover,
+.active {
+  border-bottom-color: var(--fg);
+}
+
+.swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--habit-color, var(--muted));
+}

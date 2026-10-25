@@ -1,0 +1,72 @@
+.row {
+  display: grid;
+  gap: 0.5rem;
+  padding-block: 0.6rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.rowMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+.habit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--habit-color, var(--muted));
+}
+
+.state {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.action {
+  margin-left: auto;
+  padding: 0.2rem 0.7rem;
+  background: transparent;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.action:hover {
+  background: var(--surface-hover);
+}
+
+.archived {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--border-soft);
+}
+
+.archived summary {
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.archived > :not(summary) {
+  margin-top: 0.75rem;
+}
+
+.archivedList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  padding: 0;
+  list-style: none;
+}

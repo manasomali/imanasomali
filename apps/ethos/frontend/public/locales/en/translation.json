@@ -180,6 +180,101 @@
       "ended_done": "Banner {{id}} ended."
     }
   },
+  "habit_tabs": {
+    "label": "Habits",
+    "all": "All habits"
+  },
+  "calendar": {
+    "label": "Calendar for {{year}}",
+    "previous_year": "Previous year ({{year}})",
+    "next_year": "Next year ({{year}})",
+    "loading": "Loading marks…",
+    "day_future": "{{date}}. Future day, cannot be marked",
+    "day_marked": "{{date}}. Marked",
+    "day_unmarked": "{{date}}. Not marked",
+    "day_no_marks": "{{date}}. No marks",
+    "day_count_one": "{{date}}. {{count}} mark",
+    "day_count_other": "{{date}}. {{count}} marks",
+    "day_habits": "{{date}}. Marked: {{habits}}",
+    "day_nothing": "{{date}}. Nothing marked"
+  },
+  "day_panel": {
+    "title": "Day",
+    "choose": "Choose a day in the calendar to see its marks.",
+    "marked": "Marked",
+    "unmarked": "Not marked",
+    "no_marks": "No marks",
+    "count_one": "{{count}} mark",
+    "count_other": "{{count}} marks",
+    "mark": "Mark this day",
+    "unmark": "Unmark this day",
+    "add": "Add mark",
+    "marks": "Marks of the day"
+  },
+  "overview": {
+    "habits": "Habits on this day",
+    "mark": "Mark",
+    "mark_label": "Mark {{habit}}",
+    "unmark": "Unmark",
+    "unmark_label": "Unmark {{habit}}",
+    "add": "Add",
+    "add_label": "Add a mark to {{habit}}"
+  },
+  "mark": {
+    "time": "Time",
+    "author": "By",
+    "removed_user": "Removed user",
+    "duration": "Duration",
+    "duration_minutes": "Duration (minutes)",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "cost": "Cost",
+    "note": "Note",
+    "saving": "Saving…",
+    "edit": "Edit",
+    "edit_label": "Edit the mark of {{time}}",
+    "delete": "Delete",
+    "delete_label": "Delete the mark of {{time}}",
+    "confirm_delete": "Confirm deletion",
+    "cancel": "Cancel",
+    "save": "Save",
+    "date_fixed": "The date of a mark cannot be changed. To move it, delete it and add another one.",
+    "invalid_note": "The note is too long or has characters that are not allowed.",
+    "invalid_duration": "Enter whole minutes, from 1 to 1440.",
+    "invalid_cost": "Enter a valid amount, such as 12.50."
+  },
+  "habit": {
+    "sections": {
+      "label": "Habit sections",
+      "calendar": "Calendar"
+    },
+    "status": {
+      "paused": "Paused",
+      "archived": "Archived"
+    },
+    "role": {
+      "editor": "Shared with you: you can mark",
+      "viewer": "Shared with you: view only"
+    },
+    "read_only_archived": "This habit is archived and read-only. Unarchive it to mark again.",
+    "read_only_viewer": "You can view this habit, but not mark it.",
+    "score": {
+      "label": "Score",
+      "value": "{{value}}/100",
+      "no_data": "No data yet",
+      "threshold": "Threshold",
+      "result": "Result",
+      "success": "Success",
+      "failure": "Failure"
+    }
+  },
+  "home": {
+    "empty": "You do not have any habits yet.",
+    "archived": {
+      "title": "Archived habits",
+      "empty": "No archived habits."
+    }
+  },
   "errors": {
     "bad_request": "The request could not be understood. Reload the page and try again.",
     "unauthorized": "Your session has ended. Please sign in again.",

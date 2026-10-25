@@ -9,9 +9,50 @@ export const PATHS = Object.freeze({
   admin: '/admin',
   adminUser: '/admin/contas/:userId',
   adminBanners: '/admin/banners',
+  // Aba de um hábito (HabitLayout). O calendário é a rota índice; as outras seções são rotas
+  // filhas (`/habits/:habitId/<seção>`, ver HABIT_SECTION)
+  habit: '/habits/:habitId',
 });
 
 /** Tela do conteúdo dos hábitos de uma conta, no painel de admin. */
 export function adminUserPath(userId) {
   return PATHS.adminUser.replace(':userId', encodeURIComponent(String(userId)));
+}
+
+// Seções da aba de um hábito: o caminho relativo da rota filha do HabitLayout em src/routes.jsx.
+// Só o calendário tem tela por enquanto; os outros caminhos estão reservados para:
+// - `settings`: configuração (ETH-33, só o dono);
+// - `sharing`: compartilhamento (ETH-34);
+// - `alerts`: alertas (ETH-35, dono e editor). Caminho fixo: o email do alerta aponta para
+//   `/habits/{id}/alerts` (ALERT_SETTINGS_PATH em app/mail/templates.py; src/paths.test.js confere).
+// Ao criar a tela, registre a rota filha e o item do submenu em components/HabitNav.
+// Relatório (ETH-36) e histórico (ETH-37) cobrem vários hábitos: ficam fora da aba, como rotas de
+// topo em PATHS, e recebem o hábito pela query (ex.: `?habit_id=3`)
+export const HABIT_SECTION = Object.freeze({
+  calendar: '',
+  settings: 'settings',
+  sharing: 'sharing',
+  alerts: 'alerts',
+});
+
+/** Id de hábito do caminho (`:habitId`): inteiro positivo em texto, ou null. */
+export function parseHabitId(value) {
+  if (typeof value !== 'string' || !/^[1-9]\d{0,15}$/.test(value)) return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
+/**
+ * Caminho (sem o basename) da seção `section` da aba do hábito `id`, com a query opcional (ex.:
+ * `{day: '2026-03-04'}`; null e undefined ficam de fora).
+ */
+export function habitPath(id, section = HABIT_SECTION.calendar, query = {}) {
+  if (!Number.isSafeInteger(id) || id < 1) throw new TypeError(`id de hábito inválido: ${id}`);
+  const path = section ? `/habits/${id}/${section}` : `/habits/${id}`;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null) params.set(key, String(value));
+  }
+  const search = params.toString();
+  return search ? `${path}?${search}` : path;
 }
