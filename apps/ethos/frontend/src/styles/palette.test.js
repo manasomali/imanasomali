@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { contrastRatio } from '../lib/color';
-import { HABIT_COLORS, isHabitColor } from '../lib/palette';
-import { DARK, DARK_MEDIA, LIGHT, readCustomProperties } from '../test/css';
+import { contrastRatio, relativeLuminance } from '../lib/color';
+import { MIN_COLOR_CONTRAST, THEME_COLORS } from '../lib/customColor';
+import { HABIT_COLORS, isHabitColor, textTone } from '../lib/palette';
+import { DARK, DARK_MEDIA, LIGHT, readCustomProperties } from '../lib/css';
 import { readFrontendFile } from '../test/files';
 
 // O axe no jsdom não mede contraste (ver src/test/axe.js): aqui o contraste sai dos valores
@@ -9,8 +10,10 @@ const palette = readCustomProperties(readFrontendFile('src/styles/palette.css'))
 const tokens = readCustomProperties(readFrontendFile('../../../packages/tokens/tokens.css'));
 const models = readFrontendFile('../backend/app/models.py');
 
-const MIN_CONTRAST = 3;
+const MIN_CONTRAST = MIN_COLOR_CONTRAST;
 const MIN_TEXT_CONTRAST = 4.5;
+// Texto sobre uma cor própria (ETH-49), definido só no :root
+const TEXT_TONES = ['--habit-text-light', '--habit-text-dark'];
 
 const themes = {
   light: { palette: palette.get(LIGHT), tokens: tokens.get(LIGHT) },
@@ -33,9 +36,9 @@ describe('habit palette', () => {
   });
 
   it.each(Object.keys(themes))('defines every color in the %s theme', (theme) => {
-    const defined = Object.keys(themes[theme].palette).sort();
+    const defined = Object.keys(themes[theme].palette).filter((name) => !TEXT_TONES.includes(name));
 
-    expect(defined).toEqual(HABIT_COLORS.map((name) => `--habit-${name}`).sort());
+    expect(defined.sort()).toEqual(HABIT_COLORS.map((name) => `--habit-${name}`).sort());
   });
 
   it('repeats the same dark values under the media query', () => {
@@ -67,5 +70,51 @@ describe('habit palette', () => {
         MIN_TEXT_CONTRAST,
       );
     });
+  });
+});
+
+describe('custom colors', () => {
+  const text = {
+    light: themes.light.palette['--habit-text-light'],
+    dark: themes.light.palette['--habit-text-dark'],
+  };
+  // Todas as cores com canais em passos de 17 (00, 11, ..., ff): 4096 cores
+  const steps = Array.from({ length: 16 }, (_, index) => (index * 17).toString(16).padStart(2, '0'));
+  const sweep = steps.flatMap((r) => steps.flatMap((g) => steps.map((b) => `#${r}${g}${b}`)));
+
+  it('defines the light and dark text once, the same in both themes', () => {
+    expect(relativeLuminance(text.light)).toBe(1);
+    expect(relativeLuminance(text.dark)).toBe(0);
+    for (const tone of TEXT_TONES) {
+      expect(Object.keys(themes.dark.palette)).not.toContain(tone);
+      expect(Object.keys(palette.get(DARK_MEDIA))).not.toContain(tone);
+    }
+  });
+
+  it('maps data-habit-text to the text over the color, reset on every colored element', () => {
+    expect(palette.get('[data-habit-color]')).toEqual({ '--habit-color-text': 'var(--bg)' });
+    for (const tone of ['light', 'dark']) {
+      expect(palette.get(`[data-habit-text='${tone}']`)).toEqual({
+        '--habit-color-text': `var(--habit-text-${tone})`,
+      });
+    }
+  });
+
+  it(`picks a text with at least ${MIN_TEXT_CONTRAST}:1 over any color`, () => {
+    const worst = Math.min(...sweep.map((hex) => contrastRatio(hex, text[textTone(hex)])));
+
+    expect(sweep).toHaveLength(4096);
+    expect(new Set(sweep.map(textTone))).toEqual(new Set(['light', 'dark']));
+    expect(worst).toBeGreaterThanOrEqual(MIN_TEXT_CONTRAST);
+  });
+
+  it('reads the colors of both themes from the tokens', () => {
+    for (const theme of Object.keys(themes)) {
+      expect(THEME_COLORS[theme]).toEqual({
+        bg: themes[theme].tokens['--bg'],
+        surface: themes[theme].tokens['--surface'],
+        fg: themes[theme].tokens['--fg'],
+      });
+    }
   });
 });

@@ -53,6 +53,25 @@ afterEach(() => {
 });
 
 describe('home calendar', () => {
+  it('paints the dot and the list of a habit with a custom colour (ETH-49)', async () => {
+    signedIn();
+    const { habits, marks } = sixHabits();
+    habits[0].color = '#0a1b2c';
+    mockHabitsApi({ habits, marks });
+    const { container } = renderApp('/');
+
+    await waitFor(() => {
+      expect(dayButton(container, '2026-03-04').querySelectorAll('[data-habit-color]')).toHaveLength(4);
+    });
+    const [dot] = dayButton(container, '2026-03-04').querySelectorAll('[data-habit-color]');
+    expect(dot.dataset.habitColor).toBe('custom');
+    expect(dot.style.getPropertyValue('--habit-color')).toBe('#0a1b2c');
+    const custom = [...container.querySelectorAll('[data-habit-color="custom"]')];
+    // O ponto, a aba do topo e a linha do hábito na lista
+    expect(custom.length).toBeGreaterThanOrEqual(3);
+    expect(custom.every((element) => element.style.getPropertyValue('--habit-color') === '#0a1b2c')).toBe(true);
+  });
+
   it('shows up to 4 dots and "+N" for the rest', async () => {
     signedIn();
     mockHabitsApi(sixHabits());

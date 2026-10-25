@@ -542,6 +542,7 @@
         "violet": "violeta",
         "pink": "rosa"
       },
+      "custom_color": "personalizada ({{hex}})",
       "goal_type": {
         "min": "pelo menos",
         "max": "no máximo",
@@ -894,7 +895,19 @@
       "blue": "Azul",
       "indigo": "Anil",
       "violet": "Violeta",
-      "pink": "Rosa"
+      "pink": "Rosa",
+      "custom": "Personalizada"
+    },
+    "custom_color": "Escolher a cor personalizada",
+    "custom_color_hint": "Além das 12 cores da paleta, você pode escolher qualquer cor. A cor personalizada é a mesma nos temas claro e escuro.",
+    "color_preview": "Prévia",
+    "themes": {
+      "light": "Tema claro",
+      "dark": "Tema escuro"
+    },
+    "low_contrast": {
+      "light": "Pouco contraste com o fundo do tema claro: {{ratio}}:1 (o mínimo recomendado é {{min}}:1). A cor é aceita, mas pode ficar difícil de ver.",
+      "dark": "Pouco contraste com o fundo do tema escuro: {{ratio}}:1 (o mínimo recomendado é {{min}}:1). A cor é aceita, mas pode ficar difícil de ver."
     },
     "goal_type": "Tipo da meta",
     "goal_types": {
@@ -971,7 +984,7 @@
       "name": "Nome inválido: use de 1 a 60 caracteres, numa linha só.",
       "code": "Sigla inválida: use de 1 a 4 letras sem acento ou números.",
       "description": "Descrição inválida: use no máximo 500 caracteres.",
-      "color": "Escolha uma das cores da paleta.",
+      "color": "Escolha uma cor da paleta ou uma cor personalizada.",
       "goal_type": "Escolha o tipo da meta.",
       "goal_count": "Este número não vale para esta meta. Pelo menos 1 vez, exceto em \"no máximo\", e não mais do que cabe no período.",
       "goal_period": "Escolha o período da meta.",

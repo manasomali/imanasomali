@@ -27,7 +27,7 @@ Arquivo gerado no navegador pelo botão "Baixar JSON" do relatório (`/ethos/rel
 | Campo | Tipo | Quando aparece |
 |---|---|---|
 | `id` | inteiro | sempre |
-| `name`, `color`, `status`, `role` | texto | sempre. `status`: `active`, `paused`, `archived`; `role`: o papel de quem exportou (`owner`, `editor`, `viewer`) |
+| `name`, `color`, `status`, `role` | texto | sempre. `color`: um dos 12 nomes da paleta ou uma cor própria `#rrggbb` (minúsculas, a mesma nos dois temas); `status`: `active`, `paused`, `archived`; `role`: o papel de quem exportou (`owner`, `editor`, `viewer`) |
 | `code`, `description` | texto ou null | sempre |
 | `created_at`, `archived_at` | instante UTC (ISO 8601); `archived_at` null se não arquivado | sempre |
 | `goal` | `{type, count, period, target, unit}` | sempre. `type`: `min`, `max`, `exact`; `period`: `week`, `month`, `year`; `target`: o alvo na unidade de `value` dos períodos; `unit`: `days` (uma marcação por dia), `marks` (várias por dia) ou `minutes` (duração ligada) |
@@ -121,9 +121,14 @@ Como o `GET /habits/progress` manda: os períodos que tocam o relatório, inteir
         "code": { "type": ["string", "null"] },
         "description": { "type": ["string", "null"] },
         "color": {
-          "enum": [
-            "red", "orange", "amber", "yellow", "lime", "green", "teal", "cyan", "blue",
-            "indigo", "violet", "pink"
+          "oneOf": [
+            {
+              "enum": [
+                "red", "orange", "amber", "yellow", "lime", "green", "teal", "cyan", "blue",
+                "indigo", "violet", "pink"
+              ]
+            },
+            { "type": "string", "pattern": "^#[0-9a-f]{6}$" }
           ]
         },
         "status": { "enum": ["active", "paused", "archived"] },

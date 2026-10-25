@@ -127,6 +127,17 @@ describe('JSON export', () => {
     expect(value.habits[0].periods[0]).not.toHaveProperty('spend_cents');
   });
 
+  it('exports a custom color (ETH-49) as it is, within the schema', () => {
+    const value = exported([progressItem(fullHabit({ color: '#0a1b2c' }), { marks: [] })]);
+
+    expect(value.habits[0].color).toBe('#0a1b2c');
+    expect(validateSchema(SCHEMA, value)).toEqual([]);
+    for (const color of ['#0A1B2C', '#fff', 'magenta']) {
+      value.habits[0].color = color;
+      expect(validateSchema(SCHEMA, value), color).not.toEqual([]);
+    }
+  });
+
   it('is caught by the schema when it drifts', () => {
     const value = exported([fullItem()]);
     value.habits[0].secret = 'x';

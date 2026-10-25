@@ -18,8 +18,9 @@ import {
   visibleFields,
 } from '../../lib/habitForm';
 import { formatMoney } from '../../lib/money';
-import { HABIT_COLORS } from '../../lib/palette';
+import { isCustomColor } from '../../lib/palette';
 import ErrorMessage from '../ErrorMessage';
+import ColorField from './ColorField';
 import styles from './styles.module.css';
 
 // Mudar estes campos muda os limites de N: o erro de N aparece na hora
@@ -100,6 +101,11 @@ export default function HabitForm({ habit = null, pending, error, submitLabel, d
   const onText = (name, transform = (value) => value) => (event) =>
     update(name, transform(event.target.value));
   const onCheck = (name) => (event) => update(name, event.target.checked);
+  // A última cor própria fica guardada no formulário, para voltar depois de passar pela paleta
+  const onColor = (color) => {
+    if (isCustomColor(color)) setForm((current) => ({ ...current, custom_color: color }));
+    update('color', color);
+  };
 
   const submit = (event) => {
     event.preventDefault();
@@ -224,28 +230,13 @@ export default function HabitForm({ habit = null, pending, error, submitLabel, d
           })}
           {textField('description', { multiline: true })}
 
-          <fieldset className={styles.colors}>
-            <legend className={styles.label}>
-              {t('habit_form.color')}: {t(`habit_form.colors.${form.color}`)}
-            </legend>
-            <div className={styles.palette}>
-              {HABIT_COLORS.map((color) => (
-                <label key={color} className={styles.colorOption} title={t(`habit_form.colors.${color}`)}>
-                  <input
-                    type="radio"
-                    name="color"
-                    value={color}
-                    className={`visually-hidden ${styles.colorRadio}`}
-                    checked={form.color === color}
-                    onChange={onText('color')}
-                  />
-                  <span className={styles.colorSwatch} data-habit-color={color} aria-hidden="true" />
-                  <span className="visually-hidden">{t(`habit_form.colors.${color}`)}</span>
-                </label>
-              ))}
-            </div>
-            {errorText('color')}
-          </fieldset>
+          <ColorField
+            color={form.color}
+            customColor={form.custom_color}
+            onChange={onColor}
+            error={fieldError('color')}
+            errorId={`${id}-color-error`}
+          />
         </fieldset>
 
         <fieldset className={styles.group}>

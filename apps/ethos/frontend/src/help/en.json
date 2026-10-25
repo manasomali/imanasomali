@@ -34,6 +34,7 @@
         ],
         "When each day is marked or not, N goes up to the number of days in the period (7 in a week, 28 in a month, 365 in a year), so the goal is always possible.",
         "Changing the settings does not delete data. A feature turned off (duration, cost, note) is hidden and ignored in the counts; turning it back on brings the old data back. When you turn off “several marks per day”, a day with several marks counts as one marked day, and the extra marks are kept.",
+        "Each habit has a colour. The palette has 12 colours, chosen to have a contrast of at least 3:1 with the background in the light and dark themes, and it comes first. You can also pick a custom colour in the colour selector: it is the same in both themes, and the form warns when it has less than 3:1 contrast with the background of a theme (the colour is accepted anyway). On marked days, the number is in light or dark text, whichever contrasts more with the colour.",
         "The code (up to 4 letters or digits) shows instead of the name. Only the owner changes the settings."
       ]
     },

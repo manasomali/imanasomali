@@ -118,6 +118,28 @@ describe('habit settings: form', () => {
     expect(screen.queryByText('Settings saved.')).toBeNull();
   });
 
+  it('starts from a saved custom colour and goes back to the palette by name', async () => {
+    const { user, writes, container } = await openSettings({ color: '#0a1b2c' });
+
+    expect(screen.getByRole('radio', { name: 'Custom' }).checked).toBe(true);
+    expect(screen.getByRole('group', { name: 'Colour: Custom (#0a1b2c)' })).toBeTruthy();
+    expect(screen.getByLabelText('Pick a custom colour').value).toBe('#0a1b2c');
+    // A aba do hábito no topo também usa a cor própria
+    const tab = within(screen.getByRole('navigation', { name: 'Habits' })).getByRole('link', { name: 'RUN' });
+    const swatch = tab.querySelector('[data-habit-color]');
+    expect(swatch.dataset.habitColor).toBe('custom');
+    expect(swatch.style.getPropertyValue('--habit-color')).toBe('#0a1b2c');
+    expect(await axe(container)).toHaveNoViolations();
+
+    await user.click(screen.getByRole('radio', { name: 'Teal' }));
+    await user.click(save());
+
+    await waitFor(() => expect(writesOf(writes, 'PATCH')).toHaveLength(1));
+    expect(writesOf(writes, 'PATCH')[0].body).toEqual({ color: 'teal' });
+    await waitFor(() => expect(swatch.dataset.habitColor).toBe('teal'));
+    expect(swatch.style.getPropertyValue('--habit-color')).toBe('');
+  });
+
   it('does not undo a change made elsewhere to a field it did not touch', async () => {
     const { user, writes, habits, queryClient } = await openSettings();
 

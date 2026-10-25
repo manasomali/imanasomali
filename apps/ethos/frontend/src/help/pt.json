@@ -34,6 +34,7 @@
         ],
         "Com cada dia marcado ou não, N vai até o número de dias do período (7 na semana, 28 no mês, 365 no ano), para a meta ser sempre possível.",
         "Mudar a configuração não apaga dados. Um recurso desligado (duração, custo, observação) fica escondido e é ignorado nas contas; ao religar, os dados antigos voltam. Ao desligar “mais de uma marcação por dia”, o dia com várias marcações conta como um dia marcado, e as marcações extras ficam guardadas.",
+        "Cada hábito tem uma cor. A paleta tem 12 cores, escolhidas para ter contraste de pelo menos 3:1 com o fundo nos temas claro e escuro, e aparece primeiro. Também dá para escolher uma cor personalizada no seletor de cores: ela é a mesma nos dois temas, e o formulário avisa quando ela tem menos de 3:1 de contraste com o fundo de algum tema (a cor é aceita mesmo assim). Nos dias marcados, o número fica em texto claro ou escuro, o que contrastar mais com a cor.",
         "A sigla (até 4 letras ou números) aparece no lugar do nome. Só o dono muda a configuração."
       ]
     },

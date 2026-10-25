@@ -80,11 +80,11 @@
   border-color: var(--fg);
 }
 
-/* Texto em var(--bg) sobre a cor do hábito: contraste de 4,5:1 nos dois temas
-   (src/styles/palette.test.js) */
+/* Texto sobre a cor do hábito: var(--bg) na paleta (4,5:1 nos dois temas) e claro ou escuro,
+   o de maior contraste, na cor própria (--habit-color-text; src/styles/palette.test.js) */
 .day[data-marked] {
   background: var(--habit-color, var(--muted));
-  color: var(--bg);
+  color: var(--habit-color-text, var(--bg));
 }
 
 .day[data-marked][data-selected] {

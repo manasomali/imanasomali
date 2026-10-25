@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import HabitSwatch from '../../components/HabitSwatch';
 import { formatMoney } from '../../lib/money';
 import styles from './styles.module.css';
 
@@ -28,7 +29,7 @@ export default function HabitSummary({ item }) {
   return (
     <li className={styles.card}>
       <h3 className={styles.cardTitle}>
-        <span className={styles.swatch} data-habit-color={habit.color} aria-hidden="true" />
+        <HabitSwatch className={styles.swatch} color={habit.color} />
         {habit.code ? `${habit.code} · ${habit.name}` : habit.name}
         {habit.status !== 'active' && (
           <span className={styles.badge}>{t(`report.status.${habit.status}`)}</span>

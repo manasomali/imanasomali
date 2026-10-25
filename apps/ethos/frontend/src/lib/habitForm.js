@@ -9,7 +9,7 @@
 
 import { parseDuration } from './duration';
 import { formatMoney, parseMoney } from './money';
-import { HABIT_COLORS, isHabitColor } from './palette';
+import { isCustomColor, isValidColor } from './palette';
 
 /** Tamanhos máximos dos textos (HABIT_*_MAX_LENGTH em app/models.py). */
 export const TEXT_LIMITS = Object.freeze({
@@ -99,7 +99,8 @@ function numberText(value) {
 /**
  * Estado inicial do formulário: textos como a tela mostra (números e dinheiro em texto, no idioma
  * `locale`). Sem `habit`, os padrões de um hábito novo: meta "pelo menos 1 vez por semana",
- * toggle e todos os recursos desligados.
+ * toggle e todos os recursos desligados. `custom_color` não vai para a API: é a última cor própria
+ * escolhida ("#rrggbb" ou ''), que volta ao marcar "personalizada" depois de passar pela paleta.
  */
 export function habitForm(habit, locale) {
   if (!habit) {
@@ -108,6 +109,7 @@ export function habitForm(habit, locale) {
       code: '',
       description: '',
       color: DEFAULT_COLOR,
+      custom_color: '',
       goal_type: 'min',
       goal_count: '1',
       goal_period: 'week',
@@ -130,7 +132,8 @@ export function habitForm(habit, locale) {
     name: habit.name,
     code: habit.code ?? '',
     description: habit.description ?? '',
-    color: isHabitColor(habit.color) ? habit.color : DEFAULT_COLOR,
+    color: isValidColor(habit.color) ? habit.color : DEFAULT_COLOR,
+    custom_color: isCustomColor(habit.color) ? habit.color : '',
     goal_type: habit.goal_type,
     goal_count: String(habit.goal_count),
     goal_period: habit.goal_period,
@@ -209,7 +212,8 @@ function checkField(name, form, locale) {
     case 'punishment':
       return text(form[name], name);
     case 'color':
-      return choice(form.color, HABIT_COLORS);
+      // Um nome da paleta ou uma cor própria (#rrggbb)
+      return isValidColor(form.color) ? { value: form.color } : { error: { code: 'required' } };
     case 'goal_type':
       return choice(form.goal_type, GOAL_TYPES);
     case 'goal_period':

@@ -124,6 +124,16 @@ describe('report image', () => {
     expectInside(fake);
   });
 
+  it('paints a custom color (ETH-49) as it is', () => {
+    const custom = '#0a1b2c';
+    const fake = draw(fullReport(ALL_OPTIONS, { color: custom }));
+    const fills = new Set(fake.rects.map((rect) => rect.color));
+
+    // Um hábito só: o mapa de calor usa a cor dele, não a de algum nome da paleta
+    expect(fills).toContain(custom);
+    expect(fills).not.toContain(imageTheme().habits.teal);
+  });
+
   it('removes what was turned off', () => {
     const text = allText(draw(fullReport({ ...ALL_OPTIONS, cost: false, score: false, reward: false })));
 

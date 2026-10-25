@@ -57,6 +57,31 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('habit calendar: custom colour (ETH-49)', () => {
+  it.each([
+    ['#fde047', 'dark'],
+    ['#1e3a8a', 'light'],
+  ])('paints the marked days with %s and the number in %s text', async (color, tone) => {
+    signedIn();
+    mockHabitsApi({
+      habits: [habitFixture({ color })],
+      marks: { 1: [markFixture({ marked_at: '2026-03-02T15:00:00Z' })] },
+    });
+    const { container } = renderApp('/habits/1');
+
+    const day = await findDay('Monday, March 2, 2026');
+    await waitFor(() => expect(day.dataset.marked).toBe('true'));
+    for (const element of container.querySelectorAll('[data-day]')) {
+      expect(element.dataset.habitColor).toBe('custom');
+      expect(element.style.getPropertyValue('--habit-color')).toBe(color);
+      expect(element.dataset.habitText).toBe(tone);
+    }
+    // O cabeçalho da aba também
+    const header = screen.getByRole('heading', { level: 1, name: 'RUN' });
+    expect(header.querySelector('[data-habit-color]').style.getPropertyValue('--habit-color')).toBe(color);
+  });
+});
+
 describe('habit calendar: toggle', () => {
   it('sends the start and end of the clicked local day', async () => {
     signedIn();

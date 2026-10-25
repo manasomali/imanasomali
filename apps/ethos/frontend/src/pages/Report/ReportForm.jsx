@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ErrorMessage from '../../components/ErrorMessage';
+import HabitSwatch from '../../components/HabitSwatch';
 import { PERIOD_PRESETS, checkPeriod, presetPeriod } from '../../lib/export/period';
 import styles from './styles.module.css';
 
@@ -70,7 +71,7 @@ export default function ReportForm({
                 checked={selected === null || selected.includes(habit.id)}
                 onChange={(event) => toggleHabit(habit.id, event.target.checked)}
               />
-              <span className={styles.swatch} data-habit-color={habit.color} aria-hidden="true" />
+              <HabitSwatch className={styles.swatch} color={habit.color} />
               <span className={styles.checkText}>
                 {habit.status === 'archived'
                   ? t('report.archived_habit', { name: habit.name })

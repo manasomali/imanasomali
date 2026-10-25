@@ -51,6 +51,9 @@ export default defineConfig({
           environment: 'jsdom',
           include: ['src/**/*.test.{js,jsx}'],
           setupFiles: ['./src/test/setup.js'],
+          // O vitest troca todo CSS por um texto vazio, inclusive no ?raw. src/lib/customColor.js lê
+          // os tokens como texto (@tokens/tokens.css?raw): este precisa vir de verdade
+          css: { include: [/[\\/]tokens[\\/]tokens\.css/] },
         },
       },
       // Build de produção e config, no Node

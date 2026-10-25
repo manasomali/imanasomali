@@ -5,6 +5,7 @@ import { FiEye } from 'react-icons/fi';
 import { useAccountHabits } from '../../api/admin';
 import { useMe } from '../../api/auth';
 import ErrorMessage from '../../components/ErrorMessage';
+import HabitSwatch from '../../components/HabitSwatch';
 import PageTitle from '../../components/PageTitle';
 import { parseUserId } from '../../lib/admin';
 import { ApiError } from '../../lib/api';
@@ -32,7 +33,7 @@ function HabitCard({ habit, date, money }) {
   return (
     <li className={styles.card}>
       <h3 className={styles.cardTitle}>
-        <span className={styles.swatch} data-habit-color={habit.color} aria-hidden="true" />
+        <HabitSwatch className={styles.swatch} color={habit.color} />
         <span className="user-text">{habit.name}</span>
         {habit.code && <> <span className={styles.badge}>{habit.code}</span></>}{' '}
         <span className={styles.badge}>{t(`admin.user_habits.status.${habit.status}`)}</span>

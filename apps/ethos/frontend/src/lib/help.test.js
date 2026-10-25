@@ -4,10 +4,12 @@ import { PATHS, helpPath } from '../paths';
 import { readFrontendFile } from '../test/files';
 import { translations } from '../test/i18n';
 import { COST_WARNING_PERCENT, DEFAULT_HOUR, formatHour, weeklyPaceStart } from './alerts';
+import { MIN_COLOR_CONTRAST } from './customColor';
 import { weekdayNames } from './format';
 import { DEFAULT_SCORE_THRESHOLD, MAX_MARKS_PER_DAY, PERIOD_DAYS } from './habitForm';
 import { HELP_FALLBACK_LANGUAGE, HELP_SECTIONS, loadHelp } from './help';
 import { SUPPORT_EMAIL } from './legal';
+import { HABIT_COLORS } from './palette';
 
 // Os JSON como estão no repo, por idioma: { pt: {...}, en: {...} }
 const FILES = import.meta.glob('../help/*.json', { eager: true, import: 'default' });
@@ -201,6 +203,15 @@ describe('help texts versus the code', () => {
       expect(citesNumber(sharing, guests)).toBe(true);
       expect(citesNumber(sharing, invites)).toBe(true);
       expect(citesNumber(sharing, shared)).toBe(true);
+    }
+  });
+
+  it('the colours: the size of the palette and the minimum contrast (ETH-49)', () => {
+    for (const language of LANGUAGES) {
+      const goal = sectionText(language, 'goal');
+
+      expect(citesNumber(goal, HABIT_COLORS.length)).toBe(true);
+      expect(goal).toContain(`${MIN_COLOR_CONTRAST}:1`);
     }
   });
 

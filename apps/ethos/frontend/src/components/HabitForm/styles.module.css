@@ -142,6 +142,123 @@ textarea.input {
     0 0 0 8px var(--fg);
 }
 
+/* Opção "personalizada": a última cor própria, ou o ícone antes da primeira escolha */
+.customSwatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bg);
+}
+
+.customColor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.customLabel {
+  font-size: var(--text-sm);
+}
+
+.picker {
+  width: 3rem;
+  height: 2rem;
+  padding: 0.1rem;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.picker:focus-visible {
+  outline: 3px solid var(--fg);
+  outline-offset: 2px;
+}
+
+.picker:disabled {
+  cursor: not-allowed;
+}
+
+.hex {
+  font-family: var(--font);
+  font-size: var(--text-sm);
+}
+
+/* Prévia da cor própria sobre o fundo de cada tema (cores do tema pelo CSSOM, em ColorField) */
+.colorPreview {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.themePreviews {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 0.5rem;
+}
+
+.themePreview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--preview-bg);
+  color: var(--preview-fg);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.themeName {
+  font-size: var(--text-sm);
+}
+
+.previewSamples {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Como o dia marcado do calendário (components/Calendar) */
+.previewDay {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding-top: 0.15rem;
+  background: var(--habit-color, var(--muted));
+  color: var(--habit-color-text, var(--bg));
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.previewSurface {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--preview-surface);
+  border-radius: var(--radius);
+}
+
+.previewDot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--habit-color, var(--muted));
+}
+
+.warning {
+  padding: 0.4rem 0.7rem;
+  background: var(--surface);
+  border-left: 4px solid var(--fg);
+  font-size: var(--text-sm);
+}
+
 /* Meta: tipo, N e período lado a lado no desktop, empilhados no celular */
 .goal {
   display: grid;
