@@ -3,6 +3,10 @@
 # funções do provision (infra/lib/packages.sh), o usuário que chamou o sudo no papel do usuário de
 # deploy (sudo sem senha, como o ubuntu da VM), app-ethos dono do banco e o rsync do backend com o
 # mesmo backend.rsync-filter do workflow. As pastas da VM ficam numa pasta temporária.
+# No fim, com o banco populado pelo seed: o restore do infra/RESTORE.md (backup, exclusão gravada
+# no journald, restore e reapply-deletions pelo systemd-run, como na VM) e o restore-test.sh do
+# backup-verify.yaml. Este último usa os caminhos fixos da VM (/var/lib/sqlite, /etc/infra...) e
+# um litestream falso, e por isso só roda num runner limpo.
 # Roda na raiz do repo, pelo ethos.yaml: sudo bash apps/ethos/deploy/test-vm.sh
 set -euo pipefail
 shopt -s inherit_errexit
@@ -33,6 +37,10 @@ fail() {
 root=$(mktemp -d)
 out=$root/out
 uvicorn_pid=""
+# Caminhos fixos da VM que o teste do restore-test.sh cria (num runner limpo, nenhum existe antes)
+vm_paths=(/usr/local/lib/infra /etc/infra /var/lib/sqlite /var/backups/sqlite /etc/default/litestream
+  /etc/litestream.yml /usr/local/bin/litestream)
+created_vm_paths=0
 cleanup() {
   if [[ -n $uvicorn_pid ]]; then
     kill "$uvicorn_pid" 2>/dev/null || true
@@ -40,6 +48,9 @@ cleanup() {
   systemctl stop "$test_unit" 2>/dev/null || true
   rm -f "/etc/systemd/system/$test_unit"
   systemctl daemon-reload
+  if ((created_vm_paths)); then
+    rm -rf "${vm_paths[@]}"
+  fi
   rm -rf "$root"
 }
 trap cleanup EXIT
@@ -204,5 +215,128 @@ touch "$root/start-ok"
 vm restart | tee "$out"
 grep -q "$test_unit reiniciada" "$out" || fail "restart sem a mensagem de sucesso"
 systemctl is-active --quiet "$test_unit" || fail "$test_unit não ficou ativa"
+systemctl stop "$test_unit"
+
+# --- Restore (infra/RESTORE.md, seção das apps) com o banco populado ----------------------------
+
+# O ambiente da unit app-ethos: o .env.example (dev, email no console) com o banco do teste, lido
+# pelo systemd como EnvironmentFile=, como o /etc/infra/apps/ethos.env
+env_file=$root/etc/ethos.env
+sed "s|^DATABASE_PATH=.*|DATABASE_PATH=$db|" "$backend/.env.example" > "$env_file"
+chmod 0644 "$env_file"
+# O ethos_cli do RESTORE.md, com os caminhos do teste. Sem o --pipe (ethos_unit), a saída vai
+# para o journald, como a da unit app-ethos
+ethos_unit=(systemd-run --quiet --wait --collect --uid="$app_user" --gid="$app_user"
+  --working-directory="$app_dir" -p EnvironmentFile="$env_file" -E PYTHONDONTWRITEBYTECODE=1)
+ethos_cli=("${ethos_unit[@]}" --pipe)
+python_bin=$app_dir/.venv/bin/python
+sql() { as_app sqlite3 "$1" "$2"; }
+user_id() { sql "$1" "SELECT id FROM users WHERE email = '$2';"; }
+reapplied_events() {
+  sql "$1" "SELECT count(*) FROM audit_log WHERE event = 'account_deleted'
+    AND json_extract(details, '\$.account_id') = $2 AND json_extract(details, '\$.reapplied') = 1;"
+}
+
+echo "--- banco populado (seed) pelo systemd-run, como app-ethos"
+"${ethos_cli[@]}" "$python_bin" -m app.cli seed | tee "$out"
+grep -q "seed: 3 contas" "$out" || fail "seed não criou as contas"
+bia=$(user_id "$db" bia@example.com)
+[[ $bia =~ ^[0-9]+$ ]] || fail "bia@example.com não está no banco"
+
+echo "--- backup antigo (pre-deploy) e, depois dele, a exclusão da Bia com a linha no journald"
+old_sha=fedcba9876543210fedcba9876543210fedcba98
+vm backup "$old_sha"
+old_backup=$backup_dir/pre-deploy-$old_sha.db
+delete_unit=ethos-exclusao-teste-$$
+since=$(date '+%Y-%m-%d %H:%M:%S')
+# A exclusão de verdade (app/auth/deletion.py), com o log configurado como no servidor
+"${ethos_unit[@]}" --unit="$delete_unit" "$python_bin" -c '
+import sys
+from app.auth.deletion import delete_account
+from app.config import load_settings
+from app.db import create_db_engine, create_session_factory
+from app.logs import configure_logging
+settings = load_settings()
+configure_logging(settings.app_env)
+with create_session_factory(create_db_engine(settings.database_path))() as session:
+    account_id = int(sys.argv[1])
+    delete_account(session, account_id=account_id, actor_id=account_id, ip=None)
+' "$bia"
+[[ -z $(user_id "$db" bia@example.com) ]] || fail "a Bia não foi apagada"
+journal() { journalctl -u "$delete_unit" --since "$since" -o cat --no-pager; }
+for _ in $(seq 1 20); do
+  journal | grep -q "conta $bia excluída" && break
+  sleep 0.5
+done
+journal | grep -x "INFO app.auth.deletion: conta $bia excluída" || fail "a linha da exclusão não chegou ao journald"
+
+echo "--- restore-test.sh (backup-verify.yaml) com o banco populado e um litestream falso"
+for path in "${vm_paths[@]}"; do
+  [[ ! -e $path ]] || fail "$path já existe: o teste do restore-test.sh só roda num runner limpo"
+done
+created_vm_paths=1
+install -D -m 0644 "$INFRA_DIR/lib/common.sh" /usr/local/lib/infra/common.sh
+install -d -m 0755 /etc/infra /var/lib/sqlite /var/backups/sqlite /etc/default
+printf 'ethos\n' > /etc/infra/databases
+install -d -m 0750 -o "$app_user" -g "$app_user" /var/lib/sqlite/ethos
+install -d -m 0700 -o "$app_user" -g "$app_user" /var/backups/sqlite/ethos
+as_app sqlite3 "$db" ".backup /var/lib/sqlite/ethos/app.db"
+as_app sqlite3 /var/lib/sqlite/ethos/app.db 'PRAGMA journal_mode=WAL;' >/dev/null
+: > /etc/default/litestream
+printf 'dbs: []\n' > /etc/litestream.yml
+# O restore do Object Storage vira uma cópia do banco vivo (ninguém escreve nele: sem -wal).
+# Com LITESTREAM_FALSO=incompleto, entrega o banco sem uma tabela
+cat > /usr/local/bin/litestream <<'EOF'
+#!/bin/bash
+set -euo pipefail
+[[ $# == 6 && $1 == restore && $2 == -config && $4 == -o ]] || { echo "litestream falso: $*" >&2; exit 2; }
+cp "$6" "$5"
+if [[ ${LITESTREAM_FALSO:-} == incompleto ]]; then
+  sqlite3 "$5" 'DROP TABLE banners;'
+fi
+EOF
+chmod 0755 /usr/local/bin/litestream
+bash "$INFRA_DIR/scripts/snapshot.sh"
+bash "$INFRA_DIR/scripts/restore-test.sh" | tee "$out"
+grep -q "ethos: restauração ok" "$out" || fail "restore-test.sh não validou o ethos"
+expect_failure "objetos no restaurado" env LITESTREAM_FALSO=incompleto bash "$INFRA_DIR/scripts/restore-test.sh"
+# Só um pre-deploy recente, sem o snapshot diário: um snapshot.sh parado não pode passar
+rm /var/backups/sqlite/ethos/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].db
+as_app cp "$old_backup" "/var/backups/sqlite/ethos/pre-deploy-$old_sha.db"
+expect_failure "ethos: nenhum snapshot local nas últimas 26h" bash "$INFRA_DIR/scripts/restore-test.sh"
+
+echo "--- ensaio numa cópia, com o DATABASE_PATH trocado pelo env (o EnvironmentFile= venceria o -E)"
+ensaio=$root/ensaio
+install -d -m 0700 -o "$app_user" -g "$app_user" "$ensaio"
+as_app cp "$old_backup" "$ensaio/app.db"
+[[ $(sql "$ensaio/app.db" 'PRAGMA integrity_check;') == ok ]] || fail "integrity_check da cópia"
+db_before=$(sha256sum < "$db")
+journal | "${ethos_cli[@]}" /usr/bin/env DATABASE_PATH="$ensaio/app.db" \
+  "$python_bin" -m app.cli reapply-deletions | tee "$out"
+grep -q "1 contas apagadas, 0 ignoradas" "$out" || fail "o ensaio não apagou a Bia na cópia"
+[[ -z $(user_id "$ensaio/app.db" bia@example.com) ]] || fail "a Bia continua na cópia"
+[[ $(sha256sum < "$db") == "$db_before" ]] || fail "o ensaio mexeu no banco em uso"
+
+echo "--- restore do pre-deploy, na ordem do RESTORE.md"
+mv "$db" "$db.quebrado"
+rm -f "$db-wal" "$db-shm"
+cp "$old_backup" "$db"
+chown "$app_user:$app_user" "$db"
+[[ $(sql "$db" 'PRAGMA integrity_check; PRAGMA journal_mode=WAL;') == $'ok\nwal' ]] || fail "integrity_check ou WAL do restaurado"
+[[ -z $(sql "$db" 'PRAGMA foreign_key_check;') ]] || fail "foreign_key_check do restaurado"
+[[ $(user_id "$db" bia@example.com) == "$bia" ]] || fail "o restore não trouxe a Bia de volta"
+"${ethos_cli[@]}" "$app_dir/.venv/bin/alembic" upgrade head
+# As linhas do journald e um id solto de uma conta que não existe
+{ journal; echo 99999; } | "${ethos_cli[@]}" "$python_bin" -m app.cli reapply-deletions | tee "$out"
+grep -q "1 contas apagadas, 1 ignoradas" "$out" || fail "reapply-deletions não apagou a Bia"
+[[ -z $(user_id "$db" bia@example.com) ]] || fail "a Bia voltou depois do reapply-deletions"
+[[ $(reapplied_events "$db" "$bia") == 1 ]] || fail "account_deleted reaplicado ausente ou repetido"
+
+echo "--- reapply-deletions de novo: nada muda"
+events=$(sql "$db" 'SELECT count(*) FROM audit_log;')
+{ journal; echo 99999; } | "${ethos_cli[@]}" "$python_bin" -m app.cli reapply-deletions | tee "$out"
+grep -q "0 contas apagadas, 2 ignoradas" "$out" || fail "a segunda execução mudou algo"
+[[ $(sql "$db" 'SELECT count(*) FROM audit_log;') == "$events" ]] || fail "a segunda execução gravou evento"
+expect_failure "entrada vazia" "${ethos_cli[@]}" "$python_bin" -m app.cli reapply-deletions < /dev/null
 
 echo "ok"

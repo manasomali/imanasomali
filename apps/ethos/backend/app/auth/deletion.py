@@ -41,8 +41,9 @@ O que fica, sem identificar a pessoa:
 
 Por fim, `account_deleted` com `user_id` = quem apagou (None quando foi a própria conta, cuja
 linha já não existe) e `{"account_id": n, "by_admin": bool}`, sem email nem IP da pessoa. Depois
-do commit, o log do serviço (journald) recebe só o id numérico da conta: é a lista para
-reaplicar as exclusões depois de restaurar um backup.
+do commit, o log do serviço (journald) recebe só o id numérico da conta (`DELETED_LOG_FORMAT`): é
+a lista para reaplicar as exclusões depois de restaurar um backup (`reapply_deletion`, chamada
+pelo `python -m app.cli reapply-deletions`, em `app/auth/reapply.py`).
 
 Os emails ("conta excluída" para a conta e "você perdeu acesso" para cada membro dos hábitos
 apagados, um por membro com todos os hábitos) são lidos antes de apagar e devolvidos para quem
@@ -52,6 +53,7 @@ chama agendar depois do commit: uma exclusão que falhou não avisa ninguém.
 import json
 import logging
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import Select, delete, func, null, or_, select, update
@@ -82,6 +84,19 @@ ACCOUNT_EVENTS: frozenset[AuditEvent] = AUTH_EVENTS | {
 ACCOUNT_ID_KEYS = ("author_id", "member_id")
 # Chave do `details` com a conta alvo de um evento de admin (ETH-28): o id fica, os emails saem
 TARGET_USER_KEY = "target_user_id"
+# Linha do log de cada exclusão, só com o id numérico. O `reapply-deletions` (app/auth/reapply.py)
+# procura exatamente esta linha no journald: mudar o texto quebra a leitura das linhas antigas
+DELETED_LOG_FORMAT = "conta %d excluída"
+
+
+class Reapplied(StrEnum):
+    """Resultado de `reapply_deletion` para uma conta."""
+
+    DELETED = "deleted"
+    # A conta não existe no banco: já foi apagada (ou o backup é de antes dela nascer)
+    MISSING = "missing"
+    # Último admin ativo: não foi apagada (o mesmo 409 `last_admin` da API)
+    LAST_ADMIN = "last_admin"
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +160,33 @@ def delete_account(
     return AccountDeletion(account_id=account_id, emails=emails)
 
 
+def reapply_deletion(session: Session, *, account_id: int) -> Reapplied:
+    """Apaga de novo, depois de restaurar um backup, uma conta que o log diz ter sido excluída.
+
+    A mesma exclusão de `delete_account`, numa transação só, com três diferenças:
+
+    - nenhum email: a pessoa e os membros dos hábitos dela já foram avisados na exclusão
+      original. Os emails que `_delete` monta são descartados aqui, e nada é agendado;
+    - `account_deleted` com `user_id` None e `{"account_id": n, "reapplied": true}`: o evento
+      original foi gravado depois do backup e sumiu com o restore, e quem apagou não se sabe
+      mais. Como os ids não se repetem (AUTOINCREMENT), uma conta que ainda existe no banco não
+      tem `account_deleted`: este não duplica nada. Conta que não existe não grava nada;
+    - nenhuma linha nova no log: a da exclusão original continua no journald.
+
+    Idempotente: conta que não existe devolve `MISSING`. O último admin ativo não é apagado
+    (`LAST_ADMIN`), como na API: depois de um restore, o admin que ficou pode ainda não ser admin
+    no banco restaurado. Quem chama avisa; rodar de novo depois de um `create-admin` apaga.
+    """
+    with write_transaction(session):
+        user = session.scalar(_user_query(account_id))
+        if user is None:
+            return Reapplied.MISSING
+        if _is_last_admin(session, user):
+            return Reapplied.LAST_ADMIN
+        _delete(session, user, actor_id=None, ip=None, reapplied=True)
+    return Reapplied.DELETED
+
+
 def _user_query(user_id: int) -> Select[tuple[User]]:
     # populate_existing: relê a linha mesmo que a sessão já tenha o objeto (da dependência)
     return select(User).where(User.id == user_id).execution_options(populate_existing=True)
@@ -160,28 +202,38 @@ def _active_user(session: Session, user_id: int) -> User:
 
 def _ensure_not_last_admin(session: Session, user: User) -> None:
     """409 `last_admin` se `user` é admin e nenhuma outra conta é admin ativa."""
+    if _is_last_admin(session, user):
+        raise ApiError(409, ErrorCode.LAST_ADMIN)
+
+
+def _is_last_admin(session: Session, user: User) -> bool:
     if not user.is_admin:
-        return
+        return False
     others = session.scalar(
         select(func.count())
         .select_from(User)
         .where(User.is_admin.is_(True), User.is_active.is_(True), User.id != user.id)
     )
-    if not others:
-        raise ApiError(409, ErrorCode.LAST_ADMIN)
+    return not others
 
 
 def _log_deleted(account_id: int) -> None:
     # Só o id numérico: depois de restaurar um backup, estas linhas dizem o que apagar de novo
-    logger.info("conta %d excluída", account_id)
+    logger.info(DELETED_LOG_FORMAT, account_id)
 
 
 def _delete(
-    session: Session, user: User, *, actor_id: int | None, ip: str | None
+    session: Session,
+    user: User,
+    *,
+    actor_id: int | None,
+    ip: str | None,
+    reapplied: bool = False,
 ) -> tuple[OutgoingEmail, ...]:
     """Apaga e anonimiza tudo da conta (ver o docstring do módulo) e devolve os emails.
 
     Exige `write_transaction`. `actor_id`: o admin que apagou, ou None (a própria conta).
+    `reapplied`: exclusão reaplicada depois de um restore (`reapply_deletion`).
     """
     require_write_transaction(session)
     account_id, email = user.id, user.email
@@ -196,13 +248,12 @@ def _delete(
     _execute(session, delete(HabitInvite).where(HabitInvite.email == email))
     _execute(session, delete(User).where(User.id == account_id))
     session.expunge(user)
-    audit.record(
-        session,
-        AuditEvent.ACCOUNT_DELETED,
-        user_id=actor_id,
-        ip=ip,
-        details={"account_id": account_id, "by_admin": actor_id is not None},
+    details: dict[str, Any] = (
+        {"account_id": account_id, "reapplied": True}
+        if reapplied
+        else {"account_id": account_id, "by_admin": actor_id is not None}
     )
+    audit.record(session, AuditEvent.ACCOUNT_DELETED, user_id=actor_id, ip=ip, details=details)
     return emails
 
 

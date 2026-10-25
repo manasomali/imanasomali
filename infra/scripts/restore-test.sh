@@ -6,6 +6,8 @@ set -euo pipefail
 source /usr/local/lib/infra/common.sh
 
 SNAPSHOT_MAX_AGE_MIN=$((26 * 60))
+# Nome dos snapshots do snapshot.sh
+SNAPSHOT_GLOB='[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].db'
 
 require_root
 load_databases "$INFRA_STATE_DIR/databases"
@@ -54,7 +56,9 @@ for name in "${DATABASES[@]}"; do
     log "$name: restauração ok ($restored_tables objetos, $(du -h "$out" | cut -f1))"
   fi
 
-  latest=$(find "$BACKUP_ROOT/$name" -type f -name '*.db' -mmin -"$SNAPSHOT_MAX_AGE_MIN" 2>/dev/null | head -n1 || true)
+  # Só o snapshot diário (AAAA-MM-DD.db): um pre-deploy-<sha>.db recente (deploy das apps) não
+  # pode esconder um snapshot.sh parado
+  latest=$(find "$BACKUP_ROOT/$name" -type f -name "$SNAPSHOT_GLOB" -mmin -"$SNAPSHOT_MAX_AGE_MIN" 2>/dev/null | head -n1 || true)
   if [[ -z $latest ]]; then
     fail "$name: nenhum snapshot local nas últimas 26h"
   fi

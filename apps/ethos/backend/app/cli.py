@@ -22,7 +22,7 @@ com código 2, pelo argparse. Nunca escreva código, token, cookie nem IP na sa�
 import argparse
 import sys
 import traceback
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app import audit
 from app.alerts.service import run_alerts
 from app.audit import AuditEvent
+from app.auth.reapply import InputError, read_account_ids, reapply_deletions
 from app.auth.service import normalize_email
 from app.config import ConfigError, Settings, load_settings
 from app.db import create_db_engine, create_session_factory, write_transaction
@@ -124,6 +125,60 @@ def _create_admin(context: CommandContext, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _reapply_deletions(context: CommandContext, args: argparse.Namespace) -> int:
+    """Apaga de novo, depois de restaurar um backup, as contas que o journald diz ter apagado.
+
+    Lê as linhas do `journalctl -u app-ethos -o cat` (ou ids soltos, um por linha) do arquivo
+    ou do stdin (`-`, o padrão) e chama `app/auth/reapply.py`. Sem email, sem `account_deleted`
+    repetido. Conta que não existe é ignorada; o último admin ativo é pulado com um aviso (sai
+    com 0 assim mesmo). Entrada ilegível, vazia ou com uma linha de exclusão fora do formato: erro,
+    antes de mexer no banco.
+    """
+    try:
+        if args.file == "-":
+            if sys.stdin.isatty():
+                raise CommandError(
+                    "mande as linhas pelo stdin (journalctl -u app-ethos -o cat | ...) "
+                    "ou passe um arquivo"
+                )
+            parsed = read_account_ids(_decoded_lines(sys.stdin.buffer))
+        else:
+            with Path(args.file).open("rb") as stream:
+                parsed = read_account_ids(_decoded_lines(stream))
+    except OSError as exc:
+        raise CommandError(f"não consegui ler a entrada ({type(exc).__name__})") from None
+    except InputError as exc:
+        raise CommandError(f"{exc}; nada foi apagado") from None
+    if parsed.lines == 0:
+        # journalctl sem sudo, unit errada: melhor parar do que dizer que não havia nada
+        raise CommandError("entrada vazia; confira o journalctl (precisa de sudo)")
+    print(
+        f"reapply-deletions: {parsed.lines} linhas lidas, {len(parsed.ids)} contas no log "
+        f"({parsed.repeated} repetições ignoradas)"
+    )
+
+    with context.session_factory() as session:
+        result = reapply_deletions(session, parsed.ids)
+    for account_id in result.last_admin:
+        print(
+            f"aviso: a conta {account_id} é o último admin ativo e não foi apagada. Torne outra "
+            "conta admin (create-admin) e rode o reapply-deletions de novo",
+            file=sys.stderr,
+        )
+    print(
+        f"reapply-deletions: {len(result.deleted)} contas apagadas, "
+        f"{len(result.missing)} ignoradas (não existem no banco), "
+        f"{len(result.last_admin)} puladas (último admin)"
+    )
+    return EXIT_OK
+
+
+def _decoded_lines(stream: Iterable[bytes]) -> Iterator[str]:
+    # Bytes, e não o texto do stdin: o journald grava UTF-8, qualquer que seja o locale da sessão
+    for raw in stream:
+        yield raw.decode("utf-8", errors="replace")
+
+
 def _seed(context: CommandContext, _args: argparse.Namespace) -> int:
     """Cria os dados de exemplo de `app/seed.py`. Só com `APP_ENV=dev`.
 
@@ -186,6 +241,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
     create_admin.add_argument("email", help="email da conta (maiúsculas e espaços não importam)")
     create_admin.set_defaults(handler=_create_admin)
+
+    reapply = commands.add_parser(
+        "reapply-deletions",
+        help="depois de restaurar um backup, apaga de novo as contas excluídas que o log lista",
+        description=(
+            "Lê as linhas do journalctl -u app-ethos -o cat (as de 'conta <id> excluída'; as "
+            "outras são ignoradas) ou ids soltos, um por linha, e apaga de novo as contas que "
+            "ainda existem, sem mandar email. Conta que não existe é ignorada e id repetido "
+            "conta uma vez; o último admin ativo é pulado com um aviso. Antes, avança o contador "
+            "de ids das contas até o maior id lido, para nenhuma conta nova herdar um id apagado. "
+            "Pode rodar quantas vezes quiser: a segunda seguida não muda nada."
+        ),
+    )
+    reapply.add_argument(
+        "file",
+        nargs="?",
+        default="-",
+        help="arquivo com as linhas; sem ele (ou com -), lê do stdin",
+    )
+    reapply.set_defaults(handler=_reapply_deletions)
 
     commands.add_parser(
         "seed",

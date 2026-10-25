@@ -35,7 +35,7 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/admin/accounts.py,app/admin/banners.py,app/alerts/service.py,app/audit.py,app/auth/deletion.py,app/auth/deps.py,app/auth/origin.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/history/service.py,app/marks/schemas.py,app/marks/service.py,app/pagination.py,app/progress/service.py,app/retention.py,app/score.py,app/sharing/quota.py,app/sharing/service.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/admin/accounts.py,app/admin/banners.py,app/alerts/service.py,app/audit.py,app/auth/deletion.py,app/auth/deps.py,app/auth/origin.py,app/auth/reapply.py,app/auth/security.py,app/auth/service.py,app/habits/access.py,app/habits/scoring.py,app/habits/service.py,app/history/service.py,app/marks/schemas.py,app/marks/service.py,app/pagination.py,app/progress/service.py,app/retention.py,app/score.py,app/sharing/quota.py,app/sharing/service.py   # depois do pytest
 ```
 
 Alguns módulos precisam de 100% de cobertura (linhas e ramos). A lista fica na variável `FULL_COVERAGE` do passo "Cobertura de 100% nos módulos críticos" do CI, que confere cada um com o `coverage report` acima.
