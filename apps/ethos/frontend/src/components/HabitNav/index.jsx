@@ -1,6 +1,6 @@
-import { NavLink } from 'react-router';
+import { Link, NavLink } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { HABIT_SECTION, habitPath } from '../../paths';
+import { HABIT_SECTION, habitPath, reportPath } from '../../paths';
 import styles from './styles.module.css';
 
 // Submenu da aba de um hábito. Cada tela nova do hábito (ETH-33 configuração, ETH-34
@@ -25,6 +25,12 @@ export default function HabitNav({ habit }) {
             </NavLink>
           </li>
         ))}
+        {/* O relatório é uma rota de topo (vários hábitos): este atalho já vem com o hábito */}
+        <li>
+          <Link to={reportPath({ habitIds: [habit.id] })} className={styles.link}>
+            {t('habit.sections.report')}
+          </Link>
+        </li>
       </ul>
     </nav>
   );

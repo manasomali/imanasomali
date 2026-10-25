@@ -67,7 +67,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       // Política de testes: 80% em src/lib/ (o CI roda npm test, que liga a cobertura)
-      include: ['src/lib/**'],
+      // Só código: src/lib/export/schema.md fica de fora
+      include: ['src/lib/**/*.{js,jsx}'],
       exclude: ['src/lib/**/*.test.*'],
       thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
     },

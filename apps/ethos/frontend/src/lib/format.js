@@ -28,6 +28,11 @@ export function formatLongDay(value, locale) {
   return formatter(locale, { timeZone: 'UTC', dateStyle: 'full' }).format(dayDate(value));
 }
 
+/** "4 de mar. de 2026" / "Mar 4, 2026". */
+export function formatShortDay(value, locale) {
+  return formatter(locale, { timeZone: 'UTC', dateStyle: 'medium' }).format(dayDate(value));
+}
+
 /** Nome do mês ("março" / "March"). `month` de 1 a 12. */
 export function formatMonth(month, locale) {
   const date = new Date(0);

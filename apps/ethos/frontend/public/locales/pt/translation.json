@@ -10,6 +10,7 @@
   },
   "menu": {
     "habits": "Hábitos",
+    "report": "Relatório",
     "account": "Conta",
     "back_to_site": "manasomali.com",
     "admin": "Admin"
@@ -48,6 +49,9 @@
     },
     "account": {
       "title": "Conta"
+    },
+    "report": {
+      "title": "Relatório"
     },
     "not_found": {
       "title": "Página não encontrada",
@@ -269,7 +273,8 @@
   "habit": {
     "sections": {
       "label": "Seções do hábito",
-      "calendar": "Calendário"
+      "calendar": "Calendário",
+      "report": "Relatório"
     },
     "status": {
       "paused": "Pausado",
@@ -311,6 +316,149 @@
     "outdated": "Uma versão mais nova dos termos foi publicada enquanto esta página estava aberta. Recarregue a página para lê-la.",
     "reload": "Recarregar a página",
     "sign_out": "Sair"
+  },
+  "report": {
+    "intro": "Escolha o período, os hábitos e o que mostrar. O relatório e os arquivos são gerados no seu navegador.",
+    "form": "Período e hábitos do relatório",
+    "period": "Período",
+    "presets": {
+      "label": "Períodos prontos",
+      "month": "Este mês",
+      "year": "Este ano",
+      "12_months": "Últimos 12 meses",
+      "5_years": "Últimos 5 anos"
+    },
+    "from": "De",
+    "to": "Até",
+    "period_hint": "Dias no seu fuso ({{timezone}}), os dois incluídos. No máximo 5 anos.",
+    "period_errors": {
+      "invalid": "Informe duas datas válidas.",
+      "order": "O fim precisa ser no mesmo dia do início ou depois.",
+      "too_long": "O período pode cobrir no máximo 5 anos."
+    },
+    "habits": "Hábitos",
+    "all_habits": "Todos os hábitos, inclusive os arquivados",
+    "archived_habit": "{{name}} (arquivado)",
+    "no_habit_selected": "Escolha pelo menos um hábito.",
+    "submit": "Mostrar relatório",
+    "fields": {
+      "label": "Informações exibidas",
+      "hint": "Cada item só aparece nos hábitos que têm o recurso ligado. A imagem nunca traz observações nem emails.",
+      "score": "Pontuação e sucesso/falha",
+      "reward": "Recompensa",
+      "punishment": "Punição",
+      "cost": "Gasto e limite",
+      "duration": "Duração",
+      "note": "Observações (CSV e JSON)",
+      "author": "Quem marcou (CSV e JSON)"
+    },
+    "results": "Relatório de {{from}} a {{to}}",
+    "loading": "Carregando o relatório…",
+    "updating": "Atualizando…",
+    "empty": "Nenhum hábito neste relatório.",
+    "summaries": "Hábitos do relatório",
+    "status": {
+      "paused": "pausado",
+      "archived": "arquivado"
+    },
+    "marks": "Marcações",
+    "days": "Dias marcados",
+    "goal_label": "Meta",
+    "goal": {
+      "min": "Pelo menos {{count}} por {{period}}",
+      "max": "No máximo {{count}} por {{period}}",
+      "exact": "Exatamente {{count}} por {{period}}"
+    },
+    "goal_minutes": {
+      "min": "Pelo menos {{count}} × {{minutes}} min por {{period}}",
+      "max": "No máximo {{count}} × {{minutes}} min por {{period}}",
+      "exact": "Exatamente {{count}} × {{minutes}} min por {{period}}"
+    },
+    "period_names": {
+      "week": "semana",
+      "month": "mês",
+      "year": "ano"
+    },
+    "periods": "Períodos encerrados com a meta cumprida",
+    "periods_value": "{{met}} de {{total}}",
+    "no_periods": "Nenhum período encerrado ainda",
+    "score": "Pontuação",
+    "score_value": "{{value}}/100 (limite {{threshold}})",
+    "score_no_data": "Sem dados ainda",
+    "result": "Resultado",
+    "success": "Sucesso",
+    "failure": "Falha",
+    "duration": "Tempo",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "spend": "Gasto no período",
+    "limit": "Limite",
+    "limit_value": "{{limit}} por {{period}}",
+    "limit_latest": "Último período: {{spend}}",
+    "limit_latest_percent": "Último período: {{spend}} ({{percent}}%)",
+    "reward": "Recompensa",
+    "punishment": "Punição",
+    "removed_user": "Usuário removido",
+    "export": {
+      "title": "Exportar",
+      "hint": "A imagem ({{width}}×{{height}}) é feita para redes sociais e é compartilhada ou, onde o navegador não compartilha arquivos, baixada. O CSV tem uma linha por marcação; o JSON tem tudo o que está no relatório.",
+      "image": "Gerar imagem",
+      "regenerate": "Gerar a imagem de novo",
+      "working": "Gerando a imagem…",
+      "image_ready": "Imagem pronta. Confira a prévia abaixo.",
+      "image_error": "Não foi possível gerar a imagem neste navegador.",
+      "preview": "Prévia da imagem do relatório",
+      "share": "Compartilhar imagem",
+      "share_title": "Meus hábitos no ethos",
+      "download_image": "Baixar imagem",
+      "csv": "Baixar CSV",
+      "json": "Baixar JSON",
+      "shared": "Imagem compartilhada.",
+      "downloaded": "Arquivo baixado."
+    },
+    "csv": {
+      "habit": "Hábito",
+      "date": "Data",
+      "time": "Horário",
+      "author": "Autor",
+      "duration": "Duração (min)",
+      "cost": "Custo",
+      "note": "Observação"
+    },
+    "image": {
+      "title": "Relatório de hábitos",
+      "period": "{{from}} – {{to}}",
+      "less": "menos",
+      "more": "mais",
+      "days_marked_one": "{{count}} dia com marcação",
+      "days_marked_other": "{{count}} dias com marcação",
+      "marks_one": "{{count}} marcação",
+      "marks_other": "{{count}} marcações",
+      "periods": "meta cumprida em {{met}} de {{total}} períodos",
+      "no_periods": "nenhum período encerrado ainda",
+      "score": "pontuação {{value}}/100",
+      "score_no_data": "pontuação: sem dados ainda",
+      "minutes_one": "{{count}} min",
+      "minutes_other": "{{count}} min",
+      "spend": "gasto {{value}}",
+      "limit_week": "nesta semana: {{spend}} de {{limit}}",
+      "limit_month": "neste mês: {{spend}} de {{limit}}",
+      "limit_year": "neste ano: {{spend}} de {{limit}}",
+      "reward": "Recompensa: {{text}}",
+      "punishment": "Punição: {{text}}",
+      "more_habits_one": "+{{count}} hábito",
+      "more_habits_other": "+{{count}} hábitos",
+      "no_habits": "Nenhum hábito neste relatório.",
+      "footer": "ethos · manasomali.com/ethos · {{date}}"
+    }
+  },
+  "export_all": {
+    "title": "Exportar tudo",
+    "text": "Todos os seus hábitos, inclusive os arquivados, em todo o período e com todas as informações (observações e autores também). Bom para guardar uma cópia dos seus dados.",
+    "json": "Exportar tudo (JSON)",
+    "csv": "Exportar tudo (CSV)",
+    "working": "Preparando o export…",
+    "done": "Export baixado."
   },
   "errors": {
     "bad_request": "Não foi possível entender o pedido. Recarregue a página e tente de novo.",

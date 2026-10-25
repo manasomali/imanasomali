@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateTime, formatLongDay, formatMonth, formatTime, weekdayNames } from './format';
+import { formatDateTime, formatLongDay, formatMonth, formatShortDay, formatTime, weekdayNames } from './format';
 
 describe('dates for the screen', () => {
   it('formats a local day without shifting it by the time zone', () => {
     expect(formatLongDay('2026-03-04', 'en')).toBe('Wednesday, March 4, 2026');
     expect(formatLongDay('2026-03-04', 'pt')).toBe('quarta-feira, 4 de março de 2026');
     expect(formatLongDay('2026-01-01', 'en')).toBe('Thursday, January 1, 2026');
+  });
+
+  it('formats a short local day', () => {
+    expect(formatShortDay('2026-03-04', 'en')).toBe('Mar 4, 2026');
+    expect(formatShortDay('2026-03-04', 'pt')).toBe('4 de mar. de 2026');
   });
 
   it('names months and weekdays, starting on Monday', () => {

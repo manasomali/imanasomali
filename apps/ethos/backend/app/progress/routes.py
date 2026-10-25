@@ -13,7 +13,10 @@ Resposta: `{"from", "to", "timezone", "habits": [...]}`, por id do hábito, cada
 - `periods`: `[{first_day, last_day, value, met, spend_cents}]`, os períodos da meta que tocam o
   intervalo, inteiros; `spend_cents` só com o custo ligado;
 - `cost_periods`: só com o custo ligado e um limite, `[{first_day, last_day, spend_cents,
-  limit_percent}]` nos períodos do limite (`limit_percent` null com limite 0).
+  limit_percent}]` nos períodos do limite (`limit_percent` null com limite 0);
+- `marks_range`: `{first_day, last_day}`, os dias locais da primeira e da última marcação do
+  hábito em todo o tempo (não só no intervalo), ou null sem marcação. O "exportar tudo" do front
+  parte dele.
 
 Este router fica antes do de `/habits` no `create_app`: senão `/habits/progress` cairia em
 `/habits/{habit_id}` e daria 422.
@@ -37,6 +40,7 @@ from app.progress.schemas import (
     Day,
     HabitIdItem,
     HabitProgressOut,
+    MarksRangeOut,
     PeriodOut,
     ProgressOut,
 )
@@ -67,6 +71,10 @@ def progress_out(progress: HabitProgress) -> HabitProgressOut:
             )
             for cost in progress.cost_periods
         ]
+    marks_range = None
+    if progress.marks_range is not None:
+        first_day, last_day = progress.marks_range
+        marks_range = MarksRangeOut(first_day=first_day, last_day=last_day)
     return HabitProgressOut(
         habit=habit_out(progress.access, score),
         goal_target=progress.goal_target,
@@ -80,6 +88,7 @@ def progress_out(progress: HabitProgress) -> HabitProgressOut:
             for result in progress.periods
         ],
         cost_periods=cost_periods,
+        marks_range=marks_range,
     )
 
 

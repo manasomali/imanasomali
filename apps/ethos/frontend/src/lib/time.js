@@ -130,6 +130,12 @@ export function localDate(instant, timeZone) {
   return formatDate(wall.year, wall.month, wall.day);
 }
 
+/** Hora local "HH:MM" (24 h) de um instante (Date, ms ou ISO) no fuso dado. */
+export function localTime(instant, timeZone) {
+  const wall = wallClock(timeZone, new Date(instant).getTime());
+  return `${pad(wall.hour)}:${pad(wall.minute)}`;
+}
+
 /** Hoje, no fuso dado. */
 export function today(timeZone, now = new Date()) {
   return localDate(now, timeZone);

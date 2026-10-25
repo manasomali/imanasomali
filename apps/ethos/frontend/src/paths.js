@@ -14,7 +14,23 @@ export const PATHS = Object.freeze({
   // Aba de um hábito (HabitLayout). O calendário é a rota índice; as outras seções são rotas
   // filhas (`/habits/:habitId/<seção>`, ver HABIT_SECTION)
   habit: '/habits/:habitId',
+  // Relatório e export (ETH-36), de vários hábitos: período e hábitos na query (reportPath)
+  report: '/relatorio',
 });
+
+/**
+ * Caminho do relatório com o período e os hábitos na query: `?from=&to=&habit_id=3&habit_id=5`.
+ * Sem `habitIds` (ou vazio): todos os hábitos. Ex.: o atalho da aba do hábito,
+ * `reportPath({habitIds: [3]})`.
+ */
+export function reportPath({ from, to, habitIds } = {}) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  for (const id of habitIds ?? []) params.append('habit_id', String(id));
+  const search = params.toString();
+  return search ? `${PATHS.report}?${search}` : PATHS.report;
+}
 
 /** Tela do conteúdo dos hábitos de uma conta, no painel de admin. */
 export function adminUserPath(userId) {

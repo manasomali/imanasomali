@@ -10,6 +10,7 @@
   },
   "menu": {
     "habits": "Habits",
+    "report": "Report",
     "account": "Account",
     "back_to_site": "manasomali.com",
     "admin": "Admin"
@@ -48,6 +49,9 @@
     },
     "account": {
       "title": "Account"
+    },
+    "report": {
+      "title": "Report"
     },
     "not_found": {
       "title": "Page not found",
@@ -269,7 +273,8 @@
   "habit": {
     "sections": {
       "label": "Habit sections",
-      "calendar": "Calendar"
+      "calendar": "Calendar",
+      "report": "Report"
     },
     "status": {
       "paused": "Paused",
@@ -311,6 +316,149 @@
     "outdated": "A newer version of the terms was published while this page was open. Reload the page to read it.",
     "reload": "Reload page",
     "sign_out": "Sign out"
+  },
+  "report": {
+    "intro": "Choose the period, the habits and what to show. The report and the files are generated in your browser.",
+    "form": "Report period and habits",
+    "period": "Period",
+    "presets": {
+      "label": "Quick periods",
+      "month": "This month",
+      "year": "This year",
+      "12_months": "Last 12 months",
+      "5_years": "Last 5 years"
+    },
+    "from": "From",
+    "to": "To",
+    "period_hint": "Days in your time zone ({{timezone}}), both included. At most 5 years.",
+    "period_errors": {
+      "invalid": "Enter two valid dates.",
+      "order": "The end must be on or after the start.",
+      "too_long": "The period can cover at most 5 years."
+    },
+    "habits": "Habits",
+    "all_habits": "All habits, archived ones included",
+    "archived_habit": "{{name}} (archived)",
+    "no_habit_selected": "Choose at least one habit.",
+    "submit": "Show report",
+    "fields": {
+      "label": "Information to show",
+      "hint": "Each item only shows for habits that have the feature turned on. The image never includes notes or emails.",
+      "score": "Score and success/failure",
+      "reward": "Reward",
+      "punishment": "Punishment",
+      "cost": "Spending and limit",
+      "duration": "Duration",
+      "note": "Notes (CSV and JSON)",
+      "author": "Who marked (CSV and JSON)"
+    },
+    "results": "Report from {{from}} to {{to}}",
+    "loading": "Loading the report…",
+    "updating": "Updating…",
+    "empty": "No habits in this report.",
+    "summaries": "Habits in the report",
+    "status": {
+      "paused": "paused",
+      "archived": "archived"
+    },
+    "marks": "Marks",
+    "days": "Days marked",
+    "goal_label": "Goal",
+    "goal": {
+      "min": "At least {{count}} per {{period}}",
+      "max": "At most {{count}} per {{period}}",
+      "exact": "Exactly {{count}} per {{period}}"
+    },
+    "goal_minutes": {
+      "min": "At least {{count}} × {{minutes}} min per {{period}}",
+      "max": "At most {{count}} × {{minutes}} min per {{period}}",
+      "exact": "Exactly {{count}} × {{minutes}} min per {{period}}"
+    },
+    "period_names": {
+      "week": "week",
+      "month": "month",
+      "year": "year"
+    },
+    "periods": "Closed periods with the goal met",
+    "periods_value": "{{met}} of {{total}}",
+    "no_periods": "No closed period yet",
+    "score": "Score",
+    "score_value": "{{value}}/100 (threshold {{threshold}})",
+    "score_no_data": "No data yet",
+    "result": "Result",
+    "success": "Success",
+    "failure": "Failure",
+    "duration": "Time",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "spend": "Spent in the period",
+    "limit": "Limit",
+    "limit_value": "{{limit}} per {{period}}",
+    "limit_latest": "Latest period: {{spend}}",
+    "limit_latest_percent": "Latest period: {{spend}} ({{percent}}%)",
+    "reward": "Reward",
+    "punishment": "Punishment",
+    "removed_user": "Removed user",
+    "export": {
+      "title": "Export",
+      "hint": "The image ({{width}}×{{height}}) is made for social networks and is shared or, where sharing files is not available, downloaded. CSV has one row per mark; JSON has everything in the report.",
+      "image": "Create image",
+      "regenerate": "Create image again",
+      "working": "Creating the image…",
+      "image_ready": "Image ready. Check the preview below.",
+      "image_error": "Could not create the image in this browser.",
+      "preview": "Preview of the report image",
+      "share": "Share image",
+      "share_title": "My habits on ethos",
+      "download_image": "Download image",
+      "csv": "Download CSV",
+      "json": "Download JSON",
+      "shared": "Image shared.",
+      "downloaded": "File downloaded."
+    },
+    "csv": {
+      "habit": "Habit",
+      "date": "Date",
+      "time": "Time",
+      "author": "Author",
+      "duration": "Duration (min)",
+      "cost": "Cost",
+      "note": "Note"
+    },
+    "image": {
+      "title": "Habit report",
+      "period": "{{from}} – {{to}}",
+      "less": "less",
+      "more": "more",
+      "days_marked_one": "{{count}} day with marks",
+      "days_marked_other": "{{count}} days with marks",
+      "marks_one": "{{count}} mark",
+      "marks_other": "{{count}} marks",
+      "periods": "goal met in {{met}} of {{total}} periods",
+      "no_periods": "no closed period yet",
+      "score": "score {{value}}/100",
+      "score_no_data": "score: no data yet",
+      "minutes_one": "{{count}} min",
+      "minutes_other": "{{count}} min",
+      "spend": "spent {{value}}",
+      "limit_week": "this week: {{spend}} of {{limit}}",
+      "limit_month": "this month: {{spend}} of {{limit}}",
+      "limit_year": "this year: {{spend}} of {{limit}}",
+      "reward": "Reward: {{text}}",
+      "punishment": "Punishment: {{text}}",
+      "more_habits_one": "+{{count}} more habit",
+      "more_habits_other": "+{{count}} more habits",
+      "no_habits": "No habits in this report.",
+      "footer": "ethos · manasomali.com/ethos · {{date}}"
+    }
+  },
+  "export_all": {
+    "title": "Export everything",
+    "text": "All your habits, archived ones included, over the whole period and with every piece of information (notes and authors too). Good for keeping a copy of your data.",
+    "json": "Export everything (JSON)",
+    "csv": "Export everything (CSV)",
+    "working": "Preparing the export…",
+    "done": "Export downloaded."
   },
   "errors": {
     "bad_request": "The request could not be understood. Reload the page and try again.",
