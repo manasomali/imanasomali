@@ -79,17 +79,17 @@ describe('calendarRange', () => {
     expect(range.months[0].days).toHaveLength(28);
   });
 
-  it('shows the month before and after the anchor in the 3-month window', () => {
+  it('shows the two months before the anchor and the anchor in the 3-month window', () => {
     const range = calendarRange('3months', { year: 2026, month: 3 });
-    expect(monthsOf(range)).toEqual(['2026-02', '2026-03', '2026-04']);
-    expect(range).toMatchObject({ first: '2026-02-01', last: '2026-04-30', years: [2026] });
+    expect(monthsOf(range)).toEqual(['2026-01', '2026-02', '2026-03']);
+    expect(range).toMatchObject({ first: '2026-01-01', last: '2026-03-31', years: [2026] });
   });
 
   it.each([
-    [{ year: 2026, month: 1 }, ['2025-12', '2026-01', '2026-02'], '2025-12-01', '2026-02-28'],
-    [{ year: 2025, month: 12 }, ['2025-11', '2025-12', '2026-01'], '2025-11-01', '2026-01-31'],
-    [{ year: 2024, month: 1 }, ['2023-12', '2024-01', '2024-02'], '2023-12-01', '2024-02-29'],
-  ])('crosses the year in the 3-month window around %j', (anchor, months, first, last) => {
+    [{ year: 2026, month: 1 }, ['2025-11', '2025-12', '2026-01'], '2025-11-01', '2026-01-31'],
+    [{ year: 2026, month: 2 }, ['2025-12', '2026-01', '2026-02'], '2025-12-01', '2026-02-28'],
+    [{ year: 2024, month: 2 }, ['2023-12', '2024-01', '2024-02'], '2023-12-01', '2024-02-29'],
+  ])('crosses the year in the 3-month window ending at %j', (anchor, months, first, last) => {
     const range = calendarRange('3months', anchor);
     expect(monthsOf(range)).toEqual(months);
     expect(range.first).toBe(first);
@@ -123,7 +123,7 @@ describe('moving the range', () => {
     // A janela de 3 meses não começa antes de janeiro de MIN_YEAR
     expect(clampAnchor('3months', { year: MIN_YEAR, month: 1 }, TODAY)).toEqual({
       year: MIN_YEAR,
-      month: 2,
+      month: 3,
     });
     expect(clampAnchor('3months', { year: 2025, month: 12 }, TODAY)).toEqual({ year: 2025, month: 12 });
   });
@@ -147,7 +147,7 @@ describe('moving the range', () => {
       previous: { year: 2025, month: 12 },
       next: null,
     });
-    // Do meio de dezembro, o próximo passaria do mês de hoje: para no mês de hoje
+    // A janela que termina em dezembro: a próxima termina em março, o mês de hoje
     expect(rangeNeighbors(calendarRange('3months', { year: 2025, month: 12 }), TODAY).next).toEqual({
       year: 2026,
       month: 3,
@@ -161,11 +161,11 @@ describe('moving the range', () => {
   it('stops at the start of MIN_YEAR', () => {
     expect(rangeNeighbors(calendarRange('month', { year: MIN_YEAR, month: 1 }), TODAY).previous).toBeNull();
     expect(rangeNeighbors(calendarRange('year', { year: MIN_YEAR, month: 1 }), TODAY).previous).toBeNull();
-    expect(rangeNeighbors(calendarRange('3months', { year: MIN_YEAR, month: 2 }), TODAY).previous).toBeNull();
+    expect(rangeNeighbors(calendarRange('3months', { year: MIN_YEAR, month: 3 }), TODAY).previous).toBeNull();
     // Perto do começo, a janela anterior encosta em janeiro de MIN_YEAR
-    expect(rangeNeighbors(calendarRange('3months', { year: MIN_YEAR, month: 3 }), TODAY).previous).toEqual({
+    expect(rangeNeighbors(calendarRange('3months', { year: MIN_YEAR, month: 4 }), TODAY).previous).toEqual({
       year: MIN_YEAR,
-      month: 2,
+      month: 3,
     });
   });
 });
@@ -183,11 +183,11 @@ describe('switchAnchor', () => {
 
   it('starts at the first month on screen without a day', () => {
     expect(switchAnchor(year2025, 'month', null, TODAY)).toEqual({ year: 2025, month: 1 });
-    // A janela começa em janeiro: âncora em fevereiro
-    expect(switchAnchor(year2025, '3months', null, TODAY)).toEqual({ year: 2025, month: 2 });
+    // A janela começa em janeiro: âncora em março, o último mês dela
+    expect(switchAnchor(year2025, '3months', null, TODAY)).toEqual({ year: 2025, month: 3 });
     const window = calendarRange('3months', { year: 2026, month: 1 });
-    expect(switchAnchor(window, 'year', null, TODAY)).toEqual({ year: 2025, month: 12 });
-    expect(switchAnchor(window, 'month', null, TODAY)).toEqual({ year: 2025, month: 12 });
+    expect(switchAnchor(window, 'year', null, TODAY)).toEqual({ year: 2025, month: 11 });
+    expect(switchAnchor(window, 'month', null, TODAY)).toEqual({ year: 2025, month: 11 });
   });
 });
 
@@ -206,16 +206,16 @@ describe('resolveCalendar', () => {
     expect(resolve({ range: 'weeks' }, 'weeks').range.kind).toBe('year');
   });
 
-  it('centers the month ranges on today', () => {
+  it('ends the month ranges at the current month', () => {
     expect(monthsOf(resolve({ range: 'month' }).range)).toEqual(['2026-03']);
     const { range, day } = resolve({ range: '3months' });
-    expect(monthsOf(range)).toEqual(['2026-02', '2026-03', '2026-04']);
+    expect(monthsOf(range)).toEqual(['2026-01', '2026-02', '2026-03']);
     expect(day).toBe(TODAY);
   });
 
   it('reads the month of the month ranges', () => {
     const { range, day } = resolve({ range: '3months', month: '2026-01' });
-    expect(monthsOf(range)).toEqual(['2025-12', '2026-01', '2026-02']);
+    expect(monthsOf(range)).toEqual(['2025-11', '2025-12', '2026-01']);
     // Hoje não está na faixa e não há dia na URL
     expect(day).toBeNull();
     expect(resolve({ range: 'month', month: '2025-12', day: '2025-12-24' }).day).toBe('2025-12-24');
@@ -244,7 +244,7 @@ describe('resolveCalendar', () => {
 
   it('opens the month of the day without a position', () => {
     const { range, day } = resolve({ range: '3months', day: '2025-12-31' });
-    expect(monthsOf(range)).toEqual(['2025-11', '2025-12', '2026-01']);
+    expect(monthsOf(range)).toEqual(['2025-10', '2025-11', '2025-12']);
     expect(day).toBe('2025-12-31');
     expect(resolve({ day: '2024-02-29' }).range.first).toBe('2024-01-01');
   });

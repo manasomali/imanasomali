@@ -1,4 +1,4 @@
-// Faixa de meses do calendário: só um mês, 3 meses (o anterior, o da âncora e o próximo) ou o ano
+// Faixa de meses do calendário: só um mês, 3 meses (os dois anteriores e o da âncora) ou o ano
 // inteiro. A faixa é um conceito separado do desenho: calendarRange dá os meses e os limites, e
 // quem desenha (components/Calendar) só percorre `range.months`. O estado vem da URL
 // (`?range=month|3months|year`, `?month=AAAA-MM` nas faixas de mês, `?year=AAAA` na do ano e
@@ -57,17 +57,17 @@ export function parseMonthParam(value, max) {
  * A faixa do tipo `kind` em volta do mês `anchor` (`{year, month}`): `{kind, anchor, first, last,
  * months, years}`. `months` são os meses de calendarMonth em ordem, `first` e `last` o primeiro e o
  * último dia ("AAAA-MM-DD") e `years` os anos que ela toca, em ordem (2 quando a janela de 3 meses
- * cruza o ano). Mês: só a âncora; 3 meses: a anterior, a âncora e a próxima; ano: o ano da âncora.
+ * cruza o ano). Mês: só a âncora; 3 meses: os dois anteriores e a âncora; ano: o ano da âncora.
  */
 export function calendarRange(kind, anchor) {
   let months;
   if (kind === 'year') {
     months = yearMonths(anchor.year);
   } else {
-    const center = toIndex(anchor);
-    const side = kind === '3months' ? 1 : 0;
+    const last = toIndex(anchor);
+    const before = kind === '3months' ? 2 : 0;
     months = [];
-    for (let index = center - side; index <= center + side; index += 1) {
+    for (let index = last - before; index <= last; index += 1) {
       const { year, month } = fromIndex(index);
       months.push(calendarMonth(year, month));
     }
@@ -85,18 +85,18 @@ export function calendarRange(kind, anchor) {
 
 /**
  * A âncora dentro dos limites: a faixa não começa antes de janeiro de MIN_YEAR (a janela de 3 meses
- * ancora no mínimo em fevereiro) e a âncora não passa do mês de hoje (`today`, "AAAA-MM-DD"). Na
- * faixa de 3 meses, o mês seguinte ao de hoje aparece, com os dias futuros desabilitados.
+ * ancora no mínimo em março) e a âncora não passa do mês de hoje (`today`, "AAAA-MM-DD"). A janela
+ * de 3 meses termina na âncora, então nunca mostra mês depois do de hoje.
  */
 export function clampAnchor(kind, anchor, today) {
-  const min = MIN_YEAR * 12 + (kind === '3months' ? 1 : 0);
+  const min = MIN_YEAR * 12 + (kind === '3months' ? 2 : 0);
   const max = toIndex(monthOf(today));
   return fromIndex(Math.min(Math.max(toIndex(anchor), min), max));
 }
 
-// Âncora da faixa `kind` que começa no mês `index` (a de 3 meses ancora no mês do meio)
+// Âncora da faixa `kind` que começa no mês `index` (a de 3 meses ancora no último mês)
 function anchorStartingAt(kind, index) {
-  return fromIndex(kind === '3months' ? index + 1 : index);
+  return fromIndex(kind === '3months' ? index + 2 : index);
 }
 
 /**
@@ -121,7 +121,7 @@ export function rangeNeighbors(range, today) {
 
 /**
  * Âncora ao trocar a faixa `range` pelo tipo `kind`: com um dia escolhido (`day`), o mês dele, para
- * o dia continuar visível (no meio da janela de 3 meses); sem dia, a nova faixa começa no primeiro
+ * o dia continuar visível (no fim da janela de 3 meses); sem dia, a nova faixa começa no primeiro
  * mês da atual. Já nos limites.
  */
 export function switchAnchor(range, kind, day, today) {

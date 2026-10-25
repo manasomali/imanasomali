@@ -89,13 +89,13 @@ describe('calendar periods', () => {
     expect(formatPeriod(calendarRange('month', { year: 2026, month: 3 }), 'en')).toBe('March 2026');
     expect(formatPeriod(calendarRange('month', { year: 2026, month: 3 }), 'pt')).toBe('março de 2026');
     // O separador da faixa (espaços finos ou não) depende da versão do ICU
-    expect(formatPeriod(calendarRange('3months', { year: 2026, month: 3 }), 'en')).toMatch(
+    expect(formatPeriod(calendarRange('3months', { year: 2026, month: 4 }), 'en')).toMatch(
       /^Feb\s–\sApr 2026$/,
     );
-    expect(formatPeriod(calendarRange('3months', { year: 2026, month: 1 }), 'en')).toMatch(
+    expect(formatPeriod(calendarRange('3months', { year: 2026, month: 2 }), 'en')).toMatch(
       /^Dec 2025\s–\sFeb 2026$/,
     );
-    expect(formatPeriod(calendarRange('3months', { year: 2025, month: 12 }), 'pt')).toMatch(
+    expect(formatPeriod(calendarRange('3months', { year: 2026, month: 1 }), 'pt')).toMatch(
       /^nov\. de 2025\s–\sjan\. de 2026$/,
     );
   });
