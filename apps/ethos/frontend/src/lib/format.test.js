@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateTime, formatLongDay, formatMonth, formatShortDay, formatTime, weekdayNames } from './format';
+import {
+  formatDate,
+  formatDateTime,
+  formatLongDay,
+  formatMonth,
+  formatShortDay,
+  formatTime,
+  weekdayNames,
+} from './format';
 
 describe('dates for the screen', () => {
   it('formats a local day without shifting it by the time zone', () => {
@@ -36,5 +44,8 @@ describe('dates for the screen', () => {
     expect(formatTime(instant, 'America/Sao_Paulo', 'pt')).toBe('12:05');
     expect(formatTime(instant, 'Asia/Tokyo', 'en')).toBe('12:05 AM');
     expect(formatDateTime(instant, 'America/Sao_Paulo', 'en')).toBe('Mar 4, 2026, 12:05 PM');
+    expect(formatDate(instant, 'America/Sao_Paulo', 'en')).toBe('Mar 4, 2026');
+    // 15:05 UTC já é o dia seguinte em Tóquio
+    expect(formatDate(instant, 'Asia/Tokyo', 'en')).toBe('Mar 5, 2026');
   });
 });

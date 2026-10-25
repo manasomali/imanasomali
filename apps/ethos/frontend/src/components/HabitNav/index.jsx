@@ -15,6 +15,8 @@ const HABIT_NAV = Object.freeze([
     i18nKey: 'habit.sections.settings',
     visible: (habit) => habit.role === 'owner',
   },
+  // Todo papel: o dono gerencia, os outros veem os membros e podem sair
+  { section: HABIT_SECTION.sharing, i18nKey: 'habit.sections.sharing', visible: () => true },
 ]);
 
 export default function HabitNav({ habit }) {

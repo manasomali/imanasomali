@@ -736,8 +736,20 @@ def test_members_list_owner_first(client, ana, bia, caio, habit_id, clock):
                 "role": "editor",
                 "joined_at": "2026-03-25T15:10:00Z",
             },
-        ]
+        ],
+        "guest_limit": 5,
     }
+
+
+def test_members_list_reports_the_configured_guest_limit(make_app_client, ana, bia, db_session):
+    client = make_app_client(max_guests_per_habit=7)
+    habit_id = created(client, ana)["id"]
+    share(db_session, habit_id, bia, "viewer")
+
+    for account in (ana, bia):
+        response = client.get(f"/habits/{habit_id}/members", headers=account.headers)
+        assert response.status_code == 200
+        assert response.json()["guest_limit"] == 7
 
 
 @pytest.fixture

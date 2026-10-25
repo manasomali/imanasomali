@@ -3,6 +3,7 @@ import { NavLink } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiMenu, FiMoon, FiSun, FiX } from 'react-icons/fi';
 import { useCachedMe } from '../../api/auth';
+import { useReceivedInvites } from '../../api/sharing';
 import useTheme from '../../hooks/useTheme';
 import { LANGUAGES } from '../../i18n';
 import { PATHS } from '../../paths';
@@ -13,6 +14,7 @@ const ICON_SIZE = 20;
 const links = [
   { to: PATHS.home, i18nKey: 'menu.habits', end: true },
   { to: PATHS.report, i18nKey: 'menu.report' },
+  { to: PATHS.invites, i18nKey: 'menu.invites', pending: true },
   { to: PATHS.account, i18nKey: 'menu.account' },
 ];
 
@@ -25,6 +27,10 @@ export default function Menu() {
   const [open, setOpen] = useState(false);
   const me = useCachedMe();
   const visibleLinks = me?.is_admin ? [...links, adminLink] : links;
+  // Convites pendentes: só com a sessão carregada e os termos aceitos (senão a API recusa). Falha
+  // ao buscar não mostra nada; a tela de convites mostra o erro. Cache em src/api/sharing.js
+  const received = useReceivedInvites({ enabled: Boolean(me) && !me.terms_pending });
+  const pending = received.data?.length ?? 0;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -63,6 +69,14 @@ export default function Menu() {
                 <li key={link.to}>
                   <NavLink to={link.to} end={link.end} className={navClass} onClick={close}>
                     {t(link.i18nKey)}
+                    {link.pending && pending > 0 && (
+                      <>
+                        <span className={styles.count} aria-hidden="true">
+                          {pending}
+                        </span>{' '}
+                        <span className="visually-hidden">{t('menu.invites_pending', { count: pending })}</span>
+                      </>
+                    )}
                   </NavLink>
                 </li>
               ))}

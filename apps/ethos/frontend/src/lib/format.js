@@ -57,6 +57,11 @@ export function formatTime(instant, timeZone, locale) {
   return formatter(locale, { timeZone, timeStyle: 'short' }).format(new Date(instant));
 }
 
+/** Data de um instante no fuso dado ("4 de mar. de 2026" / "Mar 4, 2026"). */
+export function formatDate(instant, timeZone, locale) {
+  return formatter(locale, { timeZone, dateStyle: 'medium' }).format(new Date(instant));
+}
+
 /** Data e hora curtas de um instante no fuso dado. */
 export function formatDateTime(instant, timeZone, locale) {
   return formatter(locale, { timeZone, dateStyle: 'medium', timeStyle: 'short' }).format(

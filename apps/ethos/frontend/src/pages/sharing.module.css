@@ -1,0 +1,226 @@
+/* Telas do compartilhamento: seção da aba do hábito e caixa de convites recebidos */
+.page {
+  display: grid;
+  gap: 2rem;
+}
+
+.section {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--text-2xl);
+}
+
+.subtitle {
+  font-size: var(--text-xl);
+}
+
+.heading {
+  font-size: var(--text-lg);
+}
+
+.title:focus,
+.subtitle:focus,
+.heading:focus {
+  outline: none;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* Mensagem da última ação (região viva: fica no DOM mesmo vazia) */
+.status {
+  font-weight: 700;
+}
+
+/* Vazia, não ocupa espaço, mas continua na árvore de acessibilidade */
+.status:empty {
+  margin-top: -0.75rem;
+}
+
+/* Formulário de convite */
+.form {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  max-width: 28rem;
+}
+
+.label,
+.legend {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg);
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.input:focus-visible {
+  border-color: var(--fg);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--fg);
+  border-style: dashed;
+}
+
+.fieldError {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.roles {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.roles legend {
+  margin-bottom: 0.3rem;
+  padding: 0;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.option input {
+  margin-top: 0.3rem;
+  accent-color: var(--fg);
+}
+
+.slots {
+  font-weight: 700;
+}
+
+/* Listas de pessoas e convites */
+.list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.itemTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+  font-size: var(--text-base);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.meta {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.swatch {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--habit-color, var(--muted));
+}
+
+/* Botões */
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.button,
+.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button {
+  background: transparent;
+}
+
+.button:hover {
+  background: var(--surface-hover);
+}
+
+.primary {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.button:disabled,
+.primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Confirmação de remover e de sair */
+.confirm {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.confirmTitle {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}

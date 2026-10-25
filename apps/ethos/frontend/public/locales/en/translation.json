@@ -13,7 +13,10 @@
     "report": "Report",
     "account": "Account",
     "back_to_site": "manasomali.com",
-    "admin": "Admin"
+    "admin": "Admin",
+    "invites": "Invites",
+    "invites_pending_one": "{{count}} pending invite",
+    "invites_pending_other": "{{count}} pending invites"
   },
   "footer": {
     "tagline": "ethos: an app for tracking habits",
@@ -275,7 +278,8 @@
       "label": "Habit sections",
       "calendar": "Calendar",
       "report": "Report",
-      "settings": "Settings"
+      "settings": "Settings",
+      "sharing": "Sharing"
     },
     "status": {
       "paused": "Paused",
@@ -461,6 +465,83 @@
     "csv": "Export everything (CSV)",
     "working": "Preparing the export…",
     "done": "Export downloaded."
+  },
+  "sharing": {
+    "title": "Sharing",
+    "cancel": "Cancel",
+    "role": {
+      "owner": "Owner",
+      "editor": "Can mark",
+      "viewer": "View only"
+    },
+    "role_hint": {
+      "editor": "Can mark: marks, unmarks and edits marks, including other people's",
+      "viewer": "View only: sees the calendar, costs and notes, but does not mark"
+    },
+    "invite": {
+      "title": "Invite someone",
+      "hint": "Only people with an ethos account receive invites. Invites do not expire, and you can cancel a pending one.",
+      "email": "Email",
+      "role": "Permission",
+      "slots": "{{used}} of {{limit}} spots used (members and pending invites).",
+      "full": "Cancel an invite or remove someone to invite again.",
+      "send": "Send invite",
+      "sending": "Sending…",
+      "sent": "Invite sent.",
+      "email_missing": "Enter an email address.",
+      "email_invalid": "Enter a valid email address.",
+      "archived": "Archived habits do not take new invites. Unarchive it to invite someone."
+    },
+    "members": {
+      "title": "People with access",
+      "only_you": "Only you have access to this habit for now.",
+      "you": "You",
+      "since": "Since {{date}}",
+      "owner_since": "Owner since {{date}}",
+      "actions": "Actions for {{email}}",
+      "make": {
+        "editor": "Allow marking",
+        "viewer": "Make view only"
+      },
+      "role_changed": {
+        "editor": "{{email}} can now mark.",
+        "viewer": "{{email}} can now only view. Any alerts they had for this habit were deleted."
+      },
+      "remove": "Remove",
+      "remove_title": "Remove {{email}} from this habit?",
+      "remove_warning": "Their marks stay in the habit and their alerts for it are deleted. They can only come back with a new invite.",
+      "remove_confirm": "Yes, remove",
+      "removed": "{{email}} no longer has access to this habit."
+    },
+    "invites": {
+      "title": "Pending invites",
+      "hint": "An invite waits until the person accepts or declines it.",
+      "empty": "No pending invites.",
+      "sent_on": "Sent on {{date}}",
+      "cancel": "Cancel invite",
+      "cancel_label": "Cancel invite to {{email}}",
+      "canceled": "Invite to {{email}} canceled."
+    },
+    "leave": {
+      "title": "Leave this habit",
+      "warning": "You lose access to this habit. Your marks stay in it and your alerts for it are deleted. To come back, you need a new invite from the owner.",
+      "button": "Leave habit",
+      "confirm_title": "Leave “{{name}}”?",
+      "confirm": "Yes, leave"
+    }
+  },
+  "invites": {
+    "title": "Invites",
+    "hint": "Habits other people shared with you. Accept to see them with your habits.",
+    "empty": "You have no pending invites.",
+    "from": "From {{email}}",
+    "received_on": "Received on {{date}}",
+    "actions": "Answer the invite to {{name}}",
+    "accept": "Accept",
+    "decline": "Decline",
+    "accepted": "You joined “{{name}}”.",
+    "declined": "Invite to “{{name}}” declined.",
+    "open_habit": "Open the habit"
   },
   "errors": {
     "bad_request": "The request could not be understood. Reload the page and try again.",

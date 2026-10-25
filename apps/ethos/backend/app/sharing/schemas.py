@@ -84,4 +84,10 @@ class MemberOut(BaseModel):
 
 
 class MemberList(BaseModel):
+    """Dono e membros, e o `MAX_GUESTS_PER_HABIT` (`guest_limit`): membros + convites pendentes.
+
+    O limite vem da config; vai aqui para a tela mostrar as vagas sem repetir o valor no front.
+    """
+
     members: list[MemberOut]
+    guest_limit: int

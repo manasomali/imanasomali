@@ -8,7 +8,9 @@ import AdminUserHabits from './pages/Admin/UserHabits';
 import HabitLayout from './pages/Habit';
 import HabitCalendar from './pages/HabitCalendar';
 import HabitSettings from './pages/HabitSettings';
+import HabitSharing from './pages/HabitSharing';
 import Home from './pages/Home';
+import Invites from './pages/Invites';
 import Legal from './pages/Legal';
 import Login from './pages/Login';
 import NewHabit from './pages/NewHabit';
@@ -33,6 +35,7 @@ export const routes = [
           { path: PATHS.account, element: <Account /> },
           { path: PATHS.report, element: <Report /> },
           { path: PATHS.newHabit, element: <NewHabit /> },
+          { path: PATHS.invites, element: <Invites /> },
           {
             element: <RequireAdmin />,
             children: [
@@ -49,6 +52,7 @@ export const routes = [
             children: [
               { index: true, element: <HabitCalendar /> },
               { path: HABIT_SECTION.settings, element: <HabitSettings /> },
+              { path: HABIT_SECTION.sharing, element: <HabitSharing /> },
             ],
           },
         ],
