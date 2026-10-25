@@ -192,6 +192,16 @@ describe('help texts versus the code', () => {
     }
   });
 
+  // ETH-54: clicar no dia só escolhe; marcar e desmarcar ficam nos botões do painel do dia
+  it('marking: the buttons of the day panel, with the names of the screen', () => {
+    for (const language of LANGUAGES) {
+      const marks = sectionText(language, 'marks');
+      const panel = translations[language].day_panel;
+
+      for (const key of ['mark', 'unmark', 'add']) expect(marks).toContain(`“${panel[key]}”`);
+    }
+  });
+
   it('the pace example of "3 times per week" uses the real moments of the pace', () => {
     for (const language of LANGUAGES) {
       const alerts = sectionText(language, 'alerts');

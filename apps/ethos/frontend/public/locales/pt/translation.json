@@ -329,6 +329,7 @@
     "day_count_one": "{{date}}. {{count}} marcação",
     "day_count_other": "{{date}}. {{count}} marcações",
     "day_habits": "{{date}}. Marcados: {{habits}}",
+    "day_selected": "{{date}}. Escolhido",
     "day_nothing": "{{date}}. Nada marcado"
   },
   "day_panel": {
@@ -344,6 +345,11 @@
     "add": "Adicionar marcação",
     "marks": "Marcações do dia"
   },
+  "confirm_unmark": {
+    "warning": "Desmarcar apaga também os detalhes deste dia (observação, duração ou custo).",
+    "confirm": "Desmarcar mesmo assim",
+    "cancel": "Cancelar"
+  },
   "overview": {
     "habits": "Hábitos neste dia",
     "mark": "Marcar",
@@ -351,7 +357,8 @@
     "unmark": "Desmarcar",
     "unmark_label": "Desmarcar {{habit}}",
     "add": "Adicionar",
-    "add_label": "Adicionar uma marcação em {{habit}}"
+    "add_label": "Adicionar uma marcação em {{habit}}",
+    "confirm_unmark_label": "Desmarcar {{habit}} mesmo assim"
   },
   "mark": {
     "time": "Horário",
@@ -931,7 +938,7 @@
     },
     "features": {
       "multi_mark": "Mais de uma marcação por dia",
-      "multi_mark_hint": "Desligado, cada dia é marcado ou não (um clique). Ligado, cada marcação conta.",
+      "multi_mark_hint": "Desligado, cada dia é marcado ou não. Ligado, cada marcação conta.",
       "duration_enabled": "Duração",
       "duration_enabled_hint": "Cada marcação tem minutos, e a meta compara a soma dos minutos do período.",
       "notes_enabled": "Observação",
