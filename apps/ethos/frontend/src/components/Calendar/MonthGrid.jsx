@@ -4,7 +4,7 @@ import styles from './styles.module.css';
 // Um mês do calendário: nome, cabeçalho dos dias da semana e a grade de 7 colunas, que começa em
 // WEEK_START (domingo; src/lib/calendar.js). `month`: `{year, month, days, offset}` de
 // calendarMonth; `title`: o nome do mês; `weekdays`: calendarWeekdayNames (na ordem das colunas).
-// O foco itinerante e as teclas ficam com quem desenha os meses (YearCalendar): `tabStop` é o dia
+// O foco itinerante e as teclas ficam com quem desenha os meses (Calendar): `tabStop` é o dia
 // que entra na ordem do Tab, `dayProps`, `onKeyDown` e `onFocus` vão para cada DayCell
 export default function MonthGrid({ month, title, weekdays, tabStop, dayProps, onKeyDown, onFocus }) {
   const { year, days, offset } = month;

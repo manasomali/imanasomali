@@ -299,9 +299,23 @@
     "all": "Todos os hábitos"
   },
   "calendar": {
-    "label": "Calendário de {{year}}",
-    "previous_year": "Ano anterior ({{year}})",
-    "next_year": "Próximo ano ({{year}})",
+    "label": "Calendário de {{period}}",
+    "range": {
+      "label": "Mostrar",
+      "month": "Mês",
+      "3months": "3 meses",
+      "year": "Ano"
+    },
+    "previous": {
+      "month": "Mês anterior ({{period}})",
+      "3months": "3 meses anteriores ({{period}})",
+      "year": "Ano anterior ({{period}})"
+    },
+    "next": {
+      "month": "Próximo mês ({{period}})",
+      "3months": "Próximos 3 meses ({{period}})",
+      "year": "Próximo ano ({{period}})"
+    },
     "loading": "Carregando as marcações…",
     "day_future": "{{date}}. Dia futuro, não pode ser marcado",
     "day_marked": "{{date}}. Marcado",

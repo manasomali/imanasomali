@@ -535,7 +535,7 @@ describe('habit calendar: year and score', () => {
     await user.click(screen.getByRole('button', { name: 'Previous year (2025)' }));
 
     expect(await screen.findByRole('heading', { level: 2, name: '2025' })).toBeDefined();
-    expect(router.state.location.search).toBe('?year=2025');
+    expect(router.state.location.search).toBe('?range=year&year=2025');
     await waitFor(() => {
       expect(requests.filter((r) => r.path === '/habits/1/marks').map((r) => r.query)).toEqual([
         { from: '2026-01-01T03:00:00.000Z', to: '2027-01-01T03:00:00.000Z' },

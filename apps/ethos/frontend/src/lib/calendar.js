@@ -69,11 +69,6 @@ export function yearMonths(year) {
   return Array.from({ length: 12 }, (_, index) => calendarMonth(year, index + 1));
 }
 
-/** Primeiro e último dia do ano, "AAAA-MM-DD". */
-export function yearBounds(year) {
-  return { first: `${yearText(year)}-01-01`, last: `${yearText(year)}-12-31` };
-}
-
 /**
  * Intervalo do ano no fuso dado, em UTC: `from` é a meia-noite local de 1º de janeiro e `to` a do
  * ano seguinte (exclusivo). É o `from`/`to` do GET /habits/{id}/marks (até 367 dias).

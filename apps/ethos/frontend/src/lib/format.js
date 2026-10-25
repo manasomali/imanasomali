@@ -41,6 +41,27 @@ export function formatMonth(month, locale) {
   return formatter(locale, { timeZone: 'UTC', month: 'long' }).format(date);
 }
 
+/** Mês e ano ("março de 2026" / "March 2026"). `month` de 1 a 12. */
+export function formatMonthYear(year, month, locale) {
+  return formatter(locale, { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(
+    dayDate(`${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-01`),
+  );
+}
+
+/**
+ * Nome da faixa do calendário (src/lib/calendarRange.js): o ano ("2026"), o mês ("março de 2026")
+ * ou os 3 meses, abreviados ("fev. – abr. de 2026", "dez. de 2025 – fev. de 2026").
+ */
+export function formatPeriod(range, locale) {
+  const first = range.months[0];
+  if (range.kind === 'year') return String(first.year);
+  if (range.kind === 'month') return formatMonthYear(first.year, first.month, locale);
+  return formatter(locale, { timeZone: 'UTC', month: 'short', year: 'numeric' }).formatRange(
+    dayDate(range.first),
+    dayDate(range.last),
+  );
+}
+
 /**
  * Iniciais dos dias da semana e os nomes completos (para leitores), de segunda a domingo: o índice
  * é o `weekday` da API (0 = segunda). Para o cabeçalho do calendário, use calendarWeekdayNames.

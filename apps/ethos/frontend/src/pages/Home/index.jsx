@@ -4,16 +4,16 @@ import { useTranslation } from 'react-i18next';
 import { FiPlus } from 'react-icons/fi';
 import { useMe } from '../../api/auth';
 import { useHabits } from '../../api/habits';
-import { useYearMarksOfHabits } from '../../api/marks';
+import { useMarksOfHabits } from '../../api/marks';
+import Calendar from '../../components/Calendar';
+import CalendarNav from '../../components/CalendarNav';
 import DayPanel from '../../components/DayPanel';
 import ErrorMessage from '../../components/ErrorMessage';
 import HabitTabs from '../../components/HabitTabs';
 import PageTitle from '../../components/PageTitle';
-import YearCalendar from '../../components/YearCalendar';
-import YearNav from '../../components/YearNav';
 import useCalendarParams from '../../hooks/useCalendarParams';
-import { MIN_YEAR, overviewByDay } from '../../lib/calendar';
-import { formatLongDay } from '../../lib/format';
+import { overviewByDay } from '../../lib/calendar';
+import { formatLongDay, formatPeriod } from '../../lib/format';
 import { today } from '../../lib/time';
 import { PATHS, habitPath } from '../../paths';
 import calendar from '../calendar.module.css';
@@ -23,7 +23,7 @@ import styles from './styles.module.css';
 
 const NO_HABITS = [];
 
-// Aba principal: o ano de todos os hábitos ativos e pausados. Cada dia mostra até 4 pontos com a
+// Aba principal: a faixa do calendário (mês, 3 meses ou ano) com todos os hábitos ativos e pausados. Cada dia mostra até 4 pontos com a
 // cor dos hábitos marcados e "+N" para o resto (siglas no hover e no foco). Escolher um dia abre o
 // painel com o estado de cada hábito e o atalho de marcar. Os arquivados ficam numa seção à parte
 export default function Home() {
@@ -33,10 +33,10 @@ export default function Home() {
   // RequireSession só desenha as rotas com o usuário carregado
   const timeZone = useMe().data.timezone;
   const current = today(timeZone);
-  const { year, day, maxYear, setYear, setDay } = useCalendarParams(current);
+  const { range, day, previous, next, move, setKind, setDay } = useCalendarParams(current);
   const habits = useHabits();
   const list = habits.data ?? NO_HABITS;
-  const marks = useYearMarksOfHabits(list, year, timeZone);
+  const marks = useMarksOfHabits(list, range.years, timeZone);
   const overview = useMemo(() => overviewByDay(list, marks.byHabit), [list, marks.byHabit]);
 
   const dayProps = (value) => {
@@ -69,7 +69,13 @@ export default function Home() {
   } else {
     content = (
       <>
-        <YearNav year={year} min={MIN_YEAR} max={maxYear} onChange={setYear} />
+        <CalendarNav
+          range={range}
+          previous={previous}
+          next={next}
+          onMove={move}
+          onKindChange={setKind}
+        />
         <div className={calendar.layout}>
           <div className={calendar.panel}>
             <DayPanel day={day}>
@@ -98,9 +104,9 @@ export default function Home() {
                 <ErrorMessage error={marks.error} onRetry={marks.refetch} />
               </div>
             )}
-            <YearCalendar
-              year={year}
-              label={t('calendar.label', { year })}
+            <Calendar
+              range={range}
+              label={t('calendar.label', { period: formatPeriod(range, language) })}
               initialFocus={day ?? current}
               dayProps={dayProps}
             />

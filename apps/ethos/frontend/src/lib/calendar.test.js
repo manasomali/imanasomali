@@ -16,7 +16,6 @@ import {
   parseYear,
   splitDots,
   weekColumn,
-  yearBounds,
   yearMonths,
   yearOf,
   yearRange,
@@ -97,8 +96,7 @@ describe('years and months', () => {
     expect(yearMonths(2024)[1].days.at(-1)).toBe('2024-02-29');
   });
 
-  it('knows the first and last day and the year of a day', () => {
-    expect(yearBounds(2026)).toEqual({ first: '2026-01-01', last: '2026-12-31' });
+  it('knows the year of a day', () => {
     expect(yearOf('2026-03-04')).toBe(2026);
   });
 });

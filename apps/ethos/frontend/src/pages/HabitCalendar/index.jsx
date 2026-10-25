@@ -1,16 +1,15 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { canMark } from '../../api/habits';
-import { useCreateMark, useDeleteMark, useToggleMark, useYearMarks } from '../../api/marks';
+import { useCreateMark, useDeleteMark, useMarks, useToggleMark } from '../../api/marks';
+import Calendar from '../../components/Calendar';
+import CalendarNav from '../../components/CalendarNav';
 import DayPanel from '../../components/DayPanel';
 import ErrorMessage from '../../components/ErrorMessage';
 import MarkItem from '../../components/MarkItem';
-import YearCalendar from '../../components/YearCalendar';
-import YearNav from '../../components/YearNav';
 import useCalendarParams from '../../hooks/useCalendarParams';
 import useHabitContext from '../../hooks/useHabitContext';
-import { MIN_YEAR } from '../../lib/calendar';
-import { formatLongDay } from '../../lib/format';
+import { formatLongDay, formatPeriod } from '../../lib/format';
 import { markedAtFor, today } from '../../lib/time';
 import styles from '../calendar.module.css';
 
@@ -25,8 +24,8 @@ export default function HabitCalendar() {
   const language = i18n.resolvedLanguage;
   const { habit, timeZone } = useHabitContext();
   const current = today(timeZone);
-  const { year, day, maxYear, setYear, setDay } = useCalendarParams(current);
-  const marks = useYearMarks(habit.id, year, timeZone);
+  const { range, day, previous, next, move, setKind, setDay } = useCalendarParams(current);
+  const marks = useMarks(habit.id, range.years, timeZone);
   const byDay = marks.data ?? NO_MARKS;
   const loaded = marks.data !== undefined;
   const writable = canMark(habit);
@@ -102,7 +101,13 @@ export default function HabitCalendar() {
 
   return (
     <>
-      <YearNav year={year} min={MIN_YEAR} max={maxYear} onChange={setYear} />
+      <CalendarNav
+        range={range}
+        previous={previous}
+        next={next}
+        onMove={move}
+        onKindChange={setKind}
+      />
       <div className={styles.layout}>
         <div className={styles.panel}>
           <DayPanel day={day}>
@@ -160,11 +165,11 @@ export default function HabitCalendar() {
             </p>
           )}
           {marks.error && !loaded ? (
-            <ErrorMessage error={marks.error} onRetry={() => marks.refetch()} />
+            <ErrorMessage error={marks.error} onRetry={marks.refetch} />
           ) : (
-            <YearCalendar
-              year={year}
-              label={t('calendar.label', { year })}
+            <Calendar
+              range={range}
+              label={t('calendar.label', { period: formatPeriod(range, language) })}
               initialFocus={day ?? current}
               dayProps={dayProps}
             />
