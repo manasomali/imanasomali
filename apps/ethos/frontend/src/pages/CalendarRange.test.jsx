@@ -60,7 +60,7 @@ afterEach(() => {
 });
 
 describe('calendar range: habit tab', () => {
-  it('shows the whole year by default, the current month or the 3 months around it', async () => {
+  it('shows the whole year by default, the current month or the 3 months up to it', async () => {
     signedIn();
     const { requests } = mockHabitsApi({ habits: [habitFixture()] });
     const user = userEvent.setup();
@@ -87,12 +87,13 @@ describe('calendar range: habit tab', () => {
 
     await user.click(screen.getByRole('radio', { name: '3 months' }));
 
-    expect(shownMonths()).toEqual(['February', 'March', 'April']);
-    expect(screen.getByRole('heading', { level: 2, name: /^Feb\s–\sApr 2026$/ })).toBeDefined();
+    // O mês atual e os dois anteriores
+    expect(shownMonths()).toEqual(['January', 'February', 'March']);
+    expect(screen.getByRole('heading', { level: 2, name: /^Jan\s–\sMar 2026$/ })).toBeDefined();
     expect(search(router)).toBe('?range=3months&month=2026-03');
-    expect(container.querySelectorAll('[data-day]')).toHaveLength(28 + 31 + 30);
-    // O resto de março e abril inteiro estão no futuro
-    expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(21 + 30);
+    expect(container.querySelectorAll('[data-day]')).toHaveLength(31 + 28 + 31);
+    // Só o resto de março está no futuro
+    expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(21);
     expect(screen.getByRole('button', { name: /^Next 3 months \(/ }).disabled).toBe(true);
     expect(await axe(container)).toHaveNoViolations();
 
@@ -101,9 +102,9 @@ describe('calendar range: habit tab', () => {
   });
 
   it.each([
-    ['2026-01', ['December 2025', 'January 2026', 'February 2026'], /^Dec 2025\s–\sFeb 2026$/],
-    ['2025-12', ['November 2025', 'December 2025', 'January 2026'], /^Nov 2025\s–\sJan 2026$/],
-  ])('crosses the year in the 3-month window around %s', async (month, months, period) => {
+    ['2026-02', ['December 2025', 'January 2026', 'February 2026'], /^Dec 2025\s–\sFeb 2026$/],
+    ['2026-01', ['November 2025', 'December 2025', 'January 2026'], /^Nov 2025\s–\sJan 2026$/],
+  ])('crosses the year in the 3-month window ending at %s', async (month, months, period) => {
     signedIn();
     const { requests } = mockHabitsApi({
       habits: [habitFixture()],
@@ -170,19 +171,19 @@ describe('calendar range: habit tab', () => {
     const { router } = renderApp('/habits/1?range=3months');
 
     await findDay('Tuesday, March 10, 2026');
-    await user.click(screen.getByRole('button', { name: /^Previous 3 months \(Nov 2025\s–\sJan 2026\)$/ }));
+    await user.click(screen.getByRole('button', { name: /^Previous 3 months \(Oct\s–\sDec 2025\)$/ }));
 
-    expect(shownMonths()).toEqual(['November 2025', 'December 2025', 'January 2026']);
+    expect(shownMonths()).toEqual(['October', 'November', 'December']);
     expect(search(router)).toBe('?range=3months&month=2025-12');
     await waitFor(() => expect(markQueries(requests)).toEqual([YEAR_2026, YEAR_2025]));
 
-    await user.click(screen.getByRole('button', { name: /^Previous 3 months \(Aug\s–\sOct 2025\)$/ }));
-    expect(shownMonths()).toEqual(['August', 'September', 'October']);
+    await user.click(screen.getByRole('button', { name: /^Previous 3 months \(Jul\s–\sSep 2025\)$/ }));
+    expect(shownMonths()).toEqual(['July', 'August', 'September']);
     expect(search(router)).toBe('?range=3months&month=2025-09');
 
-    await user.click(screen.getByRole('button', { name: /^Next 3 months \(Nov 2025\s–\sJan 2026\)$/ }));
-    await user.click(screen.getByRole('button', { name: /^Next 3 months \(Feb\s–\sApr 2026\)$/ }));
-    expect(shownMonths()).toEqual(['February', 'March', 'April']);
+    await user.click(screen.getByRole('button', { name: /^Next 3 months \(Oct\s–\sDec 2025\)$/ }));
+    await user.click(screen.getByRole('button', { name: /^Next 3 months \(Jan\s–\sMar 2026\)$/ }));
+    expect(shownMonths()).toEqual(['January', 'February', 'March']);
     expect(screen.getByRole('button', { name: /^Next 3 months \(/ }).disabled).toBe(true);
     // Voltou a ter hoje na faixa
     expect(screen.getByRole('heading', { level: 2, name: 'Tuesday, March 10, 2026' })).toBeDefined();
@@ -219,20 +220,21 @@ describe('calendar range: habit tab', () => {
 
     await user.click(screen.getByRole('radio', { name: '3 months' }));
 
-    expect(shownMonths()).toEqual(['November 2025', 'December 2025', 'January 2026']);
+    // O mês do dia fica por último na janela
+    expect(shownMonths()).toEqual(['October', 'November', 'December']);
     expect(dayButton('Saturday, December 20, 2025').dataset.selected).toBe('true');
     expect(screen.getByRole('heading', { level: 2, name: 'Saturday, December 20, 2025' })).toBeDefined();
 
-    // Escolher outro dia não mexe na janela, mesmo no outro ano
-    await user.click(dayButton('Friday, January 2, 2026'));
-    expect(shownMonths()).toEqual(['November 2025', 'December 2025', 'January 2026']);
-    expect(search(router)).toBe('?day=2026-01-02&range=3months&month=2025-12');
+    // Escolher outro dia não mexe na janela
+    await user.click(dayButton('Monday, November 3, 2025'));
+    expect(shownMonths()).toEqual(['October', 'November', 'December']);
+    expect(search(router)).toBe('?day=2025-11-03&range=3months&month=2025-12');
 
     await user.click(screen.getByRole('radio', { name: 'Year' }));
 
-    expect(screen.getByRole('heading', { level: 2, name: '2026' })).toBeDefined();
+    expect(screen.getByRole('heading', { level: 2, name: '2025' })).toBeDefined();
     expect(shownMonths()).toHaveLength(12);
-    expect(dayButton('Friday, January 2, 2026').dataset.selected).toBe('true');
+    expect(dayButton('Monday, November 3, 2025').dataset.selected).toBe('true');
   });
 
   it('starts the new range at the first month on screen without a chosen day', async () => {
@@ -262,12 +264,12 @@ describe('calendar range: habit tab', () => {
     const second = renderApp('/habits/1');
     await findDay('Tuesday, March 10, 2026');
     expect(screen.getByRole('radio', { name: '3 months' }).checked).toBe(true);
-    expect(shownMonths()).toEqual(['February', 'March', 'April']);
+    expect(shownMonths()).toEqual(['January', 'February', 'March']);
     second.unmount();
 
     const home = renderApp('/');
     await findDay('Tuesday, March 10, 2026');
-    expect(shownMonths()).toEqual(['February', 'March', 'April']);
+    expect(shownMonths()).toEqual(['January', 'February', 'March']);
     home.unmount();
 
     // Um link com a faixa mostra a do link, sem trocar a lembrada
@@ -293,17 +295,17 @@ describe('calendar range: habit tab', () => {
     expect(document.activeElement).toBe(dayButton('Thursday, January 1, 2026'));
     await user.keyboard('{End}');
     expect(document.activeElement).toBe(dayButton('Saturday, January 31, 2026'));
-    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}');
+    await user.keyboard('{ArrowDown}{ArrowRight}');
     // O último dia da faixa segura o foco
-    expect(document.activeElement).toBe(dayButton('Saturday, February 28, 2026'));
+    expect(document.activeElement).toBe(dayButton('Saturday, January 31, 2026'));
 
-    dayButton('Monday, December 1, 2025').focus();
+    dayButton('Saturday, November 1, 2025').focus();
     await user.keyboard('{ArrowUp}');
-    expect(document.activeElement).toBe(dayButton('Monday, December 1, 2025'));
+    expect(document.activeElement).toBe(dayButton('Saturday, November 1, 2025'));
     await user.keyboard('{ArrowLeft}');
-    expect(document.activeElement).toBe(dayButton('Monday, December 1, 2025'));
+    expect(document.activeElement).toBe(dayButton('Saturday, November 1, 2025'));
     await user.keyboard('{Home}');
-    expect(document.activeElement).toBe(dayButton('Monday, December 1, 2025'));
+    expect(document.activeElement).toBe(dayButton('Saturday, November 1, 2025'));
   });
 
   it('marks on both sides of the year and undoes a failed mark in its own year', async () => {
