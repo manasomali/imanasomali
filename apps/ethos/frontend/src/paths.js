@@ -1,3 +1,5 @@
+import { HELP_SECTIONS } from './lib/help';
+
 // Rotas do app, relativas ao basename (/ethos). Use estas constantes em vez de escrever o caminho
 
 export const BASENAME = '/ethos';
@@ -13,6 +15,8 @@ export const PATHS = Object.freeze({
   adminBanners: '/admin/banners',
   terms: '/termos',
   privacy: '/privacidade',
+  // Ajuda (ETH-40), pública como os termos; cada seção é uma âncora (helpPath)
+  help: '/ajuda',
   // Criar um hábito. Caminho fixo antes de `/habits/:habitId` (a rota fixa ganha da dinâmica, e
   // "new" nunca é um id)
   newHabit: '/habits/new',
@@ -37,6 +41,17 @@ export function reportPath({ from, to, habitIds } = {}) {
   for (const id of habitIds ?? []) params.append('habit_id', String(id));
   const search = params.toString();
   return search ? `${PATHS.report}?${search}` : PATHS.report;
+}
+
+/**
+ * Caminho da ajuda, já na seção `section` (um id de HELP_SECTIONS, src/lib/help.js): `/ajuda#alerts`.
+ * Sem seção, o começo da página. Seção desconhecida lança RangeError (um link para uma âncora que não
+ * existe cairia no topo sem aviso).
+ */
+export function helpPath(section = null) {
+  if (section === null) return PATHS.help;
+  if (!HELP_SECTIONS.includes(section)) throw new RangeError(`seção da ajuda desconhecida: ${section}`);
+  return `${PATHS.help}#${section}`;
 }
 
 /** Tela do conteúdo dos hábitos de uma conta, no painel de admin. */

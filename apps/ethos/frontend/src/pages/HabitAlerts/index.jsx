@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { Trans, useTranslation } from 'react-i18next';
 import { useAlert, useSaveAlert } from '../../api/alerts';
 import ErrorMessage from '../../components/ErrorMessage';
+import { WithHelp } from '../../components/HelpLink';
 import useHabitContext from '../../hooks/useHabitContext';
 import {
   ALERT_HOURS,
@@ -44,9 +45,11 @@ export default function HabitAlerts() {
 
   return (
     <section className={styles.section} aria-labelledby={titleId}>
-      <h2 id={titleId} className={styles.title}>
-        {t('habit_alerts.title')}
-      </h2>
+      <WithHelp section="alerts" topic={t('habit_alerts.title')}>
+        <h2 id={titleId} className={styles.title}>
+          {t('habit_alerts.title')}
+        </h2>
+      </WithHelp>
       {habit.role === 'viewer' ? (
         <p className={styles.notice}>{t('habit_alerts.forbidden')}</p>
       ) : (

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useCreateHabit } from '../../api/habits';
 import HabitForm from '../../components/HabitForm';
 import HabitTabs from '../../components/HabitTabs';
+import { WithHelp } from '../../components/HelpLink';
 import PageTitle from '../../components/PageTitle';
 import { PATHS, habitPath } from '../../paths';
 import page from '../page.module.css';
@@ -25,7 +26,9 @@ export default function NewHabit() {
   return (
     <>
       <PageTitle title={title} />
-      <h1 className={page.title}>{title}</h1>
+      <WithHelp section="goal" topic={title}>
+        <h1 className={page.title}>{title}</h1>
+      </WithHelp>
       <HabitTabs />
       <p className={styles.intro}>{t('new_habit.intro')}</p>
       <HabitForm

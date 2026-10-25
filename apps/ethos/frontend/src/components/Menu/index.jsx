@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiLogOut, FiMenu, FiMoon, FiSun, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiHelpCircle, FiLogOut, FiMenu, FiMoon, FiSun, FiX } from 'react-icons/fi';
 import { useCachedMe, useLogout } from '../../api/auth';
 import { useReceivedInvites } from '../../api/sharing';
 import useTheme from '../../hooks/useTheme';
@@ -125,6 +125,16 @@ export default function Menu() {
                 </button>
               ))}
             </div>
+            {/* Ajuda como ícone, junto do idioma e do tema: os links em texto já enchem a linha */}
+            <NavLink
+              to={PATHS.help}
+              className={({ isActive }) => `${styles.iconButton} ${isActive ? styles.activeIcon : ''}`}
+              aria-label={t('menu.help')}
+              title={t('menu.help')}
+              onClick={close}
+            >
+              <FiHelpCircle aria-hidden size={ICON_SIZE} />
+            </NavLink>
             <button
               type="button"
               className={styles.iconButton}

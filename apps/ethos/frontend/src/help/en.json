@@ -1,0 +1,182 @@
+{
+  "title": "Help",
+  "sections": [
+    {
+      "id": "about",
+      "title": "How ethos works",
+      "paragraphs": [
+        "ethos keeps track of habits over time. Each habit has a yearly calendar: you mark the days you did it, and the app compares the marks with the goal you set.",
+        "The main screen shows the active and paused habits on a single calendar, with up to 4 coloured dots per day and “+N” for the rest. Each habit has its own tab, with its own calendar and the settings, sharing and alerts sections.",
+        "Each account has up to 10 active and paused habits. Archived habits and other people’s habits shared with you do not count."
+      ]
+    },
+    {
+      "id": "marks",
+      "title": "Marking",
+      "paragraphs": [
+        "By default, each day is marked or not: one click marks it, another one unmarks it. With “several marks per day” on, each click adds a mark, up to 999 per day.",
+        "You can mark today and any past day, never the future. Marking today saves the moment of the click; marking a past day saves 12:00 of that day in your time zone.",
+        "Days before the habit was created can be marked, to record what you already did, but they do not count in the score.",
+        "In the details of a mark you can change the duration, the note (up to 140 characters, just a reminder) and the cost (only with the cost per mark). The date does not change: to move a mark, delete it and create another one.",
+        "The owner and people with the editing role mark, unmark and edit any mark of the habit. People who can only view change nothing."
+      ]
+    },
+    {
+      "id": "goal",
+      "title": "Goal",
+      "paragraphs": [
+        "The goal is always “N times per week, month or year”, with a type: at least N (minimum), at most N (maximum) or exactly N (exact). The week starts on Monday.",
+        "What counts in the period:",
+        [
+          "each day marked or not: the number of marked days;",
+          "several marks per day: the number of marks;",
+          "duration on: the sum of the minutes of the marks, compared with N times the duration. E.g. “meditate 40 min, at least once a week” is met with two 20-minute sessions."
+        ],
+        "When each day is marked or not, N goes up to the number of days in the period (7 in a week, 28 in a month, 365 in a year), so the goal is always possible.",
+        "Changing the settings does not delete data. A feature turned off (duration, cost, note) is hidden and ignored in the counts; turning it back on brings the old data back. When you turn off “several marks per day”, a day with several marks counts as one marked day, and the extra marks are kept.",
+        "The code (up to 4 letters or digits) shows instead of the name. Only the owner changes the settings."
+      ]
+    },
+    {
+      "id": "not-doing",
+      "title": "“Don’t do” habits",
+      "paragraphs": [
+        "For something you want to avoid, use the maximum type with N = 0. E.g. “I want to stop smoking” is “at most 0 times per week”.",
+        "You mark the day you did what you wanted to avoid. A week with no marks meets the goal; a single mark is enough for the week to miss it.",
+        "With the goal alert on, the email goes out at the first check after the first mark of the period. With the maximum type and N above 0 (e.g. “pizza at most 2 times per month”), it goes out when the period reaches N."
+      ]
+    },
+    {
+      "id": "score",
+      "title": "Score",
+      "paragraphs": [
+        "The score comes turned off. When you turn it on, in the habit settings, it shows a number from 0 to 100, the threshold and the result, and unlocks the reward and the punishment, which are just reminders.",
+        "The score is the percentage of the counted periods (weeks, months or years, as in the goal) in which the goal was met, rounded to the nearest whole number (half up). E.g. a goal met in 7 of 10 weeks gives 70; in 2 of 3, it gives 67.",
+        "It is a success when the score is equal to or higher than the threshold (from 1 to 100, default 70), and a failure when it is lower. With a threshold of 70, 7 of 10 weeks is a success, and 6 of 10 is a failure.",
+        "The counted periods go from the first full period after the habit was created to the one before the current one. Left out:",
+        [
+          "the period in which the habit was created, which started halfway: a weekly habit created on a Wednesday only starts counting on the next Monday;",
+          "the current period, which has not ended yet;",
+          "the days before the habit was created, even if marked;",
+          "every period that had a pause."
+        ],
+        "With no counted period (e.g. in the first week of a weekly habit), “No data yet” shows instead of a number. “No data yet” is neither a success nor a failure.",
+        "The score is not saved: it is worked out on the spot, from the marks and the current goal, in your time zone. Changing the goal recalculates the whole history."
+      ]
+    },
+    {
+      "id": "pause-archive",
+      "title": "Pausing, archiving and deleting",
+      "paragraphs": [
+        "Only the owner pauses, archives, unarchives and deletes, in the habit settings.",
+        "A paused habit stays on the screen and can be marked, but the periods that had any paused time do not count in the score, and no alert goes out while it is paused or in those periods.",
+        "An archived habit leaves the main screen and goes to “Archived habits”. It becomes read only: it takes no marks, its settings do not change, no alert goes out and nobody can be invited. The score freezes on the archiving date, and the habit does not count towards the habit limit.",
+        "When you unarchive it (if there is room in the habit limit), the habit goes back to its previous status. The time it spent archived becomes a pause: it could not be marked then, so those periods do not count as a missed goal.",
+        "Deleting the habit also deletes all its marks, the guests’ ones included, and its history. The members get an email about it. It cannot be undone."
+      ]
+    },
+    {
+      "id": "sharing",
+      "title": "Sharing",
+      "paragraphs": [
+        "The owner can invite other people by email, in the sharing section of the habit. A shared habit is a single one: one calendar, and any member’s mark shows for everyone. When each day is marked or not, a day marked by two people counts once, and unmarking removes the day’s mark for everyone.",
+        "Roles:",
+        [
+          "owner: the only one who changes the settings, invites, removes members, changes roles, pauses, archives and deletes;",
+          "editing: marks, unmarks, edits and deletes marks, other people’s ones included, and turns on their own alerts;",
+          "viewing: only views."
+        ],
+        "All members see the marks, the notes, the cost, the reward, the punishment and the history of the habit.",
+        "You can only invite an email that already has an ethos account. So as not to reveal who has an account, the answer is always “invite sent”. An invite to an email with no account is never delivered, not even if the account is created later.",
+        "The guest gets an email and accepts or declines it in “Invites”, in the menu. Invites do not expire, and the owner can cancel a pending one.",
+        "Guests can leave on their own, and the owner can remove them. Either way, their marks stay in the habit, and their alerts on that habit are deleted. Moving someone from editing to viewing also deletes their alerts on that habit.",
+        "Limits: up to 5 guests per habit (members and pending invites), up to 20 invites per day across all your habits and up to 20 habits of other people per account. A shared habit counts only towards the owner’s habit limit."
+      ]
+    },
+    {
+      "id": "time-zone",
+      "title": "Time zone",
+      "paragraphs": [
+        "Everything is stored in UTC and shown in the time zone saved in your account: the calendar, the score and the time of the alerts. The time zone starts as the browser’s on your first visit and only changes on the account screen. When the browser’s time zone differs from the saved one (on a trip, for instance), the app suggests switching.",
+        "In a shared habit, each member sees the calendar and the score in their own time zone. Between distant time zones, a mark can land on the next or previous day for someone else: made at 22:00 in São Paulo, it shows on the next day for someone in Lisbon. That is why two members can see slightly different scores.",
+        "Marking a past day saves 12:00 of that day, far from midnight, which lessens this effect."
+      ]
+    },
+    {
+      "id": "alerts",
+      "title": "Alerts",
+      "paragraphs": [
+        "Alerts come by email and are off by default. Only the owner and people with the editing role turn on alerts; people who can only view neither turn them on nor receive them. Each person sets up their own alerts for each habit, in the “Alerts” section of its tab.",
+        "There are two separate switches: the goal alert and the cost alert (only on habits with a cost and a limit). You choose the hour, in your time zone, and the frequency: every day or once a week, on the chosen day. At that hour, the app looks at the current period:",
+        [
+          "at least N: goes off when the habit falls behind the pace;",
+          "at most N: goes off when the period reaches N or goes over it (with N = 0, at the first mark);",
+          "exactly N: goes off when it goes over N or falls behind the pace;",
+          "cost: goes off when the spending of the limit’s period reaches 80% of the limit (warning) or goes over it."
+        ],
+        "The pace is the part of the goal that the time already gone asks for, rounded down. E.g. “at least 3 times per week”, with the alert every day at 8:00 PM (the default hour). In a week with no marks, the pace asks for 1 mark from Wednesday at 8:00 AM (3 × 56 h ÷ 168 h = 1), and the email goes out on Wednesday at 8:00 PM. With a mark on Monday, the delay only starts on Friday at 4:00 PM, when the pace asks for 2, and the email goes out on Friday at 8:00 PM.",
+        "Without duration and with a goal of 1 in the period (e.g. “at least once a week”), the pace would only ask for the mark at the end of the period, so it never falls behind: the goal alert of the minimum type does not go off, and the one of the exact type only goes off when it goes over 1.",
+        "With the duration on, the pace counts minutes and grows little by little. E.g. “at least 3 times of 40 min per week” asks for 120 min in the week; with no marks, on Monday at 8:00 PM the pace already asks for 14 min, and the alert goes off.",
+        "No alert goes off:",
+        [
+          "in the period (of the goal or of the cost limit) in which the habit was created: the pace would be measured from the start of a period the habit did not live through;",
+          "while the habit is paused, nor in the periods that had a pause;",
+          "when the habit is archived."
+        ],
+        "While the situation goes on (the habit is still behind, for instance), the alert goes off again at every check, but at most 1 email per day goes out for each habit, joining goal and cost, with the link to the alert settings. If you save the settings after the chosen hour, today’s check does not happen: the alert starts at the next one."
+      ]
+    },
+    {
+      "id": "cost",
+      "title": "Cost",
+      "paragraphs": [
+        "The cost is an amount of money, with no currency symbol, with up to 2 decimals. It is set in one of these ways:",
+        [
+          "per habit: a fixed amount on each mark, whoever marks it. E.g. a can of soda a day, at 8.00;",
+          "per mark: each mark has its own amount, with the habit’s one as the default. E.g. the amount of each bet. It can be changed in the details of the mark."
+        ],
+        "The cost is saved on the mark when it is created. Changing the cost of the habit does not change past spending: if the can goes from 8.00 to 9.00, the old marks keep 8.00. Marks made with the cost off have no amount.",
+        "The spending limit (per week, month or year) is optional and drives the cost alert. The spending and the limit show in the report."
+      ]
+    },
+    {
+      "id": "report",
+      "title": "Report and export",
+      "paragraphs": [
+        "In “Report”, in the menu, you choose the period (up to 5 years) and the habits, archived ones included, and see a summary of each one. You also choose what shows: score, reward, punishment, cost, duration, note and author. Each piece of information only shows on habits with that feature on, and the note starts off.",
+        "You can export:",
+        [
+          "a 1080 × 1350 PNG image, good for social media, with the heat map of the period, the score and the result of each habit (when on) and the chosen information. Where the browser allows it, it goes straight to the device’s share menu; otherwise, it is downloaded. The image never has emails or notes;",
+          "CSV, one row per mark (habit, date, time, author, duration, cost and note), without the columns turned off or not chosen;",
+          "JSON, with the settings, the marks and a summary of each period."
+        ],
+        "Everything is made in your browser, and the report has no public link. “Export everything” takes all habits, over the whole period."
+      ]
+    },
+    {
+      "id": "history",
+      "title": "History",
+      "paragraphs": [
+        "In “History”, in the menu, are the events of the habits you can access: who marked, unmarked or edited a mark and when, the changes to the settings, the pauses, the archiving and what changed in the sharing. You can filter by habit, person, event and period.",
+        "Whoever joins a habit sees its whole history. Invites sent, canceled and declined only show for the owner. The alert settings, which are personal, do not show. What a deleted account did shows as by a “removed user”."
+      ]
+    },
+    {
+      "id": "account",
+      "title": "Account",
+      "paragraphs": [
+        "There is no password. To sign in, you type your email and get a 6-digit code, valid for 10 minutes and only once. The account is created when you confirm the first code. The session lasts 60 days and renews while you use the app.",
+        "On the account screen you choose the language of the emails (which also becomes the screen’s) and the time zone, sign out of this device or of all of them (useful if you lose a device) and delete the account.",
+        "The email does not change on the screen: ask {{supportEmail}} for the change, writing from the current email of the account. Support confirms the new email before the change, and then you sign in again on every device.",
+        "Deleting the account asks for a code sent by email and is immediate. Gone are the account, the habits you own, with all their marks (the guests’ ones too, and they get an email), your membership in other people’s habits, your invites and your alerts. Your marks on other people’s habits stay, as by a “removed user”. The data leaves the backups within 8 days. Before deleting, you can export everything."
+      ]
+    },
+    {
+      "id": "contact",
+      "title": "Questions",
+      "paragraphs": [
+        "Questions, problems or suggestions: write to {{supportEmail}}."
+      ]
+    }
+  ]
+}

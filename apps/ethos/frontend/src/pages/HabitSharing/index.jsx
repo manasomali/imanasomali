@@ -13,6 +13,7 @@ import {
   useMembers,
 } from '../../api/sharing';
 import ErrorMessage from '../../components/ErrorMessage';
+import { WithHelp } from '../../components/HelpLink';
 import useHabitContext from '../../hooks/useHabitContext';
 import { formatDate } from '../../lib/format';
 import { guestSlots } from '../../lib/sharing';
@@ -91,9 +92,11 @@ export default function HabitSharing() {
   return (
     <section className={styles.page} aria-labelledby={titleId}>
       <div className={styles.section}>
-        <h2 id={titleId} className={styles.subtitle}>
-          {t('sharing.title')}
-        </h2>
+        <WithHelp section="sharing" topic={t('sharing.title')}>
+          <h2 id={titleId} className={styles.subtitle}>
+            {t('sharing.title')}
+          </h2>
+        </WithHelp>
         <p role="status" className={styles.status}>
           {status}
         </p>
