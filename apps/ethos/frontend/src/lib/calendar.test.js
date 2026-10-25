@@ -10,10 +10,12 @@ import {
   isLeapYear,
   isoWeekday,
   marksByDay,
+  moveColumnDay,
   moveDay,
   overviewByDay,
   parseDay,
   parseYear,
+  shiftMonthDay,
   splitDots,
   weekColumn,
   yearMonths,
@@ -226,5 +228,56 @@ describe('moveDay', () => {
 
   it('ends February on the 29th in a leap year', () => {
     expect(moveDay('2024-02-10', 'End', '2024-01-01', '2024-12-31')).toBe('2024-02-29');
+  });
+});
+
+describe('shiftMonthDay', () => {
+  it.each([
+    ['2026-03-10', 1, '2026-04-10'],
+    ['2026-03-10', -1, '2026-02-10'],
+    ['2026-03-31', -1, '2026-02-28'],
+    ['2024-03-31', -1, '2024-02-29'],
+    ['2026-01-31', 1, '2026-02-28'],
+    ['2026-05-31', 1, '2026-06-30'],
+    ['2025-12-15', 1, '2026-01-15'],
+    ['2026-01-15', -1, '2025-12-15'],
+    ['2026-03-10', 12, '2027-03-10'],
+  ])('%s by %i month(s) is %s', (value, step, expected) => {
+    expect(shiftMonthDay(value, step)).toBe(expected);
+  });
+});
+
+describe('moveColumnDay', () => {
+  const first = '2026-01-01';
+  const last = '2026-12-31';
+
+  it.each([
+    ['ArrowUp', '2026-03-09'],
+    ['ArrowDown', '2026-03-11'],
+    ['ArrowLeft', '2026-02-10'],
+    ['ArrowRight', '2026-04-10'],
+    ['Home', '2026-03-01'],
+    ['End', '2026-03-31'],
+    ['Enter', null],
+    ['PageDown', null],
+  ])('%s from March 10 goes to %j', (key, expected) => {
+    expect(moveColumnDay('2026-03-10', key, first, last)).toBe(expected);
+  });
+
+  it('goes down from the end of a month to the top of the next column', () => {
+    expect(moveColumnDay('2026-01-31', 'ArrowDown', first, last)).toBe('2026-02-01');
+    expect(moveColumnDay('2026-03-01', 'ArrowUp', first, last)).toBe('2026-02-28');
+  });
+
+  it('keeps the day across columns, or the last day of a shorter month', () => {
+    expect(moveColumnDay('2026-03-31', 'ArrowLeft', first, last)).toBe('2026-02-28');
+    expect(moveColumnDay('2026-08-31', 'ArrowRight', first, last)).toBe('2026-09-30');
+  });
+
+  it('stays inside the range', () => {
+    expect(moveColumnDay('2026-01-01', 'ArrowUp', first, last)).toBe(first);
+    expect(moveColumnDay('2026-01-20', 'ArrowLeft', first, last)).toBe(first);
+    expect(moveColumnDay('2026-12-15', 'ArrowRight', first, last)).toBe(last);
+    expect(moveColumnDay('2026-12-31', 'ArrowDown', first, last)).toBe(last);
   });
 });

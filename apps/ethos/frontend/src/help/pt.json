@@ -6,7 +6,7 @@
       "title": "Como o ethos funciona",
       "paragraphs": [
         "O ethos registra hábitos ao longo do tempo. Cada hábito tem um calendário anual: você marca os dias em que cumpriu o hábito, e o app compara as marcações com a meta que você definiu.",
-        "A tela principal mostra os hábitos ativos e pausados num calendário só, com até 4 pontos coloridos por dia e “+N” para o resto. Cada hábito tem a sua aba, com o calendário só dele e as seções de configuração, compartilhamento e alertas.",
+        "A tela principal mostra os hábitos ativos e pausados num calendário só, com até 4 pontos coloridos por dia e “+N” para o resto. Cada hábito tem a sua aba, com o calendário só dele e as seções de configuração, compartilhamento e alertas. Os dois calendários mostram o mês, 3 meses ou o ano, em grade (as semanas de cada mês) ou em colunas (cada mês uma coluna, com os dias de cima para baixo); a escolha fica salva no navegador.",
         "Cada conta tem até 10 hábitos ativos e pausados. Os arquivados e os de outras pessoas compartilhados com você não entram nessa conta."
       ]
     },

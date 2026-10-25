@@ -306,6 +306,11 @@
       "3months": "3 months",
       "year": "Year"
     },
+    "view": {
+      "label": "View",
+      "grid": "Grid",
+      "columns": "Columns"
+    },
     "previous": {
       "month": "Previous month ({{period}})",
       "3months": "Previous 3 months ({{period}})",

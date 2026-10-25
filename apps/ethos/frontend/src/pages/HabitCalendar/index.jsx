@@ -24,7 +24,8 @@ export default function HabitCalendar() {
   const language = i18n.resolvedLanguage;
   const { habit, timeZone } = useHabitContext();
   const current = today(timeZone);
-  const { range, day, previous, next, move, setKind, setDay } = useCalendarParams(current);
+  const { range, day, view, previous, next, move, setKind, setDay, setView } =
+    useCalendarParams(current);
   const marks = useMarks(habit.id, range.years, timeZone);
   const byDay = marks.data ?? NO_MARKS;
   const loaded = marks.data !== undefined;
@@ -103,10 +104,12 @@ export default function HabitCalendar() {
     <>
       <CalendarNav
         range={range}
+        view={view}
         previous={previous}
         next={next}
         onMove={move}
         onKindChange={setKind}
+        onViewChange={setView}
       />
       <div className={styles.layout}>
         <div className={styles.panel}>
@@ -169,6 +172,7 @@ export default function HabitCalendar() {
           ) : (
             <Calendar
               range={range}
+              view={view}
               label={t('calendar.label', { period: formatPeriod(range, language) })}
               initialFocus={day ?? current}
               dayProps={dayProps}

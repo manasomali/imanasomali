@@ -63,6 +63,25 @@ describe('dates for the screen', () => {
       'sábado',
     ]);
     expect(calendarWeekdayNames('pt').map((day) => day.short).join('')).toBe('DSTQQSS');
+    // Nas colunas, a abreviação sem o ponto do pt
+    expect(calendarWeekdayNames('en').map((day) => day.abbr)).toEqual([
+      'Sun',
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+    ]);
+    expect(calendarWeekdayNames('pt').map((day) => day.abbr)).toEqual([
+      'dom',
+      'seg',
+      'ter',
+      'qua',
+      'qui',
+      'sex',
+      'sáb',
+    ]);
   });
 
   it('shows instants in the viewer time zone', () => {

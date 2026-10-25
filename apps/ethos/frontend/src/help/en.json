@@ -6,7 +6,7 @@
       "title": "How ethos works",
       "paragraphs": [
         "ethos keeps track of habits over time. Each habit has a yearly calendar: you mark the days you did it, and the app compares the marks with the goal you set.",
-        "The main screen shows the active and paused habits on a single calendar, with up to 4 coloured dots per day and “+N” for the rest. Each habit has its own tab, with its own calendar and the settings, sharing and alerts sections.",
+        "The main screen shows the active and paused habits on a single calendar, with up to 4 coloured dots per day and “+N” for the rest. Each habit has its own tab, with its own calendar and the settings, sharing and alerts sections. Both calendars show the month, 3 months or the year, as a grid (the weeks of each month) or as columns (one column per month, with the days from top to bottom); the browser remembers the choice.",
         "Each account has up to 10 active and paused habits. Archived habits and other people’s habits shared with you do not count."
       ]
     },
