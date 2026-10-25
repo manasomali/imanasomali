@@ -9,6 +9,7 @@ import Calendar from '../../components/Calendar';
 import CalendarNav from '../../components/CalendarNav';
 import DayPanel from '../../components/DayPanel';
 import ErrorMessage from '../../components/ErrorMessage';
+import HabitSwatch from '../../components/HabitSwatch';
 import HabitTabs from '../../components/HabitTabs';
 import PageTitle from '../../components/PageTitle';
 import useCalendarParams from '../../hooks/useCalendarParams';
@@ -156,7 +157,7 @@ function ArchivedHabits() {
           {archived.data.map((habit) => (
             <li key={habit.id}>
               <Link to={habitPath(habit.id)} className={`${styles.habit} user-text`} title={habit.name}>
-                <span className={styles.swatch} data-habit-color={habit.color} aria-hidden="true" />
+                <HabitSwatch className={styles.swatch} color={habit.color} />
                 {habit.label}
               </Link>
             </li>

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { canMark } from '../../api/habits';
 import { useCreateMark, useToggleMark } from '../../api/marks';
 import ErrorMessage from '../../components/ErrorMessage';
+import HabitSwatch from '../../components/HabitSwatch';
 import { markedAtFor } from '../../lib/time';
 import { HABIT_SECTION, habitPath } from '../../paths';
 import styles from './styles.module.css';
@@ -51,7 +52,7 @@ export default function OverviewRow({ habit, day, marks, loaded, timeZone }) {
           className={`${styles.habit} user-text`}
           title={habit.name}
         >
-          <span className={styles.swatch} data-habit-color={habit.color} aria-hidden="true" />
+          <HabitSwatch className={styles.swatch} color={habit.color} />
           {habit.label}
         </Link>
         <span className={styles.state}>{state}</span>

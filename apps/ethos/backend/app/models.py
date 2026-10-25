@@ -73,6 +73,9 @@ IP_MAX_LENGTH = 45
 USER_AGENT_MAX_LENGTH = 512
 TERMS_VERSION_MAX_LENGTH = 32
 EVENT_MAX_LENGTH = 64
+# Cor própria do hábito: "#" e 6 dígitos hexadecimais em minúsculas. O GLOB do SQLite diferencia
+# maiúsculas e minúsculas e casa o texto inteiro (exatamente 7 caracteres). Igual na migração 0004
+CUSTOM_COLOR_GLOB = "#" + "[0-9a-f]" * 6
 # Expressão da coluna calculada `audit_log.mark_id` (igual na migração 0002)
 AUDIT_MARK_ID = "CASE WHEN json_valid(details) THEN json_extract(details, '$.mark_id') END"
 
@@ -83,7 +86,11 @@ class CodePurpose(StrEnum):
 
 
 class HabitColor(StrEnum):
-    """Paleta fixa de 12 cores. No banco fica o nome; o hex de cada tema fica no front."""
+    """Paleta fixa de 12 cores. No banco fica o nome; o hex de cada tema fica no front.
+
+    Além da paleta, `habits.color` aceita uma cor própria (ETH-49): `#rrggbb` em minúsculas
+    (`CUSTOM_COLOR_GLOB`), a mesma nos dois temas.
+    """
 
     RED = "red"
     ORANGE = "orange"
@@ -313,7 +320,10 @@ class Habit(Base):
             _max_length("description", HABIT_DESCRIPTION_MAX_LENGTH, minimum=0),
             name="description_length",
         ),
-        CheckConstraint(_in("color", HabitColor), name="color"),
+        # Um nome da paleta ou uma cor própria (#rrggbb)
+        CheckConstraint(
+            f"{_in('color', HabitColor)} OR color GLOB '{CUSTOM_COLOR_GLOB}'", name="color"
+        ),
         CheckConstraint(_in("goal_type", GoalType), name="goal_type"),
         # N ≥ 1 em min e exact; N = 0 só em max. O teto depende do período e da config (API)
         CheckConstraint(

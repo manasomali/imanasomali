@@ -7,7 +7,7 @@ import { parseUserId } from './admin';
 import { parseDay } from './calendar';
 import { formatDateTime } from './datetime';
 import { formatMoney } from './money';
-import { HABIT_COLORS } from './palette';
+import { HABIT_COLORS, isCustomColor } from './palette';
 
 // Os eventos do histórico (HistoryEvent no backend; src/lib/history.test.js confere), em grupos
 export const EVENT_GROUPS = Object.freeze({
@@ -228,6 +228,8 @@ function formatValue(kind, value, { t, language }) {
     return new Intl.NumberFormat(language).format(value);
   }
   if (ENUM_VALUES[kind]?.includes(value)) return t(`history.values.${kind}.${value}`);
+  // Cor própria (ETH-49): "personalizada (#rrggbb)"
+  if (kind === 'color' && isCustomColor(value)) return t('history.values.custom_color', { hex: value });
   return String(value);
 }
 

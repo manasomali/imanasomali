@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { configure, screen, waitFor, within } from '@testing-library/react';
+import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { BASENAME } from '../../paths';
@@ -302,13 +302,104 @@ describe('new habit', () => {
     });
   });
 
-  it('picks the colour from the palette of 12, without a free field', async () => {
+  it('offers the palette of 12 first and a custom colour last, without a free text field', async () => {
     await openNewHabit();
     const radios = within(screen.getByRole('group', { name: /^Colour/ })).getAllByRole('radio');
 
-    expect(radios).toHaveLength(12);
+    expect(radios).toHaveLength(13);
+    expect(radios.at(-1)).toBe(screen.getByRole('radio', { name: 'Custom' }));
     expect(screen.getByRole('radio', { name: 'Teal' }).checked).toBe(true);
+    expect(screen.getByLabelText('Pick a custom colour').type).toBe('color');
     expect(screen.queryByRole('textbox', { name: /colour/i })).toBeNull();
+    expect(screen.queryByText(/Low contrast/)).toBeNull();
+  });
+
+  it('sends the custom colour picked in the selector, with a preview and no warning when it is readable', async () => {
+    const { container, user, writes } = await openNewHabit();
+
+    await user.type(screen.getByLabelText('Name'), 'Read');
+    fireEvent.input(screen.getByLabelText('Pick a custom colour'), { target: { value: '#808080' } });
+
+    const group = screen.getByRole('group', { name: 'Colour: Custom (#808080)' });
+    expect(within(group).getByRole('radio', { name: 'Custom' }).checked).toBe(true);
+    expect(within(group).getByText('Light theme')).toBeTruthy();
+    expect(within(group).getByText('Dark theme')).toBeTruthy();
+    expect(screen.queryByText(/Low contrast/)).toBeNull();
+    // A prévia pinta pelo CSSOM, como o calendário: cor e texto escuro sobre ela
+    const day = within(group).getAllByText('12')[0];
+    expect(day.dataset.habitColor).toBe('custom');
+    expect(day.style.getPropertyValue('--habit-color')).toBe('#808080');
+    expect(day.dataset.habitText).toBe('dark');
+    expect(await axe(container)).toHaveNoViolations();
+
+    await user.click(screen.getByRole('button', { name: 'Create habit' }));
+
+    await waitFor(() => expect(posts(writes)).toHaveLength(1));
+    expect(posts(writes)[0].body.color).toBe('#808080');
+  });
+
+  it('sends the palette name again after going back to the palette, and keeps the custom colour', async () => {
+    const { user, writes } = await openNewHabit();
+
+    await user.type(screen.getByLabelText('Name'), 'Read');
+    fireEvent.input(screen.getByLabelText('Pick a custom colour'), { target: { value: '#0a1b2c' } });
+    await user.click(screen.getByRole('radio', { name: 'Pink' }));
+
+    expect(screen.getByRole('group', { name: 'Colour: Pink' })).toBeTruthy();
+    expect(screen.queryByText('Light theme')).toBeNull();
+    // A opção "personalizada" volta com a última cor própria
+    await user.click(screen.getByRole('radio', { name: 'Custom' }));
+    expect(screen.getByRole('group', { name: 'Colour: Custom (#0a1b2c)' })).toBeTruthy();
+    await user.click(screen.getByRole('radio', { name: 'Pink' }));
+
+    await user.click(screen.getByRole('button', { name: 'Create habit' }));
+    await waitFor(() => expect(posts(writes)).toHaveLength(1));
+    expect(posts(writes)[0].body.color).toBe('pink');
+  });
+
+  it('takes the colour in the selector when "custom" is chosen first', async () => {
+    const { user } = await openNewHabit();
+    const picker = screen.getByLabelText('Pick a custom colour');
+
+    await user.click(screen.getByRole('radio', { name: 'Custom' }));
+
+    // Sem o CSS (jsdom), o seletor começa no padrão do navegador
+    expect(screen.getByRole('group', { name: `Colour: Custom (${picker.value})` })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Custom' }).checked).toBe(true);
+  });
+
+  it('warns about a custom colour with low contrast against the light theme', async () => {
+    const { container, user, writes } = await openNewHabit();
+
+    await user.type(screen.getByLabelText('Name'), 'Read');
+    fireEvent.input(screen.getByLabelText('Pick a custom colour'), { target: { value: '#ffffff' } });
+
+    const warning = screen.getByText(/^Low contrast against the light theme background: 1:1 \(at least 3:1/);
+    expect(screen.queryByText(/dark theme background/)).toBeNull();
+    // O aviso descreve o seletor e a opção, e é anunciado quando aparece
+    const picker = screen.getByLabelText('Pick a custom colour');
+    expect(picker.getAttribute('aria-describedby')).toContain(warning.parentElement.id);
+    expect(warning.parentElement.getAttribute('aria-live')).toBe('polite');
+    expect(await axe(container)).toHaveNoViolations();
+
+    // Aceita mesmo assim
+    await user.click(screen.getByRole('button', { name: 'Create habit' }));
+    await waitFor(() => expect(posts(writes)).toHaveLength(1));
+    expect(posts(writes)[0].body.color).toBe('#ffffff');
+  });
+
+  it('warns in Portuguese too', async () => {
+    window.localStorage.setItem('i18nextLng', 'pt');
+    createTestI18n();
+    signedIn();
+    mockHabitsApi({ habits: [] });
+    renderApp('/habits/new');
+    await screen.findByRole('heading', { level: 1, name: 'Novo hábito' });
+
+    fireEvent.input(screen.getByLabelText('Escolher a cor personalizada'), { target: { value: '#1c1c1c' } });
+
+    expect(screen.getByRole('group', { name: 'Cor: Personalizada (#1c1c1c)' })).toBeTruthy();
+    expect(screen.getByText(/^Pouco contraste com o fundo do tema escuro: 1:1/)).toBeTruthy();
   });
 
   it('keeps a habit that already exists in the list after creating', async () => {

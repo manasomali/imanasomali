@@ -276,6 +276,10 @@ describe('event texts', () => {
       { field: 'cost_level', old: 'habit', new: 'mark' },
       { field: 'cost_limit_cents', old: 5000, new: null },
       { field: 'color', old: 'teal', new: 'silver' },
+      // Cor própria (ETH-49), nos dois sentidos; um hex fora do formato sai como veio
+      { field: 'color', old: 'teal', new: '#0a1b2c' },
+      { field: 'color', old: '#0a1b2c', new: 'pink' },
+      { field: 'color', old: '#0A1B2C', new: '#fff' },
       { field: 'brand_new', old: 1, new: 2 },
       { field: 'brand_new' },
       { field: 'score_enabled', old: 'yes', new: 0 },
@@ -298,12 +302,23 @@ describe('event texts', () => {
         'Where the cost is set: on the habit → on each mark',
         'Cost limit: 50.00 → (empty)',
         'Color: teal → silver',
+        'Color: teal → custom (#0a1b2c)',
+        'Color: custom (#0a1b2c) → pink',
+        'Color: #0A1B2C → #fff',
         'brand_new: 1 → 2',
         'Changed: brand_new',
         'Score: yes → 0',
       ],
     });
     expect(describeEvent(entry('habit_updated', { changes: 'none' }), context()).lines).toEqual([]);
+  });
+
+  it('describes a change to a custom color in Portuguese', () => {
+    const changes = [{ field: 'color', old: 'teal', new: '#0a1b2c' }];
+
+    expect(describeEvent(entry('habit_updated', { changes }), context('pt')).lines).toEqual([
+      'Cor: verde-azulado → personalizada (#0a1b2c)',
+    ]);
   });
 
   it('lists what changed in a mark', () => {

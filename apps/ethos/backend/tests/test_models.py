@@ -217,6 +217,17 @@ def test_every_palette_color_is_accepted(db_session, ana):
     assert count(db_session, Habit) == 12
 
 
+def test_custom_color_is_accepted(db_session, ana):
+    save(db_session, new_habit(ana, color="#0a1b2c"), new_habit(ana, color="#ffffff"))
+
+    assert count(db_session, Habit) == 2
+
+
+@pytest.mark.parametrize("color", ["#0A1B2C", "#fff", "#gggggg", "#0a1b2c0", "0a1b2c0", "#0a1b2"])
+def test_custom_color_must_be_lowercase_rrggbb(db_session, ana, color):
+    assert_check_fails(db_session, "ck_habits_color", new_habit(ana, color=color))
+
+
 # --- CHECK nos tamanhos e valores -------------------------------------------------------------
 
 

@@ -8,6 +8,9 @@ em `service.check_config`, que vê a configuração inteira depois da mudança.
   punição são de uma linha; a descrição aceita quebra de linha e tab. Outros caracteres de
   controle e os que invertem a direção do texto (fazem um texto parecer outro) são recusados.
 - Sigla: 1 a 4 letras (A-Z) ou números (0-9), salva em maiúsculas.
+- Cor: um nome da paleta (`HabitColor`, exato) ou uma cor própria `#rrggbb` (ETH-49), salva em
+  minúsculas (`#0A1B2C` vira `#0a1b2c`). `#fff`, nomes fora da paleta (`magenta`) e `#gggggg` são
+  recusados. A resposta devolve o que foi salvo: o nome ou o hex.
 - Booleanos e inteiros são estritos: `"true"`, `1` no lugar de `true`, `"3"` ou `3.0` são
   recusados.
 - Campos desconhecidos (`status`, `owner_id`...) são recusados (422).
@@ -44,6 +47,8 @@ MAX_MONEY_CENTS = 10**12
 MAX_GOAL_COUNT = 10**9
 
 _CODE_RE = re.compile(rf"[A-Za-z0-9]{{1,{HABIT_CODE_MAX_LENGTH}}}")
+# Cor própria: "#" e 6 dígitos hexadecimais (o banco só aceita minúsculas: CUSTOM_COLOR_GLOB)
+_CUSTOM_COLOR_RE = re.compile(r"#[0-9A-Fa-f]{6}")
 # Únicos caracteres de controle aceitos num texto de várias linhas
 _MULTILINE_CONTROLS = frozenset("\n\t")
 # Embutir, sobrepor e isolar a direção do texto (bidi): U+202A a U+202E e U+2066 a U+2069
@@ -85,8 +90,19 @@ def _code(value: str) -> str | None:
     return value.upper()
 
 
+def _color(value: str) -> str:
+    if value in HabitColor:
+        return value
+    # fullmatch e [0-9A-Fa-f]: nada de \n no fim nem dígitos de outros alfabetos
+    if _CUSTOM_COLOR_RE.fullmatch(value) is None:
+        raise ValueError("um nome da paleta ou #rrggbb")
+    return value.lower()
+
+
 Name = Annotated[str, _text(HABIT_NAME_MAX_LENGTH, required=True)]
 Code = Annotated[str, AfterValidator(_code)]
+# Nome da paleta ou cor própria, normalizada para "#rrggbb" em minúsculas
+Color = Annotated[str, AfterValidator(_color)]
 Description = Annotated[str, _text(HABIT_DESCRIPTION_MAX_LENGTH, multiline=True)]
 Reward = Annotated[str, _text(HABIT_REWARD_MAX_LENGTH)]
 Punishment = Annotated[str, _text(HABIT_PUNISHMENT_MAX_LENGTH)]
@@ -142,7 +158,7 @@ class HabitCreate(BaseModel):
     name: Name
     code: Code | None = None
     description: Description | None = None
-    color: HabitColor
+    color: Color
     goal_type: GoalType
     goal_count: GoalCount
     goal_period: Period
@@ -170,7 +186,7 @@ class HabitUpdate(BaseModel):
     name: Name | None = None
     code: Code | None = None
     description: Description | None = None
-    color: HabitColor | None = None
+    color: Color | None = None
     goal_type: GoalType | None = None
     goal_count: GoalCount | None = None
     goal_period: Period | None = None
@@ -218,7 +234,8 @@ class HabitOut(BaseModel):
     # O que a tela mostra: a sigla quando definida, senão o nome
     label: str
     description: str | None
-    color: HabitColor
+    # Nome da paleta ou "#rrggbb"
+    color: str
     goal_type: GoalType
     goal_count: int
     goal_period: Period

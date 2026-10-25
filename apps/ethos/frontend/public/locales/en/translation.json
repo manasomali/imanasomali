@@ -542,6 +542,7 @@
         "violet": "violet",
         "pink": "pink"
       },
+      "custom_color": "custom ({{hex}})",
       "goal_type": {
         "min": "at least",
         "max": "at most",
@@ -894,7 +895,19 @@
       "blue": "Blue",
       "indigo": "Indigo",
       "violet": "Violet",
-      "pink": "Pink"
+      "pink": "Pink",
+      "custom": "Custom"
+    },
+    "custom_color": "Pick a custom colour",
+    "custom_color_hint": "Besides the 12 palette colours, you can pick any colour. A custom colour is the same in the light and dark themes.",
+    "color_preview": "Preview",
+    "themes": {
+      "light": "Light theme",
+      "dark": "Dark theme"
+    },
+    "low_contrast": {
+      "light": "Low contrast against the light theme background: {{ratio}}:1 (at least {{min}}:1 is recommended). The colour is accepted, but it may be hard to see.",
+      "dark": "Low contrast against the dark theme background: {{ratio}}:1 (at least {{min}}:1 is recommended). The colour is accepted, but it may be hard to see."
     },
     "goal_type": "Goal type",
     "goal_types": {
@@ -971,7 +984,7 @@
       "name": "Invalid name: use 1 to 60 characters, on a single line.",
       "code": "Invalid code: use 1 to 4 unaccented letters or digits.",
       "description": "Invalid description: use at most 500 characters.",
-      "color": "Pick one of the palette colours.",
+      "color": "Pick a palette colour or a custom colour.",
       "goal_type": "Pick the goal type.",
       "goal_count": "This number does not work for this goal. At least 1, except with \"at most\", and no more than fits in the period.",
       "goal_period": "Pick the goal period.",

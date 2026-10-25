@@ -6,6 +6,7 @@ import { useMe } from '../../api/auth';
 import { habitKeys } from '../../api/habits';
 import { acceptInvite, declineInvite, sharingKeys, useReceivedInvites } from '../../api/sharing';
 import ErrorMessage from '../../components/ErrorMessage';
+import HabitSwatch from '../../components/HabitSwatch';
 import PageTitle from '../../components/PageTitle';
 import { ApiError } from '../../lib/api';
 import { formatDate } from '../../lib/format';
@@ -68,7 +69,7 @@ export default function Invites() {
         {received.data.map((invite) => (
           <li key={invite.id} className={styles.item}>
             <h2 className={styles.itemTitle}>
-              <span className={styles.swatch} data-habit-color={invite.habit.color} aria-hidden="true" />
+              <HabitSwatch className={styles.swatch} color={invite.habit.color} />
               {invite.habit.name}
             </h2>
             <p>

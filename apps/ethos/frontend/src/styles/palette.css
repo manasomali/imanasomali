@@ -1,6 +1,15 @@
 /* Paleta das 12 cores dos hábitos (nomes de HabitColor em app/models.py e de src/lib/palette.js).
    Contraste mínimo de 3:1 contra --bg e --surface nos dois temas (src/styles/palette.test.js).
-   Como em packages/tokens/tokens.css, os valores escuros ficam em dois lugares: mude os dois. */
+   Como em packages/tokens/tokens.css, os valores escuros ficam em dois lugares: mude os dois.
+
+   Cor própria (#rrggbb): o elemento recebe data-habit-color="custom" e --habit-color pelo CSSOM
+   (applyHabitColor em src/lib/palette.js), e data-habit-text com o texto de maior contraste sobre
+   ela. Branco e preto puros: o melhor dos dois sempre passa de 4,5:1 (textTone confere). */
+
+:root {
+  --habit-text-light: #ffffff;
+  --habit-text-dark: #000000;
+}
 
 :root {
   --habit-red: #dc2626;
@@ -62,3 +71,9 @@
 [data-habit-color='indigo'] { --habit-color: var(--habit-indigo); }
 [data-habit-color='violet'] { --habit-color: var(--habit-violet); }
 [data-habit-color='pink'] { --habit-color: var(--habit-pink); }
+
+/* Texto sobre a cor do hábito (o número do dia marcado). Redefinido em todo elemento com cor, para
+   não herdar o de um pai com outra cor */
+[data-habit-color] { --habit-color-text: var(--bg); }
+[data-habit-text='light'] { --habit-color-text: var(--habit-text-light); }
+[data-habit-text='dark'] { --habit-color-text: var(--habit-text-dark); }

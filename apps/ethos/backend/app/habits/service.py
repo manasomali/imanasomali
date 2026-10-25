@@ -12,7 +12,8 @@ saem como `ApiError` e desfazem a transação.
   da mudança passa por `check_config`. Desligar um recurso não apaga nada (nem no hábito nem nas
   marcações): o valor fica guardado, é ignorado pela pontuação e volta ao religar. Cada campo que
   mudou vai para o `audit_log` (`habit_updated`, `{"changes": [{"field", "old", "new"}]}`; a
-  descrição, longa, vai só com `{"field": "description"}`); sem mudança, nada é gravado.
+  descrição, longa, vai só com `{"field": "description"}`; a cor vai como foi salva, um nome da
+  paleta ou `#rrggbb`); sem mudança, nada é gravado.
 - Apagar: só o dono, inclusive arquivado. O banco apaga em cascata marcações, pausas, membros,
   convites, alertas e a auditoria do hábito. O evento `habit_deleted` vai com `habit_id=None` e
   o id em `details`, para sobreviver ao CASCADE, e com `recent_invites` (os convites do hábito

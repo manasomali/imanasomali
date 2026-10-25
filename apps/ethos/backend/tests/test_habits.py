@@ -181,6 +181,18 @@ def test_code_saved_in_upper_case(client, ana, code, saved):
         ("color", "magenta"),
         ("color", "Teal"),
         ("color", None),
+        # Cor própria: só "#" e 6 dígitos hexadecimais
+        ("color", "#fff"),
+        ("color", "#gggggg"),
+        ("color", "white"),
+        ("color", "0a1b2c"),
+        ("color", "#0a1b2c0"),
+        ("color", "#0a1b2c\n"),
+        ("color", " #0a1b2c"),
+        # Zero de largura total (outro alfabeto)
+        ("color", "#\uff10a1b2c"),
+        ("color", ""),
+        ("color", 0x0A1B2C),
         ("goal_type", "at_least"),
         ("goal_count", -1),
         ("goal_count", "3"),
@@ -567,6 +579,31 @@ def test_owner_updates_and_audit_records_changes(client, ana, db_session, clock)
         ]
     }
     assert stored(db_session, habit["id"]).name == "Corrida"
+
+
+@pytest.mark.parametrize(("sent", "saved"), [("#0a1b2c", "#0a1b2c"), ("#0A1B2C", "#0a1b2c")])
+def test_create_with_custom_color(client, ana, db_session, sent, saved):
+    habit = created(client, ana, color=sent)
+
+    assert habit["color"] == saved
+    assert stored(db_session, habit["id"]).color == saved
+    assert client.get(f"/habits/{habit['id']}", headers=ana.headers).json()["color"] == saved
+
+
+def test_color_changes_between_palette_and_custom(client, ana, db_session, clock):
+    habit = created(client, ana)
+
+    to_custom = patch(client, ana, habit["id"], color="#FFFFFF")
+    # O mesmo hex em maiúsculas não é mudança
+    same = patch(client, ana, habit["id"], color="#ffffff")
+    to_palette = patch(client, ana, habit["id"], color="pink")
+
+    assert to_custom.json()["color"] == same.json()["color"] == "#ffffff"
+    assert to_palette.json()["color"] == "pink"
+    assert [entry.details for entry in events(db_session, AuditEvent.HABIT_UPDATED)] == [
+        {"changes": [{"field": "color", "old": "teal", "new": "#ffffff"}]},
+        {"changes": [{"field": "color", "old": "#ffffff", "new": "pink"}]},
+    ]
 
 
 def test_update_without_changes_records_nothing(client, ana, db_session, clock):

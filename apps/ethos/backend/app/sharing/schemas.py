@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.auth.routes import Email
 from app.habits.access import HabitRole
-from app.models import HabitColor, MemberRole
+from app.models import MemberRole
 
 
 class InviteCreate(BaseModel):
@@ -47,7 +47,8 @@ class PendingInviteList(BaseModel):
 class InvitedHabit(BaseModel):
     id: int
     name: str
-    color: HabitColor
+    # Nome da paleta ou "#rrggbb" (app/habits/schemas.py)
+    color: str
 
 
 class Person(BaseModel):

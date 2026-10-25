@@ -5,6 +5,7 @@ import { useHabit } from '../../api/habits';
 import ErrorMessage from '../../components/ErrorMessage';
 import HabitNav from '../../components/HabitNav';
 import HabitScore from '../../components/HabitScore';
+import HabitSwatch from '../../components/HabitSwatch';
 import HabitTabs from '../../components/HabitTabs';
 import PageTitle from '../../components/PageTitle';
 import { parseHabitId } from '../../paths';
@@ -55,7 +56,7 @@ function HabitScreen({ id }) {
       <HabitTabs />
       <header className={styles.header}>
         <h1 className={styles.title}>
-          <span className={styles.swatch} data-habit-color={habit.color} aria-hidden="true" />
+          <HabitSwatch className={styles.swatch} color={habit.color} />
           {habit.label}
         </h1>
         {habit.code && <p className={styles.name}>{habit.name}</p>}

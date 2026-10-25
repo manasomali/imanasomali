@@ -1,4 +1,6 @@
 import { memo } from 'react';
+import useHabitColor from '../../hooks/useHabitColor';
+import HabitSwatch from '../HabitSwatch';
 import styles from './styles.module.css';
 
 // Um dia do calendário. Memorizado: com props iguais não redesenha, então um clique só redesenha
@@ -6,7 +8,8 @@ import styles from './styles.module.css';
 // - `day` ("AAAA-MM-DD"), `label` (aria-label com a data e o estado), `tabIndex` (foco itinerante);
 // - `future`: dia depois de hoje, desabilitado (aria-disabled, para continuar focável e lido);
 // - `today`, `selected`, `pending` (escrita a caminho);
-// - `color` (cor do hábito), `marked` e `count` (várias por dia): aba do hábito;
+// - `color` (cor do hábito: nome da paleta ou "#rrggbb"), `marked` e `count` (várias por dia): aba
+//   do hábito. O número do dia marcado usa o texto que contrasta com a cor (src/lib/palette.js);
 // - `dots` (`{shown: [{id, color}], extra, labels}`, memorizado): aba principal, até 4 pontos,
 //   "+N" e as siglas no hover e no foco;
 // - `onActivate(day)`: clique, Enter ou Espaço (o botão nativo já trata as duas teclas);
@@ -27,6 +30,7 @@ function DayCell({
   onKeyDown,
   onFocus,
 }) {
+  const colorRef = useHabitColor(color);
   const onClick = () => {
     if (!future) onActivate(day);
   };
@@ -35,7 +39,7 @@ function DayCell({
     <button
       type="button"
       data-day={day}
-      data-habit-color={color}
+      ref={colorRef}
       className={styles.day}
       tabIndex={tabIndex}
       aria-label={label}
@@ -60,7 +64,7 @@ function DayCell({
         <>
           <span className={styles.dots} aria-hidden="true">
             {dots.shown.map((habit) => (
-              <span key={habit.id} className={styles.dot} data-habit-color={habit.color} />
+              <HabitSwatch key={habit.id} className={styles.dot} color={habit.color} />
             ))}
             {dots.extra > 0 && <span className={styles.extra}>+{dots.extra}</span>}
           </span>

@@ -1,6 +1,7 @@
 // Leitura simples das propriedades customizadas de um CSS de tokens, agrupadas pelo seletor do
 // bloco. Dentro de @media, o seletor vem prefixado pela regra ("@media (...) :root:not(...)").
-// Basta para tokens.css e palette.css: sem chaves dentro de valores nem @media aninhado
+// Basta para tokens.css e palette.css: sem chaves dentro de valores nem @media aninhado. Usada
+// pelos testes da paleta e, em runtime, para saber o fundo dos dois temas (src/lib/customColor.js)
 
 export function readCustomProperties(css) {
   const blocks = new Map();

@@ -7,7 +7,8 @@
 //
 // Cores e fonte vêm dos tokens e da paleta lidos em runtime (readImageTheme), nunca de valores
 // fixos: a imagem sai no tema da tela, com o mesmo contraste garantido pelos tokens e pela paleta
-// (src/styles/palette.test.js), nos dois temas. Todo texto passa por `fitText`, que corta com "…"
+// (src/styles/palette.test.js), nos dois temas. A cor própria de um hábito ("#rrggbb", ETH-49) é
+// a mesma nos dois temas e vem do próprio hábito. Todo texto passa por `fitText`, que corta com "…"
 // o que não cabe na largura, então nenhum idioma estoura a imagem. Muitos hábitos: o tamanho da
 // letra diminui até um mínimo legível, depois somem as linhas de recompensa/punição e, por fim, o
 // resto vira "+N hábitos".
@@ -19,7 +20,7 @@
 import { weekColumn } from '../calendar';
 import { formatShortDay } from '../format';
 import { formatMoney } from '../money';
-import { HABIT_COLORS } from '../palette';
+import { HABIT_COLORS, isCustomColor } from '../palette';
 import { addDays } from '../time';
 import { reportFilename } from './files';
 import { daysBetween } from './period';
@@ -141,7 +142,9 @@ function drawText(ctx, theme, value, x, y, { size, weight = 500, color, maxWidth
   ctx.fillText(fitText(ctx, value, width), x, y, width);
 }
 
+// Nome da paleta: o valor do tema da tela; cor própria (#rrggbb): ela mesma, nos dois temas
 function habitColor(theme, habit) {
+  if (isCustomColor(habit.color)) return habit.color;
   return theme.habits[habit.color] ?? theme.colors.muted;
 }
 

@@ -95,6 +95,7 @@ describe('habitForm', () => {
   it('starts a new habit with every feature off and the score threshold at 70', () => {
     expect(NEW).toMatchObject({
       color: 'teal',
+      custom_color: '',
       goal_type: 'min',
       goal_count: '1',
       goal_period: 'week',
@@ -135,6 +136,14 @@ describe('habitForm', () => {
       cost_cents: '',
       cost_limit_period: '',
     });
+  });
+
+  it('keeps a custom color (ETH-49) as the color and as the last custom one', () => {
+    expect(habitForm(habitFixture({ color: '#0a1b2c' }), 'en')).toMatchObject({
+      color: '#0a1b2c',
+      custom_color: '#0a1b2c',
+    });
+    expect(habitForm(habitFixture({ color: 'pink' }), 'en')).toMatchObject({ color: 'pink', custom_color: '' });
   });
 });
 
@@ -247,6 +256,8 @@ describe('habitPayload: creating', () => {
     [{ description: 'x'.repeat(501) }, 'description', { code: 'too_long', max: 500 }],
     [{ description: 'a\u0000b' }, 'description', { code: 'invalid_chars' }],
     [{ color: 'mauve' }, 'color', { code: 'required' }],
+    [{ color: '#0A1B2C' }, 'color', { code: 'required' }],
+    [{ color: '#fff' }, 'color', { code: 'required' }],
     [{ goal_type: 'most' }, 'goal_type', { code: 'required' }],
     [{ goal_period: 'day' }, 'goal_period', { code: 'required' }],
     [{ goal_count: '0' }, 'goal_count', { code: 'goal_range', min: 1, max: 7 }],
@@ -313,6 +324,16 @@ describe('habitPayload: editing', () => {
     cost_cents: 800,
     cost_limit_cents: 10000,
     cost_limit_period: 'month',
+  });
+
+  it('sends a custom color or a palette name, and never the last custom color', () => {
+    const custom = { ...habitForm(habit, 'pt'), color: '#0a1b2c', custom_color: '#0a1b2c' };
+    const back = { ...custom, color: 'pink' };
+
+    expect(habitPayload(custom, 'pt', habit).values).toEqual({ color: '#0a1b2c' });
+    expect(habitPayload(back, 'pt', habit).values).toEqual({ color: 'pink' });
+    expect(habitPayload(custom, 'pt').values).toMatchObject({ color: '#0a1b2c' });
+    expect(habitPayload(custom, 'pt').values).not.toHaveProperty('custom_color');
   });
 
   it('sends nothing when nothing changed', () => {

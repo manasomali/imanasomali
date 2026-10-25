@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useHabits } from '../../api/habits';
+import HabitSwatch from '../HabitSwatch';
 import { PATHS, habitPath } from '../../paths';
 import styles from './styles.module.css';
 
@@ -24,7 +25,7 @@ export default function HabitTabs() {
         {habits.data?.map((habit) => (
           <li key={habit.id}>
             <NavLink to={habitPath(habit.id)} className={tabClass} title={habit.name}>
-              <span className={styles.swatch} data-habit-color={habit.color} aria-hidden="true" />
+              <HabitSwatch className={styles.swatch} color={habit.color} />
               <span className={`truncate ${styles.label}`}>{habit.label}</span>
             </NavLink>
           </li>

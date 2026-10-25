@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import HabitSwatch from '../../components/HabitSwatch';
 import { formatDateTime } from '../../lib/datetime';
 import { describeEvent } from '../../lib/history';
 import { habitPath } from '../../paths';
@@ -21,7 +22,7 @@ export default function EventItem({ entry, color, context }) {
           {formatDateTime(entry.created_at, context.timeZone, context.language)}
         </time>
         <Link to={habitPath(entry.habit.id)} className={`${styles.habit} user-text`}>
-          <span className={styles.swatch} data-habit-color={color} aria-hidden="true" />
+          <HabitSwatch className={styles.swatch} color={color} />
           {entry.habit.label}
         </Link>
       </div>
