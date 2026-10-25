@@ -205,7 +205,7 @@ O pacote `app/history/` (`service.py` com 100% de cobertura, `schemas.py` e `rou
 - O último admin ativo não é apagado: 409 `last_admin` (no pedido do código, no `DELETE /auth/me` e pelo admin). Admin bloqueado não conta.
 - Apaga: a conta, as sessões, os `login_codes` dela e do email, os hábitos dela (com as marcações dos convidados, pausas, membros, convites enviados, alertas e a auditoria deles), os convites recebidos (pela conta e pelo email), as participações em hábitos de outras pessoas, os alertas e a auditoria da própria conta (auth, `terms_accepted`, `profile_updated`, `admin_created` e os `habit_deleted` dos hábitos dela).
 - Anonimiza: as marcações dela em hábitos de outras pessoas (`user_id` nulo, "usuário removido"); as linhas do `audit_log` que ficam com o `user_id` dela (`user_id` e `ip` nulos); os ids dela em `author_id` e `member_id` dos eventos de hábito (viram `null`, porque o histórico os mostra); e todo texto com "@" no `details` das linhas que citam a conta (pelo `user_id`, pelo email ou por `target_user_id`, a conta alvo dos eventos de admin). `banners.created_by` vira nulo.
-- Grava `account_deleted` com `user_id` = quem apagou (nulo quando foi a própria conta) e `{"account_id": n, "by_admin": bool}`, sem email nem IP da pessoa. Depois do commit, o log tem só `conta <id> excluída`: depois de restaurar um backup, essas linhas dizem quais exclusões reaplicar.
+- Grava `account_deleted` com `user_id` = quem apagou (nulo quando foi a própria conta) e `{"account_id": n, "by_admin": bool}`, sem email nem IP da pessoa. Depois do commit, o log tem só `conta <id> excluída` (`DELETED_LOG_FORMAT`): depois de restaurar um backup, essas linhas dizem quais exclusões reaplicar (`reapply-deletions`, abaixo).
 - Emails: "conta excluída" para a conta e "você perdeu acesso" para cada membro dos hábitos dela (um por membro, com todos os hábitos), lidos antes de apagar e enviados depois do commit.
 
 ### Alertas
@@ -262,6 +262,7 @@ uv run --env-file .env python -m app.cli --help      # lista os comandos
 uv run --env-file .env python -m app.cli run-alerts  # avalia os alertas na hora e manda os emails
 uv run --env-file .env python -m app.cli cleanup     # aplica a retenção de dados
 uv run --env-file .env python -m app.cli create-admin voce@example.com   # torna a conta admin
+uv run --env-file .env python -m app.cli reapply-deletions exclusoes.log   # depois de um restore
 uv run --env-file .env python -m app.cli seed        # dados de exemplo (só em dev)
 ```
 
@@ -272,6 +273,7 @@ O CLI lê a mesma config do servidor (variáveis de ambiente) e abre o banco de 
 | `run-alerts` | Avalia os alertas cuja hora chegou e manda os emails (ver "Alertas"). Imprime quantos alertas avaliou, quantos emails mandou e quantas falhas teve. Sai com 0 mesmo com falha num alerta (SMTP, por exemplo): a falha é logada, não para os outros e é tentada de novo na próxima execução. Só erro geral (config inválida, banco inacessível na leitura inicial) sai com 1, e aí o `OnFailure=` do timer grava a linha de erro no journald. Pode rodar quantas vezes quiser: a segunda seguida não manda nada. Roda de hora em hora pelo `ethos-alerts.timer`, antes do `cleanup`, na mesma unit: se ele sair com 1, o `cleanup` daquela hora não roda. |
 | `cleanup` | Retenção de dados (ver acima), numa transação só. Imprime quantas linhas mudou em cada passo. Pode rodar quantas vezes quiser: a segunda seguida não muda nada. No plano, roda de hora em hora pelo `ethos-alerts.timer`, depois dos alertas. |
 | `create-admin <email>` | Liga o `is_admin` de uma conta que já existe e grava `admin_created` no `audit_log` (`user_id` = a conta promovida, `details` = `{"via": "cli"}`), numa transação só. É o único jeito de criar admin: não existe endpoint para isso. O email é normalizado e validado como no login (`normalize_email`: espaços e maiúsculas não importam; endereço inválido é erro). A saída mostra o id da conta, nunca o email. Email sem conta: erro e nada muda (a pessoa precisa entrar no app uma vez antes, o que cria a conta). Conta bloqueada (`is_active=false`): erro e nada muda; desbloqueie antes. Conta que já é admin: avisa, sai com 0 e não grava nada. |
+| `reapply-deletions [arquivo]` | Depois de restaurar um backup, apaga de novo as contas que o journald diz terem sido excluídas (passo a passo em [infra/RESTORE.md](../../infra/RESTORE.md#restaurar-o-banco-de-uma-app-ethos)). Lê do arquivo ou do stdin (`-`, o padrão; recusa um terminal) as linhas do `journalctl -u app-ethos -o cat`: só as `INFO app.auth.deletion: conta <id> excluída` valem, as outras (requests, uvicorn, alembic, systemd) são ignoradas; aceita também ids soltos, um por linha. Para antes de mexer no banco (sai com 1, nada apagado) se a entrada estiver vazia (ex.: `journalctl` sem `sudo`), se uma linha citar a exclusão fora desse formato (ex.: `journalctl` sem `-o cat`) ou se uma linha só de dígitos não for um id válido (inteiro de 1 a 10^12 - 1). Id repetido conta uma vez. Cada conta que ainda existe passa por `deletion.reapply_deletion`, numa transação própria: a mesma exclusão do admin, **sem email** (todos já foram avisados na exclusão original) e sem linha nova no log, com um `account_deleted` de `user_id` nulo e `{"account_id": n, "reapplied": true}` (o original sumiu com o restore; a conta ainda existia, então não há outro). Conta que não existe é ignorada. O último admin ativo é pulado com um aviso no stderr (sai com 0): torne outra conta admin e rode de novo. Antes de apagar, avança o contador do AUTOINCREMENT de `users` (`sqlite_sequence`) até o maior id lido, porque ele volta junto com o backup: sem isso, uma conta nova herdaria o id de uma apagada e um restore seguinte a apagaria. Imprime as linhas lidas, as contas no log e quantas apagou, ignorou e pulou. Pode rodar quantas vezes quiser: a segunda seguida não muda nada. Falha no meio (banco): as já apagadas ficam, e rodar de novo termina. |
 | `seed` | Só com `APP_ENV=dev` (fora dele: erro, sai com 1 e não grava nada). Cria, numa transação só, as contas `ana@example.com`, `bia@example.com` e `caio@example.com` (com os termos aceitos; entre pelo login com o email, e o código sai no terminal com `EMAIL_BACKEND=console`), 8 hábitos que variam os tipos (toggle e várias por dia; meta mínima, máxima e exata; duração, observação, pontuação, custo nos dois níveis; ativo, pausado e arquivado; compartilhado com editor e viewer) e as marcações dos últimos 60 dias, pelas mesmas regras e com a mesma auditoria da API. Não duplica: se alguma das contas de exemplo já existe, avisa, sai com 0 e não grava nada. Para recriar, apague o banco de dev e rode `alembic upgrade head` de novo. |
 
 Na VM, o comando roda com o mesmo usuário, o mesmo ambiente e a mesma `.venv` da unit `app-ethos` ([infra/apps/ethos/app-ethos.service](../../infra/apps/ethos/app-ethos.service)):
@@ -285,7 +287,7 @@ sudo systemd-run --quiet --pipe --wait --collect \
   /opt/apps/ethos/.venv/bin/python -m app.cli create-admin voce@example.com
 ```
 
-`sudo -u app-ethos` sozinho não basta: o `/etc/infra/smtp.env` é `0600` do root, e com `EMAIL_BACKEND=smtp` a config exige as `SMTP_*`. Pelo `systemd-run`, o systemd lê os dois `EnvironmentFile=` como root, como faz com a unit, e o comando roda como `app-ethos`, que pode escrever em `/var/lib/sqlite/ethos/app.db`. O `--wait` devolve o código de saída do comando. O mesmo vale para qualquer outro comando do CLI (troque `create-admin voce@example.com`). O email digitado fica no histórico do shell e no log do sudo da VM.
+`sudo -u app-ethos` sozinho não basta: o `/etc/infra/smtp.env` é `0600` do root, e com `EMAIL_BACKEND=smtp` a config exige as `SMTP_*`. Pelo `systemd-run`, o systemd lê os dois `EnvironmentFile=` como root, como faz com a unit, e o comando roda como `app-ethos`, que pode escrever em `/var/lib/sqlite/ethos/app.db`. O `--wait` devolve o código de saída do comando, e o `--pipe` liga a ele o stdin, o stdout e o stderr do terminal (o `reapply-deletions` lê o journal por ele). O mesmo vale para qualquer outro comando do CLI (troque `create-admin voce@example.com`). O email digitado fica no histórico do shell e no log do sudo da VM. Para outro banco (um ensaio numa cópia), passe `/usr/bin/env DATABASE_PATH=<cópia>` antes do Python: um `-E DATABASE_PATH=...` do `systemd-run` perde para o `EnvironmentFile=`.
 
 Comando novo: um handler `(context: CommandContext, args) -> int` em `app/cli.py`, registrado em `build_parser`. Erro esperado é `raise CommandError("mensagem")`; o docstring do módulo tem o passo a passo.
 
@@ -502,11 +504,11 @@ O `axe` no jsdom não mede contraste. Por isso `src/styles/palette.test.js` calc
 
 ## CI
 
-O workflow [ethos.yaml](../../.github/workflows/ethos.yaml) roda em PRs e em push na `main` que tocam `apps/ethos/**`, `packages/**`, o próprio workflow ou os arquivos de infra que os testes leem (`infra/apps/ethos/app.conf`, `infra/apps/ethos/app.env`, `infra/provision.sh`, `infra/scripts/snapshot.sh`, `infra/lib/backups.sh`, `infra/config.env`, `infra/lib/common.sh` e `infra/lib/packages.sh`). Em PRs, só as checagens:
+O workflow [ethos.yaml](../../.github/workflows/ethos.yaml) roda em PRs e em push na `main` que tocam `apps/ethos/**`, `packages/**`, o próprio workflow ou os arquivos de infra que os testes leem (`infra/apps/ethos/app.conf`, `infra/apps/ethos/app.env`, `infra/provision.sh`, `infra/scripts/snapshot.sh`, `infra/scripts/restore-test.sh`, `infra/lib/backups.sh`, `infra/config.env`, `infra/lib/common.sh` e `infra/lib/packages.sh`). Em PRs, só as checagens:
 
 - backend: `uv lock --check`, `uv sync --frozen`, `ruff check`, `ruff format --check`, `pytest --cov` e 100% de cobertura nos módulos de `FULL_COVERAGE`;
 - frontend: `npm ci`, `npm run lint`, `npm run build` e `npm test`;
-- scripts do deploy (`deploy/`): `shellcheck`, `test-deploy-scripts.sh` (limpeza de assets e migrações do rollback) e `test-vm.sh`, que roda o `vm.sh` num Ubuntu 24.04 com o uv e o Python instalados pelas funções do provision: `.venv`, migração e `/health` como `app-ethos`, backup e restart.
+- scripts do deploy (`deploy/`): `shellcheck`, `test-deploy-scripts.sh` (limpeza de assets e migrações do rollback) e `test-vm.sh`, que roda o `vm.sh` num Ubuntu 24.04 com o uv e o Python instalados pelas funções do provision: `.venv`, migração e `/health` como `app-ethos`, backup e restart. Depois, com o banco populado pelo `seed`, ensaia o [infra/RESTORE.md](../../infra/RESTORE.md): backup, uma exclusão de verdade com a linha no journald, o `restore-test.sh` do `backup-verify.yaml` (com um Litestream falso), o ensaio numa cópia, o restore do `pre-deploy-<sha>.db` e o `reapply-deletions` pelo `systemd-run`, duas vezes.
 
 Em push na `main` e no `workflow_dispatch`, o workflow também faz o deploy.
 
@@ -548,7 +550,7 @@ Actions → Ethos → Run workflow, a partir da `main`, com o SHA completo do co
 
 - **Migrações não voltam**: o rollback não roda `downgrade`. Como as migrações são só aditivas, o código anterior funciona com o banco novo. Se o banco já está numa revisão que o commit antigo não conhece (rollback para antes de uma migração aplicada), o `alembic upgrade head` dele pararia com "Can't locate revision". Por isso o passo `keep-migrations.sh` lê a revisão do banco e leva junto, da `main`, os arquivos de migração que faltam até ela: o head do commit vira a revisão do banco e o upgrade não faz nada. Uma migração que falhou não fica aplicada e não é levada.
 - **Cor própria (migração 0004, ETH-49)**: o código de antes dela só conhece os nomes da paleta e responde 500 ao ler um hábito com cor própria. Antes de um rollback para antes dela, troque essas cores na VM (`UPDATE habits SET color = 'teal' WHERE color GLOB '#*';`, a mesma sugestão do `downgrade`, que é recusado enquanto houver cor própria).
-- **Dados estragados por uma migração**: restaure o `pre-deploy-<sha>.db` do deploy que a aplicou, seguindo o [infra/RESTORE.md](../../infra/RESTORE.md), e faça o rollback do código.
+- **Dados estragados por uma migração**: faça o rollback do código e depois restaure o `pre-deploy-<sha>.db` do deploy que a aplicou, nessa ordem, seguindo o [infra/RESTORE.md](../../infra/RESTORE.md#restaurar-o-banco-de-uma-app-ethos) (o rollback roda duas vezes, e o `alembic upgrade head` manual fica de fora, para a migração quebrada não rodar de novo).
 - Um push novo na `main` depois do rollback publica a `main` de novo.
 
 ### Regras
@@ -556,3 +558,88 @@ Actions → Ethos → Run workflow, a partir da `main`, com o SHA completo do co
 - **Migrações só aditivas**: criar tabela ou coluna (anulável ou com default). Remover ou renomear só num deploy seguinte, quando nenhum código no ar (nem o de um rollback) usa mais aquilo. É o que permite o rollback sem `downgrade` e o código anterior rodando com o banco novo durante o deploy.
 - **Nunca apague nem renomeie um arquivo de migração já publicado**: o rollback busca na `main` as migrações que o banco já tem.
 - **Mudança de infra entra num PR anterior ao do app**: unit nova, variável nova no `app.env`, porta, versão do Python. O Infra e o ethos rodam em paralelo, sem ordem garantida entre eles; o deploy confere a unit, as pastas e o Python e falha com mensagem clara se o provision ainda não rodou.
+
+## Migração
+
+O ethos foi feito para mudar de hospedagem, de domínio ou de banco sem mexer no código do app: toda a config vem do ambiente (`app/config.py`), o banco é um arquivo SQLite e o que é da VM fica fora de `apps/ethos/`, em `infra/apps/ethos/`. Esta seção diz o que muda em cada tipo de migração. O restore de um backup (inclusive numa VM nova) está no [infra/RESTORE.md](../../infra/RESTORE.md).
+
+### Variáveis de ambiente
+
+As do app são as de `Settings` em `app/config.py`, as mesmas do `.env.example` (que é o `infra/apps/ethos/app.env` mais o `smtp.env`; um teste confere). Em produção, a unit lê `/etc/infra/apps/ethos.env` (do `app.env`, versionado) e `/etc/infra/smtp.env` (dos secrets do GitHub).
+
+| Variável | Produção hoje | Hospedagem nova | Domínio ou caminho novo | Banco movido | Provedor de email novo |
+|---|---|---|---|---|---|
+| `APP_ENV` | `prod` | — | — | — | — |
+| `APP_URL` | `https://manasomali.com/ethos` | — | troca (ver abaixo) | — | — |
+| `DATABASE_PATH` | `/var/lib/sqlite/ethos/app.db` | o caminho na máquina nova | — | o caminho novo | — |
+| `EMAIL_BACKEND` | `smtp` | — | — | — | — |
+| `MAIL_FROM` | `ethos <no-reply@manasomali.com>` | — | troca, se o endereço for do domínio | — | o remetente autorizado no provedor |
+| `SUPPORT_EMAIL` | `suporte@manasomali.com` | — | troca, se o endereço for do domínio, junto com o `SUPPORT_EMAIL` de `frontend/src/lib/legal.js` (um teste compara os dois) | — | — |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | secrets do repo, no `smtp.env` | a porta 587 liberada na saída | — | — | trocam (secrets) |
+| `MAX_CODE_EMAILS_PER_HOUR`, `MAX_CODE_EMAILS_PER_DAY` | `50`, `200` | — | — | — | a cota do plano novo |
+| `MAX_HABITS_PER_USER`, `MAX_MARKS_PER_DAY`, `MAX_NOTE_LENGTH`, `MAX_GUESTS_PER_HABIT`, `MAX_SHARED_HABITS_PER_USER`, `MAX_INVITES_PER_DAY` | os do plano | — | — | — | — |
+
+Fora do app, mas também mudam numa migração:
+
+- `PORT` (`3001`) e `PYTHON_VERSION` em `infra/apps/ethos/app.conf`: a porta do uvicorn (o provision troca o `__PORTA__` da unit e do nginx) e o Python que o provision instala, igual ao `backend/.python-version`.
+- `PYTHONUNBUFFERED=1` e `PYTHONDONTWRITEBYTECODE=1` na unit: os logs saem na hora, e o `app-ethos` não tenta gravar bytecode na pasta do código.
+- Variável `ETHOS_URL` do GitHub (`https://manasomali.com`): o health check do deploy. Troca com o domínio.
+- Secrets do deploy (`REMOTE_HOST`, `REMOTE_USER`, `SERVER_SSH_KEY`, `SSH_KNOWN_HOSTS`): trocam com a hospedagem. Os do Litestream (`LITESTREAM_ACCESS_KEY_ID`, `LITESTREAM_SECRET_ACCESS_KEY`) e as variáveis `S3_ENDPOINT`, `S3_BUCKET` e `OCI_REGION` trocam com o lugar dos backups.
+
+### Hospedagem
+
+- **Outra VM, com o `infra/`**: o caminho de "VM perdida" do [infra/RESTORE.md](../../infra/RESTORE.md#vm-perdida): DNS, secrets, certificado, workflow Infra, restore do banco e deploy do ethos. Antes de desligar a VM antiga, pare nela o `app-ethos` e o `ethos-alerts.timer` e espere o Litestream enviar o último estado (`LITESTREAM_SYNC_INTERVAL`, 1 min), ou leve um `.backup` (ver "Banco"). Guarde o journal dela (`sudo journalctl -u app-ethos -o cat > exclusoes.log`) até o ethos estar no ar no destino: é a entrada do `reapply-deletions` se for preciso restaurar um backup mais antigo.
+- **Outra hospedagem, sem o `infra/`**: o que a VM faz hoje e precisa existir lá:
+  - o Python de `backend/.python-version` e `uv sync --frozen --no-dev` (o `uv.lock` fixa tudo);
+  - `alembic upgrade head` antes de subir (a unit roda no `ExecStartPre`: migração que falha não deixa o app subir);
+  - `uvicorn app.main:app --workers 1 --proxy-headers --forwarded-allow-ips=<IP do proxy> --root-path /api/ethos`. Um worker só (SQLite, um processo escrevendo). Sem o `--forwarded-allow-ips` certo, o IP do cliente vira o do proxy na auditoria e nas sessões;
+  - um proxy na frente, na mesma origem do front: tira o prefixo `/api/ethos` e repassa o `X-Forwarded-For`; serve o `frontend/dist/` em `/ethos/`, com o `index.html` de fallback e sem cache e os `assets/` com cache longo; põe os headers de segurança (CSP sem `'unsafe-inline'`, `nosniff`, `Referrer-Policy`, HSTS) e o rate limit de `/api/ethos/auth/`. O modelo é `infra/apps/ethos/nginx.conf` com o `nginx-http.conf`;
+  - um job de hora em hora que rode `python -m app.cli run-alerts` e depois `cleanup` (`infra/apps/ethos/ethos-alerts.service` e `.timer`);
+  - uma pasta gravável para o banco (o WAL cria `app.db-wal` e `app.db-shm` ao lado), backup contínuo (Litestream) e snapshot diário;
+  - o stdout e o stderr do app guardados de forma persistente (journald ou equivalente): a linha `conta <id> excluída` é o que o `reapply-deletions` lê depois de um restore;
+  - SMTP com STARTTLS, com a porta 587 liberada.
+
+### Domínio ou caminho
+
+- `APP_URL` é a origem aceita contra CSRF (`app/auth/origin.py`: todo POST, PUT, PATCH e DELETE precisa de um `Origin` igual a esquema + host + porta do `APP_URL`) e a base dos links dos emails (a tela de alertas é `APP_URL` + `/habits/{id}/alerts`). Com o domínio errado, nenhuma escrita passa (403) e os links apontam para o lugar errado. Mude junto com o `ETHOS_URL` do GitHub e o certificado do domínio novo.
+- O cookie `__Host-ethos_session` (`HttpOnly; Secure; SameSite=Lax; Path=/`, sem `Domain`) funciona em qualquer domínio com https e fica preso ao host. Trocar de domínio desloga todo mundo; as sessões antigas no banco vencem sozinhas. Um 301 do domínio antigo para o novo mantém os links dos emails já enviados.
+- A CSP do nginx só usa `'self'`: não cita o domínio e não muda, desde que front e API fiquem na mesma origem. A API não tem CORS e o cookie é `SameSite=Lax`: separar front e API em origens diferentes exigiria CORS, `connect-src` e outro desenho de cookie. Não separe.
+- O tema e o idioma vêm das chaves `theme` e `i18nextLng` do `localStorage`, compartilhadas com o site porque estão na mesma origem ([packages/tokens/README.md](../../packages/tokens/README.md)). Num domínio separado do site, a escolha deixa de valer entre os dois, e só.
+- O caminho (`/ethos/` e `/api/ethos/`) está fixo em vários lugares, que mudam juntos: o `base` do `frontend/vite.config.js` (e o proxy de dev), `BASENAME` em `frontend/src/paths.js`, `API_BASE` em `frontend/src/lib/api.js`, o `--root-path /api/ethos` da unit, as `location` de `infra/apps/ethos/nginx.conf` e o caminho do `APP_URL`. O backend só conhece o prefixo pelo `--root-path`: as rotas ficam na raiz (`/health`, `/auth/...`).
+- `MAIL_FROM` e `SUPPORT_EMAIL` no domínio novo pedem SPF, DKIM e DMARC dele no provedor de email (e o MX do suporte).
+
+### Banco
+
+- **SQLite, um arquivo só** (`DATABASE_PATH`), em WAL. Exportar com o app no ar é seguro pelo `.backup` (consistente com o WAL; `cp` do arquivo não é), como o deploy faz:
+
+  ```bash
+  sudo -u app-ethos sqlite3 /var/lib/sqlite/ethos/app.db ".backup '/var/backups/sqlite/ethos/export.db'"
+  sudo -u app-ethos sqlite3 /var/backups/sqlite/ethos/export.db 'PRAGMA journal_mode=DELETE; PRAGMA integrity_check;'
+  ```
+
+  Para não perder escritas, pare antes o `app-ethos` e o `ethos-alerts.timer`. Importar: com o app parado no destino, ponha o arquivo em `DATABASE_PATH`, com dono o usuário do serviço, e rode `PRAGMA integrity_check; PRAGMA journal_mode=WAL;` e `alembic upgrade head`. Se o arquivo for mais velho que a última exclusão de conta, rode o `reapply-deletions` com o journal da origem antes de abrir.
+- **Litestream**: replica cada banco para `<S3_BUCKET>/<nome>/` (`infra/lib/backups.sh`, retenção de 168 h). Uma máquina nova recupera dali com `litestream restore` (RESTORE.md). Outro bucket ou outro provedor S3 é config do Infra (`S3_ENDPOINT`, `S3_BUCKET`, `OCI_REGION` e os secrets `LITESTREAM_*`), sem mudança no app. A replicação para quando o banco sai do `databases.txt`.
+- **Outro banco (Postgres, por exemplo)**: não é só trocar a variável. O app usa recursos do SQLite: `BEGIN IMMEDIATE` e os PRAGMAs de `app/db.py`, `json_extract`, `json_set` e `instr` na exclusão de conta, o `sqlite_sequence` no `reapply-deletions`, a coluna gerada `audit_log.mark_id` e o modo batch do Alembic. Os dados saem com `sqlite3 app.db .dump` (SQL), mas esses pontos e as migrações precisam ser reescritos antes.
+
+### Tirar o ethos do monorepo
+
+O ethos não importa código do site. O que ele usa fora de `apps/ethos/` (conferido com `grep -rln ethos` fora de `apps/ethos/` e `grep -rn '\.\./\.\./' apps/ethos`):
+
+| Fora de `apps/ethos/` | Quem usa | Ao tirar |
+|---|---|---|
+| `packages/tokens/tokens.css` (e o contrato do `localStorage` em `packages/tokens/README.md`) | `frontend/vite.config.js` (alias `@tokens` e `server.fs.allow`), `src/index.css`, `src/lib/customColor.js` (`?raw`), `src/styles/palette.test.js` e `tests/build.test.js` | copiar para o repo novo e apontar o alias e os dois testes para a cópia |
+| `infra/apps/ethos/` (`app-ethos.service`, `ethos-alerts.service`, `ethos-alerts.timer`, `nginx.conf`, `nginx-http.conf`, `app.conf`, `app.env`) | o provision (units, nginx e `/etc/infra/apps/ethos.env`); `backend/tests/test_env_files.py`, `frontend/src/lib/legal.test.js` e `help.test.js` leem o `app.env`; o `check-python-version.sh` lê o `app.conf` | levar como a config de deploy do repo novo e apontar os testes para a cópia |
+| `infra/databases.txt` (linha `ethos`) e a tabela de portas do `infra/README.md` | usuário `app-ethos`, pasta do banco, Litestream e snapshots; `check-ports.sh` | no monorepo, sair só depois de o banco estar no destino (tirar a linha mantém os dados, mas sem backup) |
+| `infra/provision.sh`, `infra/scripts/snapshot.sh`, `infra/scripts/restore-test.sh`, `infra/lib/backups.sh`, `infra/lib/common.sh`, `infra/lib/packages.sh`, `infra/config.env` | lidos pelos testes: `test_env_files.py` (a linha do `smtp.env` no provision), `legal.test.js` e `help.test.js` (prazos dos backups) e `deploy/test-vm.sh` (uv, Python, snapshot e restore-test) | trocar por constantes ou cópias no repo novo |
+| `.github/workflows/ethos.yaml` | CI e deploy (os `paths` citam os arquivos de `infra/` acima) | copiar, trocando `apps/ethos/` pela raiz |
+| `.github/scripts/check-python-version.sh` | `ethos.yaml` e `infra.yaml` | levar, ou comparar direto com a config de deploy |
+| `.github/scripts/test-provision-apps.sh`, `test-provision-nginx.sh` e `check-ports.sh` | `infra.yaml`: testam as units, as rotas e a porta do ethos | no monorepo, tirar a parte do ethos quando `infra/apps/ethos/` sair |
+| `site/` | nenhum código; mesma origem (as chaves `theme` e `i18nextLng`), e o `server` de `infra/nginx/site.conf` inclui o `apps.d` | nada a levar; num domínio próprio, o ethos precisa de um `server` seu no nginx |
+| `.claude/launch.json` e `CLAUDE.md` | dev server e instruções | atualizar |
+
+Passos:
+
+1. `git subtree split -P apps/ethos -b ethos-sozinho` e um repo novo a partir desse branch (o histórico vem junto).
+2. No repo novo: `packages/tokens`, a config de `infra/apps/ethos/`, o workflow e o script do Python, com os caminhos ajustados; os testes que leem `infra/` passam a ler as cópias.
+3. Migrar o banco ("Banco", acima) e o deploy, com o app antigo parado.
+4. No monorepo, com o ethos no ar no destino: tirar `apps/ethos/`, `infra/apps/ethos/` (o provision desliga as units e tira os snippets do nginx, com cópia em `/var/backups/infra`, sem apagar código nem dados), a linha do `databases.txt`, a da porta no `infra/README.md`, o `ethos.yaml` e a parte do ethos de `test-provision-apps.sh`, `test-provision-nginx.sh` e `.claude/launch.json`. Os dados em `/var/lib/sqlite/ethos/` ficam na VM até serem apagados à mão.
