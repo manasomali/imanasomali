@@ -15,6 +15,7 @@ import { useCallback } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { meQueryKey } from './auth';
 import { habitKeys } from './habits';
+import { reportKeys } from './progress';
 import { apiFetch } from '../lib/api';
 import { marksByDay, yearOf, yearRange } from '../lib/calendar';
 import { dayBounds, localDate } from '../lib/time';
@@ -25,10 +26,17 @@ export const markKeys = Object.freeze({
   year: (habitId, year, timeZone) => ['marks', habitId, year, timeZone],
 });
 
+// A API recusa instantes antes de 1900-01-01 UTC (MIN_INSTANT em app/marks/schemas.py), e nenhuma
+// marcação é anterior a isso. O ano local 1900 a leste de UTC (e 1899 a oeste) começa antes
+const MIN_INSTANT = Date.UTC(1900, 0, 1);
+
 /** Todas as marcações do hábito no ano local `year` (segue o `next_cursor` até a última página). */
 export async function fetchYearMarks(habitId, year, timeZone, { signal } = {}) {
   const { from, to } = yearRange(year, timeZone);
-  const query = { from: from.toISOString(), to: to.toISOString() };
+  const query = {
+    from: new Date(Math.max(from.getTime(), MIN_INSTANT)).toISOString(),
+    to: to.toISOString(),
+  };
   const marks = [];
   let cursor = null;
   do {
@@ -43,7 +51,11 @@ export async function fetchYearMarks(habitId, year, timeZone, { signal } = {}) {
   return marks;
 }
 
-function yearQuery(habitId, year, timeZone, select) {
+/**
+ * Opções da consulta do ano (chave e função), para useQuery ou queryClient.fetchQuery. O
+ * relatório (src/api/report.js) lê as marcações por aqui, então usa o mesmo cache dos calendários.
+ */
+export function yearMarksQuery(habitId, year, timeZone, select) {
   return {
     queryKey: markKeys.year(habitId, year, timeZone),
     queryFn: ({ signal }) => fetchYearMarks(habitId, year, timeZone, { signal }),
@@ -54,7 +66,7 @@ function yearQuery(habitId, year, timeZone, select) {
 /** Marcações do hábito no ano, agrupadas por dia local (`data`: Map "AAAA-MM-DD" → marcações). */
 export function useYearMarks(habitId, year, timeZone) {
   const select = useCallback((marks) => marksByDay(marks, timeZone), [timeZone]);
-  return useQuery(yearQuery(habitId, year, timeZone, select));
+  return useQuery(yearMarksQuery(habitId, year, timeZone, select));
 }
 
 /**
@@ -79,7 +91,7 @@ export function useYearMarksOfHabits(habits, year, timeZone) {
     [habits, timeZone],
   );
   return useQueries({
-    queries: habits.map((habit) => yearQuery(habit.id, year, timeZone)),
+    queries: habits.map((habit) => yearMarksQuery(habit.id, year, timeZone)),
     combine,
   });
 }
@@ -121,10 +133,11 @@ function resyncSet(queryClient) {
 }
 
 /**
- * Depois que as marcações de um hábito mudaram: a pontuação (só se ligada) vem do GET /habits.
- * Telas que guardam dados derivados das marcações (relatório, ETH-36) invalidam aqui também.
+ * Depois que as marcações de um hábito mudaram: o relatório (src/api/report.js) guarda totais e
+ * períodos derivados delas e é refeito; a pontuação (só se ligada) vem do GET /habits.
  */
 export function afterMarksChanged(queryClient, habit) {
+  queryClient.invalidateQueries({ queryKey: reportKeys.all });
   if (!habit.score_enabled) return;
   queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
   queryClient.invalidateQueries({ queryKey: habitKeys.detail(habit.id) });

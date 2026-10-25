@@ -17,6 +17,10 @@ Intervalo (`check_range`): datas locais inclusivas, `from` <= `to`, cobrindo no 
 dias: de 1/1/2021, vai até 31/12/2025; 1/1/2026 já seria 5 anos e 1 dia. De 29/2, o aniversário
 num ano não bissexto é 1/3.
 
+Marcações de todo o tempo (`marks_range`): o primeiro e o último dia local com marcação no
+hábito, fora do intervalo pedido também (inclusive antes da criação). É o que o "exportar tudo" do
+front usa para saber de onde até onde buscar as marcações, sem sondar ano por ano.
+
 Hábitos (`accessible_habits`): os que o usuário acessa (dono, editor ou viewer), inclusive
 arquivados, que guardam histórico e entram no "exportar tudo". Id sem acesso, ou que não existe,
 some da resposta, sem erro: a API nunca revela que um hábito de outra pessoa existe.
@@ -86,6 +90,16 @@ class HabitProgress:
     evaluation: score.Evaluation | None
     # Só com o custo ligado e um limite
     cost_periods: tuple[CostPeriod, ...] | None
+    # Primeiro e último dia local com marcação, em todo o tempo; None sem marcação
+    marks_range: tuple[date, date] | None
+
+
+def marks_range(marks: Sequence[score.Mark], tz: ZoneInfo) -> tuple[date, date] | None:
+    """O dia local da primeira e da última marcação (de todo o tempo); None sem marcação."""
+    if not marks:
+        return None
+    instants = [mark.marked_at for mark in marks]
+    return min(instants).astimezone(tz).date(), max(instants).astimezone(tz).date()
 
 
 def limit_percent(spend_cents: int, limit_cents: int) -> int | None:
@@ -138,6 +152,7 @@ def habit_progress(
         periods=score.summarize_periods(habit, marks, tz, first_day, last_day),
         evaluation=evaluation,
         cost_periods=_cost_periods(habit, marks, tz, first_day, last_day),
+        marks_range=marks_range(marks, tz),
     )
 
 

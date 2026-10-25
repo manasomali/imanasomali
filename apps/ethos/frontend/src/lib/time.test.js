@@ -5,6 +5,7 @@ import {
   dayBounds,
   isValidTimezone,
   localDate,
+  localTime,
   markedAtFor,
   parseDate,
   pastDayNoon,
@@ -203,5 +204,13 @@ describe('time zones', () => {
     });
 
     expect(browserTimezone()).toBe('UTC');
+  });
+});
+
+describe('localTime', () => {
+  it('gives the 24-hour local time of an instant', () => {
+    expect(localTime('2026-03-04T15:05:00Z', 'America/Sao_Paulo')).toBe('12:05');
+    expect(localTime('2026-03-04T02:30:00Z', 'America/Sao_Paulo')).toBe('23:30');
+    expect(localTime(Date.parse('2026-03-04T00:00:00Z'), 'UTC')).toBe('00:00');
   });
 });

@@ -11,6 +11,7 @@ import Home from './pages/Home';
 import Legal from './pages/Legal';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
+import Report from './pages/Report/LazyReport';
 import { PATHS } from './paths';
 
 // Todas as rotas, relativas ao basename /ethos. Tela que exige sessão entra como filha de
@@ -28,6 +29,7 @@ export const routes = [
         children: [
           { path: PATHS.home, element: <Home /> },
           { path: PATHS.account, element: <Account /> },
+          { path: PATHS.report, element: <Report /> },
           {
             element: <RequireAdmin />,
             children: [

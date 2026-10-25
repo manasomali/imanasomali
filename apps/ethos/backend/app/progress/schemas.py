@@ -7,7 +7,8 @@
   do SQLite, no máximo `MAX_HABIT_IDS`.
 
 Na resposta, campos de recursos desligados nem aparecem: `score` (dentro do `habit`, como no
-`GET /habits`), `spend_cents` dos períodos e `cost_periods`.
+`GET /habits`), `spend_cents` dos períodos e `cost_periods`. `marks_range` vem sempre (null sem
+marcação).
 """
 
 import re
@@ -69,6 +70,14 @@ class CostPeriodOut(BaseModel):
     limit_percent: int | None
 
 
+class MarksRangeOut(BaseModel):
+    """Dias locais da primeira e da última marcação do hábito, em todo o tempo (fora do
+    intervalo pedido também)."""
+
+    first_day: date
+    last_day: date
+
+
 class HabitProgressOut(BaseModel):
     # A configuração, o papel e, com a pontuação ligada, `score: {value, success}`
     habit: HabitOut
@@ -77,6 +86,8 @@ class HabitProgressOut(BaseModel):
     periods: list[PeriodOut]
     # Só com o custo ligado e um limite
     cost_periods: list[CostPeriodOut] | None = Field(default=None, exclude_if=_is_none)
+    # Sempre presente; null sem nenhuma marcação
+    marks_range: MarksRangeOut | None
 
 
 class ProgressOut(BaseModel):

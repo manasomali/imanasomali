@@ -684,6 +684,46 @@ def test_limit_percent():
     assert limit_percent(1, 0) is None
 
 
+# --- marcações de todo o tempo ---
+
+
+def test_marks_range_covers_all_time(client, ana, db_session):
+    model = habit(db_session, ana)
+    empty = habit(db_session, ana)
+    # Antes da criação (histórico), fora do intervalo pedido e 01:00 UTC (dia anterior em SP)
+    mark(
+        db_session,
+        model,
+        at("1950-06-01"),
+        at("2026-03-10"),
+        datetime(2026, 3, 25, 1, 0, tzinfo=UTC),
+    )
+
+    body = ok(client, ana, "2026-03-01", "2026-03-01")
+
+    assert [item["marks_range"] for item in body["habits"]] == [
+        {"first_day": "1950-06-01", "last_day": "2026-03-24"},
+        None,
+    ]
+    assert ids(body) == [model.id, empty.id]
+
+
+def test_marks_range_in_the_timezone_of_the_viewer(client, ana, bia, db_session):
+    shared = habit(db_session, ana)
+    save(db_session, new_member(shared, bia.user, "viewer"))
+    # 2026-03-10 22:00 em São Paulo já é 2026-03-11 em Tóquio
+    mark(db_session, shared, at("2026-03-10", hour=22))
+
+    assert only(ok(client, ana))["marks_range"] == {
+        "first_day": "2026-03-10",
+        "last_day": "2026-03-10",
+    }
+    assert only(ok(client, bia))["marks_range"] == {
+        "first_day": "2026-03-11",
+        "last_day": "2026-03-11",
+    }
+
+
 # --- leitura em lote ---
 
 

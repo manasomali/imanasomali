@@ -1,0 +1,264 @@
+/* Tela do relatório */
+.title {
+  margin-bottom: 0.5rem;
+  font-size: var(--text-2xl);
+}
+
+.intro,
+.muted {
+  margin-bottom: 1.25rem;
+  color: var(--muted);
+}
+
+.subtitle {
+  margin-bottom: 0.75rem;
+  font-size: var(--text-xl);
+}
+
+.section {
+  margin-top: 2rem;
+}
+
+/* Formulário */
+.form {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.fieldset {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.options {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.legend {
+  margin-bottom: 0.4rem;
+  padding: 0;
+  font-weight: 700;
+}
+
+.presets,
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.dates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.input:focus-visible {
+  border-color: var(--fg);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--fg);
+  border-style: dashed;
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.fieldError {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: 0.35rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.check input {
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: var(--fg);
+}
+
+.checkText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.swatch {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: var(--habit-color, var(--muted));
+}
+
+.button,
+.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button {
+  background: transparent;
+}
+
+.button:hover {
+  background: var(--surface-hover);
+}
+
+.primary {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.button:disabled,
+.primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Resumo dos hábitos */
+.summaries {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.cardTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-lg);
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.details div {
+  min-width: 0;
+}
+
+.details dt {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+/* Exports */
+.exports {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.status {
+  font-weight: 700;
+}
+
+.status:empty {
+  display: none;
+}
+
+.preview {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  margin: 0;
+}
+
+.preview img {
+  width: min(100%, 22rem);
+  height: auto;
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+}
