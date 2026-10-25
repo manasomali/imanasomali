@@ -1,11 +1,15 @@
+import { useRef } from 'react';
 import { Outlet, ScrollRestoration } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import Banner from '../Banner';
 import Menu from '../Menu';
 import styles from './styles.module.css';
 
-// Moldura de todas as telas: link de pular para o conteúdo, menu, <main> e rodapé
+// Moldura de todas as telas: link de pular para o conteúdo, menu, banner do admin (também nas
+// telas sem login), <main> e rodapé
 export default function Layout() {
   const { t } = useTranslation();
+  const mainRef = useRef(null);
 
   return (
     <>
@@ -13,7 +17,8 @@ export default function Layout() {
         {t('a11y.skip_to_content')}
       </a>
       <Menu />
-      <main id="content" tabIndex={-1} className={styles.main}>
+      <Banner onDismiss={() => mainRef.current?.focus()} />
+      <main ref={mainRef} id="content" tabIndex={-1} className={styles.main}>
         <Outlet />
       </main>
       <footer className={styles.footer}>

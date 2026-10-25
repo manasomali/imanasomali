@@ -1,0 +1,266 @@
+/* Estilos comuns do painel de admin */
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tab {
+  padding-block: 0.4rem;
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: border-color var(--transition);
+}
+
+.tab:hover,
+.tabActive {
+  border-bottom-color: var(--fg);
+}
+
+.title {
+  margin-bottom: 1rem;
+  font-size: var(--text-2xl);
+}
+
+.subtitle {
+  margin-bottom: 0.75rem;
+  font-size: var(--text-xl);
+}
+
+.section {
+  margin-top: 2rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-weight: 700;
+}
+
+.notice svg {
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+}
+
+.status {
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.status:empty {
+  display: none;
+}
+
+/* Formulários */
+.form {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg);
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.input:focus-visible {
+  border-color: var(--fg);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--fg);
+  border-style: dashed;
+}
+
+textarea.input {
+  resize: vertical;
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.counter {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  justify-self: end;
+}
+
+.counterOver {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+.fieldError {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.button,
+.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button {
+  background: transparent;
+}
+
+.button:hover {
+  background: var(--surface-hover);
+}
+
+.primary {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.button:disabled,
+.primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Listas de cartões (contas, hábitos, marcações, banners) */
+.list {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.cardTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-lg);
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.details div {
+  min-width: 0;
+}
+
+.details dt {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.confirm {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: var(--habit-color, var(--muted));
+}
+
+.text {
+  overflow-wrap: anywhere;
+}
+
+.back {
+  margin-bottom: 1.5rem;
+}
+
+.filter {
+  max-width: 20rem;
+  margin-bottom: 1rem;
+}
+
+.more {
+  margin-top: 1rem;
+}

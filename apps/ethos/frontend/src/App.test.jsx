@@ -7,7 +7,7 @@ import { BASENAME, PATHS } from './paths';
 import { axe } from './test/axe';
 import { createTestI18n } from './test/i18n';
 import { meFixture, renderApp } from './test/render';
-import { api, server } from './test/server';
+import { activeBanner, api, server } from './test/server';
 
 const OTHER_TIMEZONE = browserTimezone() === 'Asia/Tokyo' ? 'Europe/Lisbon' : 'Asia/Tokyo';
 
@@ -16,6 +16,7 @@ function signedIn(overrides = {}) {
   const writes = [];
   server.use(
     http.get(api('/auth/me'), () => HttpResponse.json(meFixture(overrides))),
+    activeBanner(),
     http.all(api('/*'), ({ request }) => {
       writes.push(`${request.method} ${new URL(request.url).pathname}`);
       return HttpResponse.json({ error: 'not_found', field: null }, { status: 404 });

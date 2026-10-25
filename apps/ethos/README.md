@@ -327,18 +327,20 @@ npm run preview                            # serve o dist/ localmente
 | `public/locales/{pt,en}/translation.json` | Traduções, baixadas em runtime (não vão no bundle) |
 | `src/main.jsx` | Inicia o i18n, cria o router e o QueryClient (`createApp`) e monta o `App` |
 | `src/bootstrap.js` | `createApp()`: router com `basename="/ethos"` e QueryClient ligados (401 em qualquer chamada leva para o login) |
-| `src/routes.jsx` | Todas as rotas. Tela que exige sessão é filha de `RequireSession`; tela pública (login, termos, privacidade) fica fora |
-| `src/paths.js` | `BASENAME` e `PATHS` (`/`, `/entrar`, `/conta`). Use as constantes, nunca o caminho escrito à mão |
+| `src/routes.jsx` | Todas as rotas. Tela que exige sessão é filha de `RequireSession`; tela pública (login, termos, privacidade) fica fora. O painel de admin é filho de `RequireAdmin` |
+| `src/paths.js` | `BASENAME` e `PATHS` (`/`, `/entrar`, `/conta`, `/admin`, `/admin/contas/:userId`, `/admin/banners`) e `adminUserPath(id)`. Use as constantes, nunca o caminho escrito à mão |
 | `src/i18n.js` | `createI18n()`, `LANGUAGES` e a detecção do idioma (mesma chave do site, `i18nextLng`; `pt-BR` vira `pt`) |
 | `src/index.css` | Estilos globais. Importa as fontes, `@tokens/tokens.css` (alias para `packages/tokens`) e a paleta |
 | `src/styles/palette.css` | As 12 cores dos hábitos (`--habit-<nome>`) nos dois temas |
-| `src/api/auth.js` | `useMe()`/`fetchMe()` (`GET /auth/me`, chave `meQueryKey`), `verifyCode()`, `apiLocale()` |
-| `src/components/` | `Layout` (pular para o conteúdo, menu, `<main>`, rodapé), `Menu` (links, volta ao site, idioma, tema), `RequireSession`, `TimezoneNotice`, `ErrorMessage`, `PageTitle` |
-| `src/pages/` | Telas. Por enquanto só provisórias: `Home`, `Login` (destino do 401), `Account` (destino do aviso de fuso) e `NotFound` |
+| `src/api/auth.js` | `useMe()`/`fetchMe()` (`GET /auth/me`, chave `meQueryKey`), `useCachedMe()` (o usuário já carregado, sem buscar: para o que aparece também nas telas públicas, como o menu), `verifyCode()`, `apiLocale()` |
+| `src/api/banners.js` | `useActiveBanner()` (`GET /banners/active`, sem login, chave `activeBannerQueryKey`) |
+| `src/api/admin.js` | Endpoints de `/admin` (chaves em `adminKeys`): `useAccounts`, `useAccountHabits`, `blockAccount`, `unblockAccount`, `changeAccountEmail`, `deleteAccount`, `useBanners`, `createBanner`, `updateBanner`, `endBanner` |
+| `src/components/` | `Layout` (pular para o conteúdo, menu, banner, `<main>`, rodapé), `Menu` (links, link do admin só para `is_admin`, volta ao site, idioma, tema), `Banner`, `RequireSession`, `RequireAdmin`, `TimezoneNotice`, `ErrorMessage`, `PageTitle` |
+| `src/pages/` | Telas: `Admin/` (contas, conteúdo dos hábitos de uma conta e banners) e as provisórias `Home`, `Login` (destino do 401), `Account` (destino do aviso de fuso) e `NotFound` |
 | `src/hooks/useTheme.js` | Tema atual e a troca (botão do menu) |
 | `src/legal/{pt,en}/{terms,privacy}.json` | Textos dos termos de uso e da política de privacidade (abaixo, em "Termos e privacidade") |
 | `src/lib/` | Utilitários sem React, com cobertura mínima de 80% (abaixo) |
-| `src/test/` | Setup dos testes: MSW (`server`, `api(path)`), `renderApp(path)`, `meFixture()`, `createTestI18n()`, `axe`, `readFrontendFile()` |
+| `src/test/` | Setup dos testes: MSW (`server`, `api(path)`, `activeBanner(banner)`), `renderApp(path)`, `meFixture()`, `createTestI18n()`, `axe`, `readFrontendFile()`; do painel de admin, `src/test/admin.js` (`ADMIN`, `signedIn`, `accountFixture`, `bannerFixture`, `trackRequests`) |
 | `tests/` | Testes do build de produção, no Node |
 | `build-targets.js` | Converte o `browserslist` do `package.json` no `build.target` do Vite |
 
@@ -353,6 +355,9 @@ npm run preview                            # serve o dist/ localmente
 - `palette.js`: `HABIT_COLORS` (os 12 nomes de `HabitColor`) e `isHabitColor`. `color.js`: `contrastRatio`, `relativeLuminance` (WCAG), para escolher a cor de um texto sobre a cor de um hábito.
 - `legal.js`: `TERMS_VERSION`, `SUPPORT_EMAIL` e `loadLegalDocument(nome, idioma)` (abaixo, em "Termos e privacidade").
 - `theme.js` e `storage.js`: leitura e escrita da chave `theme` e do `localStorage` sem lançar exceção (modo privado). `timezoneNotice.js`: regra do aviso de fuso.
+- `datetime.js`: `formatDateTime(instante, fuso, idioma)` e o valor de um `<input type="datetime-local">` no fuso de quem vê (`toDateTimeLocal`, `fromDateTimeLocal`).
+- `banner.js`: texto do banner no idioma da tela (`bannerText`), o "fechar" lembrado por id em `ethos:banners-dismissed` (`dismissBanner`, `isBannerDismissed`; guarda os últimos 20), o contador de 280 caracteres como a API conta (`bannerTextLength`: sem os espaços das pontas, um por caractere Unicode) e o formulário do admin (`bannerForm`, `bannerPayload`, `bannerStatus`).
+- `admin.js`: filtros da listagem de contas (`accountQuery`), a confirmação digitando o email (`confirmsEmail`) e o id da conta na URL (`parseUserId`).
 
 ### Regras para as próximas telas
 
@@ -383,6 +388,15 @@ Cada item de `paragraphs` é um parágrafo (texto) ou uma lista (array de textos
 `src/lib/legal.test.js` falha se a versão for diferente da do backend, se o email for diferente do `SUPPORT_EMAIL` de `infra/apps/ethos/app.env`, se pt e en não tiverem as mesmas seções (mesmos ids, na mesma ordem e com a mesma forma), se um texto tiver marcação ou outro marcador, e se os prazos da seção `retention` da política não baterem com os do código (sessão e código em `app/auth/service.py`, auditoria e IP em `app/audit.py`, cópias de segurança em `infra/scripts/snapshot.sh` e `infra/lib/backups.sh`).
 
 Para publicar uma versão nova: mude os textos nos dois idiomas, `TERMS_VERSION` aqui e em `backend/app/terms.py`, no mesmo PR. Quem aceitou a versão anterior aceita a nova no próximo acesso. Os textos são um rascunho técnico, conferido contra o código, e não substituem uma revisão jurídica.
+
+### Painel de admin e banners
+
+- **Acesso:** o link "Admin" do menu só aparece com `me.is_admin`, e as rotas `/admin/...` ficam dentro de `RequireAdmin`, que manda quem não é admin para a tela inicial. É conveniência: quem garante é o backend (`AdminUser`, 403), e a tela mostra o 403 se ele recusar.
+- **Contas (`/admin`):** busca por trecho do email, status e datas de cadastro e de último login (datas no fuso do admin, como a API espera), com "carregar mais" pelo cursor. Bloquear, trocar o email e apagar abrem um painel que só libera o botão quando o admin digita o email da conta; desbloquear não pede confirmação. Uma ação por vez em cada conta.
+- **Conteúdo dos hábitos (`/admin/contas/:userId`):** a tela avisa que cada acesso fica registrado na auditoria e só busca depois do clique em "Mostrar o conteúdo" (de novo a cada conta). Cada chamada da API grava `admin_viewed_habits`, então a consulta não busca de novo sozinha (foco, reconexão) e não é cancelada ao desmontar (o StrictMode do dev faria duas chamadas).
+- **Banners (`/admin/banners`):** criar, editar (só os campos que mudaram vão no `PATCH`) e encerrar. Contador de 280 por idioma; quebra de linha vira espaço (a API só aceita uma linha). Início e fim em `datetime-local` no fuso do admin, enviados em UTC.
+- **Banner ativo:** o `Layout` mostra o `GET /banners/active` em toda tela, inclusive nas públicas, logo abaixo do menu, no idioma da tela e sempre como texto (nunca `dangerouslySetInnerHTML`). Fechar vale para aquele id neste navegador.
+- **Testes:** o `server` do MSW já responde `GET /banners/active` sem banner (`activeBanner()` em `src/test/server.js`). Um teste que registra um handler genérico (`http.all(api('/*'))`) passa na frente desse padrão: registre `activeBanner()` antes dele, como em `src/App.test.jsx`.
 
 ### Tema, idioma e navegadores
 
