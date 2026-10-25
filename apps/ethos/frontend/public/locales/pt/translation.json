@@ -593,6 +593,7 @@
     "period": "Período",
     "presets": {
       "label": "Períodos prontos",
+      "week": "Esta semana",
       "month": "Este mês",
       "year": "Este ano",
       "12_months": "Últimos 12 meses",

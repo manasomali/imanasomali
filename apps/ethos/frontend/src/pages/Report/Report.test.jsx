@@ -164,6 +164,22 @@ describe('report screen', () => {
     expect(router.state.location.search).toBe('?from=2025-03-21&to=2026-03-20&habit_id=1&habit_id=2');
   });
 
+  it('picks the current week, from Sunday to today', async () => {
+    const { progress } = setup();
+    const user = userEvent.setup();
+    renderApp('/relatorio?habit_id=1');
+    await findSummary('Running');
+
+    // 20/03/2026 é sexta: a semana começa no domingo, 15/03, como no calendário
+    await user.click(screen.getByRole('button', { name: 'This week' }));
+    expect(screen.getByLabelText('From').value).toBe('2026-03-15');
+    expect(screen.getByLabelText('To').value).toBe('2026-03-20');
+    await user.click(screen.getByRole('button', { name: 'Show report' }));
+
+    await waitFor(() => expect(progress).toHaveLength(2));
+    expect(progress[1]).toEqual({ from: '2026-03-15', to: '2026-03-20', habit_ids: [1] });
+  });
+
   it('does not go past 5 years nor run without a habit', async () => {
     const { progress } = setup();
     const user = userEvent.setup();

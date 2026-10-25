@@ -3,7 +3,7 @@
 // (`check_range` em app/progress/service.py): de 1/1/2021 vai até 31/12/2025; 1/1/2026 já seria
 // 5 anos e 1 dia. De 29/2, o aniversário num ano que não é bissexto é 1/3.
 
-import { isLeapYear } from '../calendar';
+import { isLeapYear, weekColumn } from '../calendar';
 import { addDays, parseDate } from '../time';
 
 /** Maior período de um relatório, em anos (ethos-plan.md, "relatório e export"). */
@@ -91,14 +91,17 @@ export function yearsOf(from, to) {
 }
 
 /**
- * Períodos prontos da tela, terminando hoje: 'month' (mês atual), 'year' (ano atual), '12_months'
- * (os últimos 12 meses, até hoje) e '5_years' (o máximo: 5 anos até hoje).
+ * Períodos prontos da tela, terminando hoje: 'week' (semana atual, começando no mesmo dia que as
+ * semanas do calendário, WEEK_START), 'month' (mês atual), 'year' (ano atual), '12_months' (os
+ * últimos 12 meses, até hoje) e '5_years' (o máximo: 5 anos até hoje).
  */
-export const PERIOD_PRESETS = Object.freeze(['month', 'year', '12_months', '5_years']);
+export const PERIOD_PRESETS = Object.freeze(['week', 'month', 'year', '12_months', '5_years']);
 
 export function presetPeriod(preset, today) {
   const { year, month } = parseDate(today);
   switch (preset) {
+    case 'week':
+      return { from: addDays(today, -weekColumn(today)), to: today };
     case 'month':
       return { from: day(year, month, 1), to: today };
     case 'year':

@@ -593,6 +593,7 @@
     "period": "Period",
     "presets": {
       "label": "Quick periods",
+      "week": "This week",
       "month": "This month",
       "year": "This year",
       "12_months": "Last 12 months",

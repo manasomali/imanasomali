@@ -66,6 +66,11 @@ describe('report period', () => {
   });
 
   it('has quick periods ending today, all within 5 years', () => {
+    // A semana começa no domingo, como no calendário: 24/10/2026 é sábado
+    expect(presetPeriod('week', '2026-10-24')).toEqual({ from: '2026-10-18', to: '2026-10-24' });
+    expect(presetPeriod('week', '2026-10-25')).toEqual({ from: '2026-10-25', to: '2026-10-25' });
+    expect(presetPeriod('week', '2026-11-03')).toEqual({ from: '2026-11-01', to: '2026-11-03' });
+    expect(presetPeriod('week', '2026-01-01')).toEqual({ from: '2025-12-28', to: '2026-01-01' });
     expect(presetPeriod('month', '2026-10-24')).toEqual({ from: '2026-10-01', to: '2026-10-24' });
     expect(presetPeriod('year', '2026-10-24')).toEqual({ from: '2026-01-01', to: '2026-10-24' });
     expect(presetPeriod('12_months', '2026-10-24')).toEqual({ from: '2025-10-25', to: '2026-10-24' });
