@@ -180,10 +180,64 @@ describe('home calendar', () => {
     ]);
     await waitFor(() => {
       expect(dayButton(container, '2026-03-04').getAttribute('aria-label')).toBe(
-        'Wednesday, March 4, 2026. Marked: RUN',
+        'Wednesday, March 4, 2026. Selected. Marked: RUN',
       );
     });
     expect(within(rows[0]).getByRole('button', { name: 'Unmark RUN' })).toBeDefined();
+  });
+
+  it('only selects a marked day and asks before unmarking a habit with a note (ETH-54)', async () => {
+    signedIn();
+    mockHabitsApi({
+      habits: [habitFixture({ id: 1, notes_enabled: true }), habitFixture({ id: 2, code: 'READ' })],
+      marks: {
+        1: [markFixture({ id: 10, habit_id: 1, marked_at: '2026-03-04T15:00:00Z', note: 'leg day' })],
+        2: [markFixture({ id: 20, habit_id: 2, marked_at: '2026-03-04T15:00:00Z' })],
+      },
+    });
+    const bodies = [];
+    server.use(
+      http.post(api('/habits/:id/toggle'), async ({ params, request }) => {
+        bodies.push({ habit: params.id, ...(await request.json()) });
+        return HttpResponse.json({ marked: false, mark: null });
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderApp('/');
+
+    await waitFor(() => {
+      expect(dayButton(container, '2026-03-04').getAttribute('aria-label')).toBe(
+        'Wednesday, March 4, 2026. Marked: RUN, READ',
+      );
+    });
+    // Clique e Enter só escolhem o dia
+    const day = dayButton(container, '2026-03-04');
+    await user.click(day);
+    await user.keyboard('{Enter} ');
+    expect(document.activeElement).toBe(day);
+    expect(day.getAttribute('aria-label')).toBe('Wednesday, March 4, 2026. Selected. Marked: RUN, READ');
+    const panel = screen.getByRole('region', { name: 'Wednesday, March 4, 2026' });
+    const rows = within(panel).getAllByRole('listitem');
+    expect(bodies).toEqual([]);
+
+    // RUN tem observação: pergunta antes, e cancelar devolve o foco
+    const unmarkRun = within(rows[0]).getByRole('button', { name: 'Unmark RUN' });
+    await user.click(unmarkRun);
+    expect(document.activeElement).toBe(within(rows[0]).getByRole('button', { name: 'Cancel' }));
+    expect(await axe(container)).toHaveNoViolations();
+    await user.keyboard('{Escape}');
+    expect(document.activeElement).toBe(unmarkRun);
+    expect(bodies).toEqual([]);
+    await user.click(unmarkRun);
+    await user.click(within(rows[0]).getByRole('button', { name: 'Unmark RUN anyway' }));
+    expect(bodies.map((body) => body.habit)).toEqual(['1']);
+
+    // READ não tem detalhes: desmarca direto
+    await user.click(within(rows[1]).getByRole('button', { name: 'Unmark READ' }));
+    expect(bodies.map((body) => body.habit)).toEqual(['1', '2']);
+    await waitFor(() => {
+      expect(day.getAttribute('aria-label')).toBe('Wednesday, March 4, 2026. Selected. Nothing marked');
+    });
   });
 
   it('opens a habit tab from the tabs', async () => {

@@ -329,6 +329,7 @@
     "day_count_one": "{{date}}. {{count}} mark",
     "day_count_other": "{{date}}. {{count}} marks",
     "day_habits": "{{date}}. Marked: {{habits}}",
+    "day_selected": "{{date}}. Selected",
     "day_nothing": "{{date}}. Nothing marked"
   },
   "day_panel": {
@@ -344,6 +345,11 @@
     "add": "Add mark",
     "marks": "Marks of the day"
   },
+  "confirm_unmark": {
+    "warning": "Unmarking also deletes the details of this day (note, duration or cost).",
+    "confirm": "Unmark anyway",
+    "cancel": "Cancel"
+  },
   "overview": {
     "habits": "Habits on this day",
     "mark": "Mark",
@@ -351,7 +357,8 @@
     "unmark": "Unmark",
     "unmark_label": "Unmark {{habit}}",
     "add": "Add",
-    "add_label": "Add a mark to {{habit}}"
+    "add_label": "Add a mark to {{habit}}",
+    "confirm_unmark_label": "Unmark {{habit}} anyway"
   },
   "mark": {
     "time": "Time",
@@ -931,7 +938,7 @@
     },
     "features": {
       "multi_mark": "Several marks per day",
-      "multi_mark_hint": "Off, each day is marked or not (one click). On, every mark counts.",
+      "multi_mark_hint": "Off, each day is marked or not. On, every mark counts.",
       "duration_enabled": "Duration",
       "duration_enabled_hint": "Each mark has minutes, and the goal compares the sum of the period's minutes.",
       "notes_enabled": "Note",

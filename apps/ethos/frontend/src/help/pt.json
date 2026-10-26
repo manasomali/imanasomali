@@ -25,8 +25,10 @@
       "id": "marks",
       "title": "Marcar",
       "paragraphs": [
-        "Por padrão, cada dia é marcado ou não: um clique marca, outro desmarca. Com “mais de uma marcação por dia” ligado, cada clique soma uma marcação, até 999 por dia.",
-        "Dá para marcar hoje e qualquer dia passado, nunca o futuro. Marcar hoje grava o momento do clique; marcar um dia passado grava 12:00 daquele dia no seu fuso.",
+        "Clicar num dia do calendário (ou apertar Enter ou Espaço nele) só escolhe o dia e mostra os detalhes no painel do dia: nada é marcado nem desmarcado. Assim dá para abrir um dia marcado e pôr uma observação sem perder a marcação.",
+        "Marcar e desmarcar ficam nos botões do painel. Por padrão, cada dia é marcado ou não: “Marcar este dia” marca e “Desmarcar este dia” desmarca. Com “mais de uma marcação por dia” ligado, cada “Adicionar marcação” soma uma, até 999 por dia, e cada marcação se apaga nos detalhes dela. Na tela inicial, o painel do dia tem os mesmos atalhos para cada hábito.",
+        "Desmarcar apaga a observação, a duração e o custo do dia. Por isso, se o dia tem observação, ou uma duração ou um custo diferentes do padrão do hábito, o painel pede confirmação antes.",
+        "Dá para marcar hoje e qualquer dia passado, nunca o futuro. Marcar hoje grava o momento em que você marca; marcar um dia passado grava 12:00 daquele dia no seu fuso.",
         "Dias antes da criação do hábito podem ser marcados, para registrar o que você já fazia, mas não contam na pontuação.",
         "Nos detalhes de uma marcação dá para mudar a duração, a observação (até 140 caracteres, só como lembrete) e o custo (só no custo por marcação). A data não muda: para trocar, apague a marcação e crie outra.",
         "Marcam, desmarcam e editam o dono e quem tem papel de edição, em qualquer marcação do hábito. Quem só visualiza não muda nada."

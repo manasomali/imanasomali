@@ -14,7 +14,8 @@ import styles from './styles.module.css';
 //   do hábito. O número do dia marcado usa o texto que contrasta com a cor (src/lib/palette.js);
 // - `dots` (`{shown: [{id, color}], extra, labels}`, memorizado): aba principal, até 4 pontos,
 //   "+N" e as siglas no hover e no foco;
-// - `onActivate(day)`: clique, Enter ou Espaço (o botão nativo já trata as duas teclas);
+// - `onSelect(day)`: clique, Enter ou Espaço (o botão nativo já trata as duas teclas) só escolhem o
+//   dia, nunca marcam nem desmarcam: isso fica nos botões do painel do dia (ETH-54);
 // - `onKeyDown` e `onFocus`: do Calendar (setas e foco itinerante).
 function DayCell({
   day,
@@ -29,13 +30,13 @@ function DayCell({
   marked = false,
   count = 0,
   dots,
-  onActivate,
+  onSelect,
   onKeyDown,
   onFocus,
 }) {
   const colorRef = useHabitColor(color);
   const onClick = () => {
-    if (!future) onActivate(day);
+    if (!future) onSelect(day);
   };
 
   return (

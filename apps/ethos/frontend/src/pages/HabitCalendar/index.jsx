@@ -1,24 +1,29 @@
-import { useCallback, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { canMark } from '../../api/habits';
 import { useCreateMark, useDeleteMark, useMarks, useToggleMark } from '../../api/marks';
 import Calendar from '../../components/Calendar';
 import CalendarNav from '../../components/CalendarNav';
+import ConfirmUnmark from '../../components/ConfirmUnmark';
 import DayPanel from '../../components/DayPanel';
 import ErrorMessage from '../../components/ErrorMessage';
 import MarkItem from '../../components/MarkItem';
 import useCalendarParams from '../../hooks/useCalendarParams';
 import useHabitContext from '../../hooks/useHabitContext';
 import { formatLongDay, formatPeriod } from '../../lib/format';
+import { dayHasDetails } from '../../lib/markDetails';
 import { markedAtFor, today } from '../../lib/time';
 import styles from '../calendar.module.css';
 
 const NO_MARKS = new Map();
 const NO_DAY_MARKS = [];
 
-// Calendário de um hábito (rota índice da aba do hábito). Toggle: clicar (ou Enter/Espaço) marca
-// ou desmarca o dia e mostra os detalhes no painel. Várias por dia: clicar escolhe o dia, e o
-// painel tem o contador, a lista e o "adicionar". Arquivado e viewer só leem
+// Calendário de um hábito (rota índice da aba do hábito). Clicar num dia (ou Enter/Espaço) só o
+// escolhe e mostra os detalhes no painel, para editar sem desmarcar sem querer (ETH-54). O foco
+// fica no calendário (as setas continuam andando); o painel vem antes dele no HTML, então
+// Shift+Tab chega aos botões. Toggle: o painel marca e desmarca o dia; desmarcar um dia com
+// observação, duração ou custo (dayHasDetails) pede confirmação. Várias por dia: o painel tem o
+// contador, a lista e o "adicionar". Arquivado e viewer só leem
 export default function HabitCalendar() {
   const { t, i18n } = useTranslation();
   const language = i18n.resolvedLanguage;
@@ -35,38 +40,32 @@ export default function HabitCalendar() {
   const { mutate: deleteMark } = useDeleteMark(habit, timeZone);
   // Erro da última escrita (a mudança otimista já foi desfeita)
   const [error, setError] = useState(null);
+  // Dia em que "desmarcar" espera a confirmação (trocar de dia a esquece)
+  const [confirmDay, setConfirmDay] = useState(null);
+  const toggleButton = useRef(null);
 
-  const write = useCallback((mutate, variables) => {
+  const write = (mutate, variables) => {
     setError(null);
     mutate(variables, { onError: setError });
-  }, []);
+  };
 
   // Marca o dia `value` com `mutate` (toggle ou nova marcação)
-  const markDay = useCallback(
-    (mutate, value) => {
-      let markedAt;
-      try {
-        markedAt = markedAtFor(value, timeZone);
-      } catch {
-        // O dia virou futuro (o relógio ou o fuso mudou): nada a marcar
-        return;
-      }
-      write(mutate, { day: value, markedAt });
-    },
-    [timeZone, write],
-  );
+  const markDay = (mutate, value) => {
+    let markedAt;
+    try {
+      markedAt = markedAtFor(value, timeZone);
+    } catch {
+      // O dia virou futuro (o relógio ou o fuso mudou): nada a marcar
+      return;
+    }
+    write(mutate, { day: value, markedAt });
+  };
 
   const multi = habit.multi_mark;
-  const onActivate = useCallback(
-    (value) => {
-      setDay(value);
-      if (writable && loaded && !multi) markDay(toggleMark, value);
-    },
-    [setDay, writable, loaded, multi, markDay, toggleMark],
-  );
 
   const dayLabel = (value, count, future) => {
-    const date = formatLongDay(value, language);
+    const long = formatLongDay(value, language);
+    const date = value === day ? t('calendar.day_selected', { date: long }) : long;
     if (future) return t('calendar.day_future', { date });
     if (multi) {
       return count === 0
@@ -89,7 +88,7 @@ export default function HabitCalendar() {
       color: habit.color,
       marked: count > 0,
       count: multi ? count : 0,
-      onActivate,
+      onSelect: setDay,
     };
   };
 
@@ -99,6 +98,23 @@ export default function HabitCalendar() {
   if (!loaded) state = t('common.loading');
   else if (multi) state = count === 0 ? t('day_panel.no_marks') : t('day_panel.count', { count });
   else state = count > 0 ? t('day_panel.marked') : t('day_panel.unmarked');
+  const askToUnmark = writable && loaded && !multi && count > 0 && dayHasDetails(habit, dayMarks);
+  // Outro dia (ou o dia sem o que perder) esquece a confirmação, que não volta sozinha depois
+  // (voltaria tirando o foco do calendário)
+  if (confirmDay !== null && (confirmDay !== day || !askToUnmark)) setConfirmDay(null);
+  const confirming = askToUnmark && confirmDay === day;
+
+  const onToggle = () => {
+    if (askToUnmark) setConfirmDay(day);
+    else markDay(toggleMark, day);
+  };
+
+  // Fim da confirmação: desmarca (ou não) e devolve o foco ao botão, que continua na tela
+  const closeConfirm = (confirmed) => {
+    setConfirmDay(null);
+    if (confirmed) markDay(toggleMark, day);
+    toggleButton.current?.focus();
+  };
 
   return (
     <>
@@ -127,14 +143,18 @@ export default function HabitCalendar() {
                   </button>
                 ) : (
                   <button
+                    ref={toggleButton}
                     type="button"
                     className={styles.primary}
-                    onClick={() => markDay(toggleMark, day)}
+                    onClick={onToggle}
                   >
                     {count > 0 ? t('day_panel.unmark') : t('day_panel.mark')}
                   </button>
                 )}
               </div>
+            )}
+            {confirming && (
+              <ConfirmUnmark onConfirm={() => closeConfirm(true)} onCancel={() => closeConfirm(false)} />
             )}
             {error && (
               <div className={styles.feedback}>

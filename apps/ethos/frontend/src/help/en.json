@@ -25,8 +25,10 @@
       "id": "marks",
       "title": "Marking",
       "paragraphs": [
-        "By default, each day is marked or not: one click marks it, another one unmarks it. With “several marks per day” on, each click adds a mark, up to 999 per day.",
-        "You can mark today and any past day, never the future. Marking today saves the moment of the click; marking a past day saves 12:00 of that day in your time zone.",
+        "Clicking a day in the calendar (or pressing Enter or Space on it) only selects the day and shows its details in the day panel: nothing is marked or unmarked. This way you can open a marked day and add a note without losing the mark.",
+        "Marking and unmarking are done with the buttons in the panel. By default, each day is marked or not: “Mark this day” marks it and “Unmark this day” unmarks it. With “several marks per day” on, each “Add mark” adds one, up to 999 per day, and each mark is deleted in its own details. On the home screen, the day panel has the same shortcuts for each habit.",
+        "Unmarking deletes the note, duration and cost of the day. So if the day has a note, or a duration or cost other than the habit default, the panel asks for confirmation first.",
+        "You can mark today and any past day, never the future. Marking today saves the moment you mark it; marking a past day saves 12:00 of that day in your time zone.",
         "Days before the habit was created can be marked, to record what you already did, but they do not count in the score.",
         "In the details of a mark you can change the duration, the note (up to 140 characters, just a reminder) and the cost (only with the cost per mark). The date does not change: to move a mark, delete it and create another one.",
         "The owner and people with the editing role mark, unmark and edit any mark of the habit. People who can only view change nothing."

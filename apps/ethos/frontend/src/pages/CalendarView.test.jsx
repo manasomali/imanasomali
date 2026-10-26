@@ -402,7 +402,12 @@ describe('calendar view: habit tab', () => {
 
     const day = await findDay('Wednesday, March 4, 2026');
     await waitFor(() => expect(day.getAttribute('aria-label')).toMatch(/Not marked$/));
+    // Clicar e o Enter só escolhem o dia; marca o botão do painel
     await user.click(day);
+    await user.keyboard('{Enter}');
+    expect(dayPanelTitle('Wednesday, March 4, 2026')).toBeDefined();
+    expect(day.getAttribute('aria-label')).toBe('Wednesday, March 4, 2026. Selected. Not marked');
+    await user.click(screen.getByRole('button', { name: 'Mark this day' }));
     await waitFor(() => expect(day.getAttribute('aria-label')).toMatch(/Marked$/));
     expect(day.dataset.marked).toBe('true');
     // Dia futuro não marca

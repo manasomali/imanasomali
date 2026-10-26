@@ -329,11 +329,14 @@ describe('calendar range: habit tab', () => {
 
     const december = await findDay('Wednesday, December 31, 2025');
     await waitFor(() => expect(december.getAttribute('aria-label')).toMatch(/Not marked$/));
+    // Clicar no dia só o escolhe; marca o botão do painel
     await user.click(december);
+    await user.click(screen.getByRole('button', { name: 'Mark this day' }));
     await waitFor(() => expect(december.getAttribute('aria-label')).toMatch(/Marked$/));
 
     const january = dayButton('Thursday, January 1, 2026');
     await user.click(january);
+    await user.click(screen.getByRole('button', { name: 'Mark this day' }));
     await waitFor(() => expect(january.getAttribute('aria-label')).toMatch(/Marked$/));
     failure.resolve(HttpResponse.json({ error: 'internal_error', field: null }, { status: 500 }));
 
@@ -415,7 +418,7 @@ describe('calendar range: home', () => {
 
     await waitFor(() => {
       expect(dayButton('Wednesday, December 24, 2025').getAttribute('aria-label')).toBe(
-        'Wednesday, December 24, 2025. Marked: RUN',
+        'Wednesday, December 24, 2025. Selected. Marked: RUN',
       );
     });
     expect(shownMonths()).toEqual(['December']);

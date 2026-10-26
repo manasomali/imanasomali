@@ -25,8 +25,10 @@ import styles from './styles.module.css';
 const NO_HABITS = [];
 
 // Aba principal: a faixa do calendário (mês, 3 meses ou ano) com todos os hábitos ativos e pausados. Cada dia mostra até 4 pontos com a
-// cor dos hábitos marcados e "+N" para o resto (siglas no hover e no foco). Escolher um dia abre o
-// painel com o estado de cada hábito e o atalho de marcar. Os arquivados ficam numa seção à parte
+// cor dos hábitos marcados e "+N" para o resto (siglas no hover e no foco). Clicar num dia (ou
+// Enter/Espaço) só o escolhe e abre o painel com o estado de cada hábito e o atalho de marcar,
+// desmarcar ou adicionar (OverviewRow); o foco fica no calendário. Os arquivados ficam numa seção à
+// parte
 export default function Home() {
   const { t, i18n } = useTranslation();
   const language = i18n.resolvedLanguage;
@@ -44,7 +46,8 @@ export default function Home() {
   const dayProps = (value) => {
     const future = value > current;
     const dots = overview.get(value);
-    const date = formatLongDay(value, language);
+    const long = formatLongDay(value, language);
+    const date = value === day ? t('calendar.day_selected', { date: long }) : long;
     let label;
     if (future) label = t('calendar.day_future', { date });
     else if (dots) label = t('calendar.day_habits', { date, habits: dots.labels });
@@ -55,7 +58,7 @@ export default function Home() {
       today: value === current,
       selected: value === day,
       dots,
-      onActivate: setDay,
+      onSelect: setDay,
     };
   };
 
