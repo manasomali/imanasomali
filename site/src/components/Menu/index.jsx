@@ -9,8 +9,8 @@ import styles from './styles.module.css';
 
 const links = [
   { to: '/about', i18nKey: 'menu.about' },
-  { to: '/projects', i18nKey: 'menu.projects' },
   { to: '/apps', i18nKey: 'menu.apps' },
+  { to: '/projects', i18nKey: 'menu.projects' },
   { to: '/publications', i18nKey: 'menu.publications' },
 ];
 
