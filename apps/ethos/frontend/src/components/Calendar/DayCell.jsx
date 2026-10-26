@@ -16,6 +16,10 @@ import styles from './styles.module.css';
 //   "+N" e as siglas no hover e no foco;
 // - `onSelect(day)`: clique, Enter ou Espaço (o botão nativo já trata as duas teclas) só escolhem o
 //   dia, nunca marcam nem desmarcam: isso fica nos botões do painel do dia (ETH-54);
+// - `onActivate(day)`, opcional: o duplo clique, depois dos dois cliques (que já escolheram o dia),
+//   faz a ação principal do painel (ETH-55). É um atalho de mouse: o teclado usa os botões do
+//   painel. Sem ele (aba principal, viewer, arquivado) o duplo clique é só os dois cliques. Nunca
+//   no dia futuro. Como `onSelect`, precisa ser estável (o DayCell é memorizado);
 // - `onKeyDown` e `onFocus`: do Calendar (setas e foco itinerante).
 function DayCell({
   day,
@@ -31,6 +35,7 @@ function DayCell({
   count = 0,
   dots,
   onSelect,
+  onActivate,
   onKeyDown,
   onFocus,
 }) {
@@ -38,6 +43,7 @@ function DayCell({
   const onClick = () => {
     if (!future) onSelect(day);
   };
+  const onDoubleClick = onActivate && !future ? () => onActivate(day) : undefined;
 
   return (
     <button
@@ -54,6 +60,7 @@ function DayCell({
       data-pending={pending || undefined}
       data-week-start={weekStart || undefined}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       onKeyDown={onKeyDown}
       onFocus={onFocus}
     >

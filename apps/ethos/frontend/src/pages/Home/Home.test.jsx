@@ -240,6 +240,45 @@ describe('home calendar', () => {
     });
   });
 
+  it.each(['grid', 'columns'])('only selects a day on a double click, in the %s (ETH-55)', async (view) => {
+    signedIn();
+    mockHabitsApi({
+      habits: [habitFixture({ id: 1 }), habitFixture({ id: 2, code: null, name: 'Water', multi_mark: true })],
+      marks: { 1: [markFixture({ id: 10, habit_id: 1, marked_at: '2026-03-02T15:00:00Z' })], 2: [] },
+    });
+    // Nenhuma escrita: o MSW falharia o teste com qualquer outra request
+    const writes = [];
+    server.use(
+      http.post(api('/habits/:id/toggle'), ({ params }) => {
+        writes.push(params.id);
+        return HttpResponse.json({ marked: false, mark: null });
+      }),
+      http.post(api('/habits/:id/marks'), ({ params }) => {
+        writes.push(params.id);
+        return HttpResponse.json(markFixture(), { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    const { container, router } = renderApp(`/?range=month&view=${view}`);
+
+    await waitFor(() => {
+      expect(dayButton(container, '2026-03-02').getAttribute('aria-label')).toBe('Monday, March 2, 2026. Marked: RUN');
+    });
+    // Não dá para saber qual hábito marcar: os dois cliques escolhem o dia e mais nada
+    await user.dblClick(dayButton(container, '2026-03-02'));
+    expect(screen.getByRole('region', { name: 'Monday, March 2, 2026' })).toBeDefined();
+    expect(new URLSearchParams(router.state.location.search).get('day')).toBe('2026-03-02');
+    await user.dblClick(dayButton(container, '2026-03-04'));
+
+    const day = dayButton(container, '2026-03-04');
+    expect(screen.getByRole('region', { name: 'Wednesday, March 4, 2026' })).toBeDefined();
+    expect(day.getAttribute('aria-label')).toBe('Wednesday, March 4, 2026. Selected. Nothing marked');
+    expect(dayButton(container, '2026-03-02').getAttribute('aria-label')).toBe('Monday, March 2, 2026. Marked: RUN');
+    expect(document.activeElement).toBe(day);
+    expect(writes).toEqual([]);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it('opens a habit tab from the tabs', async () => {
     signedIn();
     mockHabitsApi({ habits: [habitFixture({ id: 3 })] });

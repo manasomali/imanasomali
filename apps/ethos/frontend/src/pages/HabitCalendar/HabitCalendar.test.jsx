@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { configure, screen, waitFor, within } from '@testing-library/react';
+import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { BASENAME } from '../../paths';
@@ -445,6 +445,230 @@ describe('habit calendar: toggle', () => {
     // Depois da última escrita, o ano é buscado de novo para confirmar o estado
     await waitFor(() => expect(requests.filter((r) => r.path === '/habits/1/marks')).toHaveLength(2));
     await waitFor(() => expect(day.getAttribute('aria-label')).toMatch(/Not marked$/));
+  });
+});
+
+/** Registra o POST /habits/:id/marks (nova marcação) e devolve os corpos recebidos. */
+function createMarkApi() {
+  const bodies = [];
+  server.use(
+    http.post(api('/habits/:id/marks'), async ({ request }) => {
+      const body = await request.json();
+      bodies.push(body);
+      return HttpResponse.json(markFixture({ id: 600 + bodies.length, marked_at: body.marked_at }), {
+        status: 201,
+      });
+    }),
+  );
+  return bodies;
+}
+
+/** Espera as escritas otimistas terminarem (nenhum dia com data-pending). */
+async function settled(container) {
+  await waitFor(() => expect(container.querySelector('[data-pending]')).toBeNull());
+}
+
+describe('habit calendar: double click (ETH-55)', () => {
+  it('marks an unmarked day once, after the first click selected it', async () => {
+    signedIn();
+    mockHabitsApi({ habits: [habitFixture()] });
+    const response = deferred();
+    // O dia escolhido na URL quando a escrita sai
+    const selectedAtWrite = [];
+    let router;
+    const bodies = toggleApi(() => {
+      selectedAtWrite.push(new URLSearchParams(router.state.location.search).get('day'));
+      return response.promise;
+    });
+    const user = userEvent.setup();
+    const rendered = renderApp('/habits/1');
+    router = rendered.router;
+
+    const day = await findDay('Wednesday, March 4, 2026');
+    await screen.findByRole('button', { name: 'Mark this day' });
+    await user.dblClick(day);
+
+    // Os dois cliques escolhem o dia; o duplo clique marca uma vez, na hora (otimista)
+    expect(screen.getByRole('heading', { level: 2, name: 'Wednesday, March 4, 2026' })).toBeDefined();
+    await waitFor(() => expect(day.getAttribute('aria-label')).toBe('Wednesday, March 4, 2026. Selected. Marked'));
+    expect(day.dataset.pending).toBe('true');
+    // O foco fica no dia: as setas continuam andando
+    expect(document.activeElement).toBe(day);
+    response.resolve(created(bodies[0]));
+    await settled(rendered.container);
+
+    expect(bodies).toEqual([
+      {
+        day_start: '2026-03-04T03:00:00.000Z',
+        day_end: '2026-03-05T03:00:00.000Z',
+        marked_at: '2026-03-04T15:00:00.000Z',
+      },
+    ]);
+    expect(selectedAtWrite).toEqual(['2026-03-04']);
+    expect(day.dataset.marked).toBe('true');
+    expect(screen.getByRole('button', { name: 'Unmark this day' })).toBeDefined();
+    expect(await axe(rendered.container)).toHaveNoViolations();
+  });
+
+  it('undoes the mark of a double click when the API fails', async () => {
+    signedIn();
+    mockHabitsApi({ habits: [habitFixture()] });
+    const response = deferred();
+    const bodies = toggleApi(() => response.promise);
+    const user = userEvent.setup();
+    renderApp('/habits/1');
+
+    const day = await findDay('Monday, March 2, 2026');
+    await screen.findByRole('button', { name: 'Mark this day' });
+    await user.dblClick(day);
+    await waitFor(() => expect(day.getAttribute('aria-label')).toMatch(/Marked$/));
+
+    response.resolve(HttpResponse.json({ error: 'internal_error', field: null }, { status: 500 }));
+
+    await waitFor(() => expect(day.getAttribute('aria-label')).toMatch(/Not marked$/));
+    expect(screen.getByRole('alert').textContent).toContain('Something went wrong on our side');
+    expect(bodies).toHaveLength(1);
+  });
+
+  it('unmarks a marked day without details, with a single write', async () => {
+    signedIn();
+    mockHabitsApi({
+      habits: [habitFixture({ notes_enabled: true })],
+      marks: { 1: [markFixture({ id: 7, marked_at: '2026-03-02T15:00:00Z' })] },
+    });
+    const bodies = toggleApi(() => HttpResponse.json({ marked: false, mark: null }));
+    const user = userEvent.setup();
+    const { container } = renderApp('/habits/1');
+
+    const day = await findDay('Monday, March 2, 2026');
+    await waitFor(() => expect(day.getAttribute('aria-label')).toMatch(/Marked$/));
+    await user.dblClick(day);
+
+    await waitFor(() => expect(day.getAttribute('aria-label')).toBe('Monday, March 2, 2026. Selected. Not marked'));
+    await settled(container);
+    expect(bodies).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Unmark anyway' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Mark this day' })).toBeDefined();
+  });
+
+  it('asks before unmarking a day with details, as the panel button does', async () => {
+    signedIn();
+    const mark = markFixture({ id: 7, marked_at: '2026-03-02T15:00:00Z', note: 'leg day' });
+    mockHabitsApi({ habits: [habitFixture({ notes_enabled: true })], marks: { 1: [mark] } });
+    const bodies = toggleApi(() => HttpResponse.json({ marked: false, mark: null }));
+    const user = userEvent.setup();
+    const { container } = renderApp('/habits/1');
+
+    const day = await findDay('Monday, March 2, 2026');
+    await waitFor(() => expect(day.getAttribute('aria-label')).toMatch(/Marked$/));
+    await user.dblClick(day);
+
+    // Nada sai antes de confirmar; o foco vai para "Cancelar", no painel do dia escolhido
+    const confirm = screen.getByRole('group', {
+      name: 'Unmarking also deletes the details of this day (note, duration or cost).',
+    });
+    expect(screen.getByRole('heading', { level: 2, name: 'Monday, March 2, 2026' })).toBeDefined();
+    expect(document.activeElement).toBe(within(confirm).getByRole('button', { name: 'Cancel' }));
+    expect(bodies).toEqual([]);
+    expect(await axe(container)).toHaveNoViolations();
+
+    // Cancelar mantém tudo e devolve o foco ao botão de desmarcar do painel
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('group', { name: /^Unmarking also deletes/ })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Unmark this day' }));
+    expect(screen.getByText('leg day')).toBeDefined();
+
+    // Outro duplo clique pergunta de novo; confirmar desmarca uma vez
+    await user.dblClick(day);
+    await user.click(screen.getByRole('button', { name: 'Unmark anyway' }));
+    await waitFor(() => expect(day.getAttribute('aria-label')).toMatch(/Not marked$/));
+    expect(bodies).toHaveLength(1);
+  });
+
+  it('keeps a confirmation asked before the URL selects the day, until it does', async () => {
+    signedIn();
+    const mark = markFixture({ id: 7, marked_at: '2026-03-02T15:00:00Z', note: 'leg day' });
+    mockHabitsApi({ habits: [habitFixture({ notes_enabled: true })], marks: { 1: [mark] } });
+    const bodies = toggleApi(() => HttpResponse.json({ marked: false, mark: null }));
+    const user = userEvent.setup();
+    renderApp('/habits/1');
+
+    const day = await findDay('Monday, March 2, 2026');
+    await waitFor(() => expect(day.getAttribute('aria-label')).toMatch(/Marked$/));
+    // O duplo clique chega antes de a navegação (uma transição do router) escolher o dia: a
+    // confirmação espera, sem aparecer no painel de outro dia
+    fireEvent.doubleClick(day);
+    expect(screen.getByRole('heading', { level: 2, name: 'Tuesday, March 10, 2026' })).toBeDefined();
+    expect(screen.queryByRole('group', { name: /^Unmarking also deletes/ })).toBeNull();
+
+    await user.click(day);
+    expect(screen.getByRole('heading', { level: 2, name: 'Monday, March 2, 2026' })).toBeDefined();
+    expect(screen.getByRole('group', { name: /^Unmarking also deletes/ })).toBeDefined();
+    // Escolher outro dia esquece a confirmação, que não volta com o dia
+    await selectDay(user, 'Tuesday, March 3, 2026');
+    await selectDay(user, 'Monday, March 2, 2026');
+    expect(screen.queryByRole('group', { name: /^Unmarking also deletes/ })).toBeNull();
+    expect(bodies).toEqual([]);
+  });
+
+  it('adds one mark to a habit with several marks per day', async () => {
+    signedIn();
+    mockHabitsApi({
+      habits: [habitFixture({ multi_mark: true, code: null, name: 'Water' })],
+      marks: { 1: [markFixture({ id: 1, marked_at: '2026-03-04T12:00:00Z' })] },
+    });
+    const bodies = createMarkApi();
+    const user = userEvent.setup();
+    const { container } = renderApp('/habits/1');
+
+    const day = await findDay('Wednesday, March 4, 2026');
+    await waitFor(() => expect(day.getAttribute('aria-label')).toMatch(/1 mark$/));
+    await user.dblClick(day);
+
+    await waitFor(() => expect(day.getAttribute('aria-label')).toBe('Wednesday, March 4, 2026. Selected. 2 marks'));
+    await settled(container);
+    expect(bodies).toEqual([{ marked_at: '2026-03-04T15:00:00.000Z' }]);
+    expect(within(screen.getByRole('list', { name: 'Marks of the day' })).getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('does nothing on a future day', async () => {
+    signedIn();
+    mockHabitsApi({ habits: [habitFixture()] });
+    const bodies = toggleApi((body) => created(body));
+    const user = userEvent.setup();
+    const { router, container } = renderApp('/habits/1');
+
+    await screen.findByRole('button', { name: 'Mark this day' });
+    const future = dayButton('Wednesday, March 11, 2026');
+    await user.dblClick(future);
+
+    expect(router.state.location.search).toBe('');
+    expect(container.querySelectorAll('[data-marked]')).toHaveLength(0);
+    expect(bodies).toEqual([]);
+  });
+
+  it.each([
+    ['a viewer', { habits: [habitFixture({ role: 'viewer' })] }],
+    ['an archived habit', { archived: [habitFixture({ status: 'archived', archived_at: '2026-03-01T00:00:00Z' })] }],
+  ])('only selects the day for %s', async (_, habits) => {
+    signedIn();
+    mockHabitsApi({ ...habits, marks: { 1: [markFixture({ marked_at: '2026-03-02T15:00:00Z' })] } });
+    const toggles = toggleApi((body) => created(body));
+    const creates = createMarkApi();
+    const user = userEvent.setup();
+    const { container } = renderApp('/habits/1');
+
+    const marked = await findDay('Monday, March 2, 2026');
+    await waitFor(() => expect(marked.getAttribute('aria-label')).toMatch(/Marked$/));
+    await user.dblClick(marked);
+    expect(screen.getByRole('heading', { level: 2, name: 'Monday, March 2, 2026' })).toBeDefined();
+    await user.dblClick(dayButton('Tuesday, March 3, 2026'));
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Tuesday, March 3, 2026' })).toBeDefined();
+    expect(marked.dataset.marked).toBe('true');
+    expect(container.querySelectorAll('[data-marked]')).toHaveLength(1);
+    expect(toggles).toEqual([]);
+    expect(creates).toEqual([]);
   });
 });
 

@@ -113,6 +113,11 @@
   font-size: 0.8rem;
   line-height: 1.2;
   cursor: pointer;
+  /* O duplo clique marca na aba do hábito (ETH-55): sem selecionar o número do dia como texto e
+     sem o zoom do toque duplo no celular (a pinça continua dando zoom) */
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
   transition: background-color var(--transition), border-color var(--transition);
 }
 

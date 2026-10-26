@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { canMark } from '../../api/habits';
 import { useCreateMark, useDeleteMark, useMarks, useToggleMark } from '../../api/marks';
@@ -23,7 +23,9 @@ const NO_DAY_MARKS = [];
 // fica no calendário (as setas continuam andando); o painel vem antes dele no HTML, então
 // Shift+Tab chega aos botões. Toggle: o painel marca e desmarca o dia; desmarcar um dia com
 // observação, duração ou custo (dayHasDetails) pede confirmação. Várias por dia: o painel tem o
-// contador, a lista e o "adicionar". Arquivado e viewer só leem
+// contador, a lista e o "adicionar". O duplo clique num dia faz a ação principal do painel
+// (primaryAction), pelo mesmo caminho do botão, confirmação inclusive (ETH-55). Arquivado e
+// viewer só leem
 export default function HabitCalendar() {
   const { t, i18n } = useTranslation();
   const language = i18n.resolvedLanguage;
@@ -42,6 +44,8 @@ export default function HabitCalendar() {
   const [error, setError] = useState(null);
   // Dia em que "desmarcar" espera a confirmação (trocar de dia a esquece)
   const [confirmDay, setConfirmDay] = useState(null);
+  // O dia escolhido no último desenho, para saber quando ele muda
+  const [shownDay, setShownDay] = useState(day);
   const toggleButton = useRef(null);
 
   const write = (mutate, variables) => {
@@ -62,6 +66,47 @@ export default function HabitCalendar() {
   };
 
   const multi = habit.multi_mark;
+
+  const dayMarks = (day && byDay.get(day)) || NO_DAY_MARKS;
+  const count = dayMarks.length;
+  let state;
+  if (!loaded) state = t('common.loading');
+  else if (multi) state = count === 0 ? t('day_panel.no_marks') : t('day_panel.count', { count });
+  else state = count > 0 ? t('day_panel.marked') : t('day_panel.unmarked');
+
+  // Se desmarcar o dia `value` (toggle) apagaria observação, duração ou custo
+  const askToUnmark = (value) =>
+    writable && loaded && !multi && dayHasDetails(habit, byDay.get(value));
+
+  // A confirmação some quando o dia escolhido passa a ser outro ou quando o dia dela não tem mais o
+  // que perder, e não volta sozinha depois (voltaria tirando o foco do calendário). Ela vale para
+  // `confirmDay`, que pode ainda não ser o escolhido: no duplo clique, a URL (uma transição do
+  // router) pode trocar o dia depois de a confirmação ser pedida, e então ela espera o dia chegar
+  let keptConfirm = confirmDay;
+  if (shownDay !== day) {
+    setShownDay(day);
+    if (keptConfirm !== day) keptConfirm = null;
+  }
+  if (keptConfirm !== null && !askToUnmark(keptConfirm)) keptConfirm = null;
+  if (keptConfirm !== confirmDay) setConfirmDay(keptConfirm);
+  const confirming = keptConfirm !== null && keptConfirm === day;
+
+  // Ação principal do painel no dia `value`: marca ou desmarca (toggle, com a confirmação quando
+  // desmarcar perderia detalhes) ou adiciona uma marcação (várias por dia). O botão do painel a faz
+  // no dia escolhido; o duplo clique, no dia clicado
+  const primaryAction = (value) => {
+    if (multi) markDay(createMark, value);
+    else if (askToUnmark(value)) setConfirmDay(value);
+    else markDay(toggleMark, value);
+  };
+
+  // O DayCell é memorizado: o duplo clique recebe uma função estável, que chama a primaryAction do
+  // último desenho
+  const latestAction = useRef(primaryAction);
+  useLayoutEffect(() => {
+    latestAction.current = primaryAction;
+  });
+  const onActivate = useCallback((value) => latestAction.current(value), []);
 
   const dayLabel = (value, count, future) => {
     const long = formatLongDay(value, language);
@@ -89,24 +134,9 @@ export default function HabitCalendar() {
       marked: count > 0,
       count: multi ? count : 0,
       onSelect: setDay,
+      // Duplo clique: só quem pode marcar, com as marcações carregadas (o DayCell ignora o futuro)
+      onActivate: writable && loaded ? onActivate : undefined,
     };
-  };
-
-  const dayMarks = (day && byDay.get(day)) || NO_DAY_MARKS;
-  const count = dayMarks.length;
-  let state;
-  if (!loaded) state = t('common.loading');
-  else if (multi) state = count === 0 ? t('day_panel.no_marks') : t('day_panel.count', { count });
-  else state = count > 0 ? t('day_panel.marked') : t('day_panel.unmarked');
-  const askToUnmark = writable && loaded && !multi && count > 0 && dayHasDetails(habit, dayMarks);
-  // Outro dia (ou o dia sem o que perder) esquece a confirmação, que não volta sozinha depois
-  // (voltaria tirando o foco do calendário)
-  if (confirmDay !== null && (confirmDay !== day || !askToUnmark)) setConfirmDay(null);
-  const confirming = askToUnmark && confirmDay === day;
-
-  const onToggle = () => {
-    if (askToUnmark) setConfirmDay(day);
-    else markDay(toggleMark, day);
   };
 
   // Fim da confirmação: desmarca (ou não) e devolve o foco ao botão, que continua na tela
@@ -137,7 +167,7 @@ export default function HabitCalendar() {
                   <button
                     type="button"
                     className={styles.primary}
-                    onClick={() => markDay(createMark, day)}
+                    onClick={() => primaryAction(day)}
                   >
                     {t('day_panel.add')}
                   </button>
@@ -146,7 +176,7 @@ export default function HabitCalendar() {
                     ref={toggleButton}
                     type="button"
                     className={styles.primary}
-                    onClick={onToggle}
+                    onClick={() => primaryAction(day)}
                   >
                     {count > 0 ? t('day_panel.unmark') : t('day_panel.mark')}
                   </button>
