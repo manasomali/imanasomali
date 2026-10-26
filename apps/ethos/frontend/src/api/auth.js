@@ -2,7 +2,7 @@
 // (POST /auth/code/verify); depois, só PATCH /auth/me pela tela de conta, por escolha da pessoa
 
 import { useCallback, useSyncExternalStore } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { hashKey, notifyManager, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { apiFetch } from '../lib/api';
@@ -21,16 +21,28 @@ export function useMe() {
   return useQuery({ queryKey: meQueryKey, queryFn: fetchMe });
 }
 
+const meQueryHash = hashKey(meQueryKey);
+
 /**
  * O usuário que o RequireSession já carregou, sem buscar (undefined antes disso e depois de sair).
  * Para o que aparece também nas telas públicas, como o menu: buscar ali levaria um 401 para o
  * login. Lê o cache direto (e não por um useQuery desligado), porque o queryClient.clear() do
  * sair não avisa os observadores das consultas apagadas.
+ *
+ * O cache avisa na hora, inclusive quando uma consulta nova entra nele durante o render de um
+ * componente (o useQuery cria a consulta ali). Por isso o aviso passa pelo notifyManager, que o
+ * entrega depois do render (como o próprio useQuery faz), e só vale para a consulta do /me:
+ * avisar no meio do render dispararia o "Cannot update a component while rendering" do React.
  */
 export function useCachedMe() {
   const queryClient = useQueryClient();
   const subscribe = useCallback(
-    (onChange) => queryClient.getQueryCache().subscribe(onChange),
+    (onChange) =>
+      queryClient.getQueryCache().subscribe(
+        notifyManager.batchCalls((event) => {
+          if (event.query.queryHash === meQueryHash) onChange();
+        }),
+      ),
     [queryClient],
   );
   return useSyncExternalStore(subscribe, () => queryClient.getQueryData(meQueryKey));
