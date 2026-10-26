@@ -425,6 +425,38 @@ describe('calendar view: habit tab', () => {
     expect(counted.textContent).toBe('33');
     expect(await axe(multi.container)).toHaveNoViolations();
   });
+
+  it('marks and unmarks a day with a double click in columns (ETH-55)', async () => {
+    signedIn();
+    mockHabitsApi({ habits: [habitFixture()] });
+    const bodies = [];
+    server.use(
+      http.post(api('/habits/:id/toggle'), async ({ request }) => {
+        const body = await request.json();
+        bodies.push(body);
+        return bodies.length === 1
+          ? HttpResponse.json({ marked: true, mark: markFixture({ id: 9, marked_at: body.marked_at }) })
+          : HttpResponse.json({ marked: false, mark: null });
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderApp('/habits/1?range=month&view=columns');
+
+    const day = await findDay('Wednesday, March 4, 2026');
+    await screen.findByRole('button', { name: 'Mark this day' });
+    await user.dblClick(day);
+
+    await waitFor(() => expect(day.getAttribute('aria-label')).toBe('Wednesday, March 4, 2026. Selected. Marked'));
+    await waitFor(() => expect(day.dataset.pending).toBeUndefined());
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0].marked_at).toBe('2026-03-04T15:00:00.000Z');
+
+    await user.dblClick(day);
+    await waitFor(() => expect(day.getAttribute('aria-label')).toBe('Wednesday, March 4, 2026. Selected. Not marked'));
+    expect(bodies).toHaveLength(2);
+    expect(calendarGroup().dataset.view).toBe('columns');
+    expect(await axe(container)).toHaveNoViolations();
+  });
 });
 
 describe('calendar view: home', () => {

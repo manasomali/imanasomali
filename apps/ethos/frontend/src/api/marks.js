@@ -260,9 +260,9 @@ function reconcileAdded(queryClient, mark, op, queryKey) {
 }
 
 /**
- * Marca ou desmarca um dia de um hábito toggle (botões do painel do dia; o clique no calendário só
- * escolhe o dia): `mutate({day, markedAt})` (`markedAt` de markedAtFor). Manda
- * o início e o fim do dia local; a tela marca ou desmarca na hora.
+ * Marca ou desmarca um dia de um hábito toggle (botões do painel do dia e o duplo clique no dia da
+ * aba do hábito; o clique simples no calendário só escolhe o dia): `mutate({day, markedAt})`
+ * (`markedAt` de markedAtFor). Manda o início e o fim do dia local; a tela marca ou desmarca na hora.
  */
 export function useToggleMark(habit, timeZone) {
   const queryClient = useQueryClient();

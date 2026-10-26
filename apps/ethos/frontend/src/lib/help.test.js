@@ -202,6 +202,16 @@ describe('help texts versus the code', () => {
     }
   });
 
+  // ETH-55: o duplo clique no dia faz a ação principal do painel (só na aba do hábito)
+  it('marking: the double-click shortcut', () => {
+    const DOUBLE_CLICK = { pt: 'duplo clique no dia', en: 'double-click on a day' };
+
+    expect(Object.keys(DOUBLE_CLICK).sort()).toEqual([...LANGUAGES].sort());
+    for (const language of LANGUAGES) {
+      expect(sectionText(language, 'marks')).toContain(DOUBLE_CLICK[language]);
+    }
+  });
+
   it('the pace example of "3 times per week" uses the real moments of the pace', () => {
     for (const language of LANGUAGES) {
       const alerts = sectionText(language, 'alerts');
