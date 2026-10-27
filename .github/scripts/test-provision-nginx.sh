@@ -61,6 +61,8 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=$SITE_DOMAIN" \
 touch "$le/options-ssl-nginx.conf"
 openssl dhparam -dsaparam -out "$le/ssl-dhparams.pem" 2048 2>/dev/null
 printf 'site\n' > /var/www/html/index.html
+install -d /var/www/html/assets
+printf 'site-js\n' > /var/www/html/assets/index-abc123.js
 install -d /var/www/ethos/assets
 printf 'ethos-index\n' > /var/www/ethos/index.html
 printf 'js\n' > /var/www/ethos/assets/app-abc123.js
@@ -103,13 +105,20 @@ if grep -q "atualizado\|recarregada" "$out"; then
   fail "a segunda execução mexeu no nginx"
 fi
 
-echo "--- o site em / continua igual"
+echo "--- o site em /"
 expect "/ status" "$(get /)" 200
 expect "/ corpo" "$(cat "$out")" site
 expect "/ HSTS" "$(header Strict-Transport-Security)" "$hsts"
+expect "/ Cache-Control" "$(header Cache-Control)" no-cache
 expect "/ sem CSP do ethos" "$(header Content-Security-Policy)" ""
 expect "/rota-do-site cai no index do site" "$(get /projects)" 200
 expect "/rota-do-site corpo" "$(cat "$out")" site
+expect "/rota-do-site Cache-Control" "$(header Cache-Control)" no-cache
+expect "asset do site status" "$(get /assets/index-abc123.js)" 200
+expect "asset do site corpo" "$(cat "$out")" site-js
+expect "asset do site Cache-Control" "$(header Cache-Control)" "public, max-age=31536000, immutable"
+expect "asset do site HSTS" "$(header Strict-Transport-Security)" "$hsts"
+expect "asset do site que não existe é 404, não o index.html" "$(get /assets/index-antigo.js)" 404
 
 echo "--- frontend do ethos"
 expect "/ethos redireciona" "$(get /ethos)" 301
