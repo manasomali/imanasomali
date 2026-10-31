@@ -6,7 +6,7 @@
 - frontend e backend, roteados pelo nginx
 - banco sqlite próprio: linha `engrafi` em `infra/databases.txt`, arquivo `/var/lib/sqlite/engrafi/app.db`
 - porta do backend: 3002, registrada na tabela do `infra/README.md`
-- login pela conta única do `manasomali.com` (`/conta/`, ver "conta única"), a mesma do ethos. o engrafi não tem auth próprio
+- login pelo imago, a conta única do `manasomali.com` (`/imago/`, ver "imago"), a mesma do ethos. o engrafi não tem auth próprio
 - não importa código do site nem do ethos. o que for comum vai para `packages/`
 
 ## nome do projeto
@@ -43,7 +43,7 @@ o app deve fazer o mesmo, sem os problemas de uma planilha, e permitir que outra
 - a tela de estatísticas refaz os gráficos da planilha, sempre calculados na hora
 - a retrospectiva do ano vira uma imagem para compartilhar nas redes sociais
 - as datas são só o dia, sem hora e sem fuso: a data informada é a mesma para todos os membros
-- o login é a conta única do `manasomali.com`, a mesma de todas as aplicações
+- o login é o imago, a conta única do `manasomali.com`, a mesma de todas as aplicações
 - a planilha pode ser importada, com a limpeza de eventuais  problemas
 - os dados podem ser exportados em CSV e JSON
 
@@ -59,7 +59,7 @@ itens marcados com **(novo)** não existem na planilha.
 - editar a data de uma sessão grava a nova data, com a mesma validação
 - quando uma regra fala em "dia" (limite de sessões por dia, aviso de sessão repetida no mesmo dia), é a data da sessão
 - agrupamentos por ano, mês e dia da semana (estatísticas e retrospectiva) saem da data, e o resultado é igual para todos os membros
-- o engrafi não usa fuso: ignora o header `X-User-Timezone` da conta e não guarda fuso
+- o engrafi não usa fuso: ignora o header `X-User-Timezone` do imago e não guarda fuso
 - os carimbos técnicos (`created_at`, `updated_at` e a auditoria) continuam como instante em UTC. servem para ordenar registros do mesmo dia, para o histórico e para a saída automática do "quero ver", nunca como data do diário. a tela de histórico mostra o horário deles no relógio do navegador
 
 ### diário e membros
@@ -244,26 +244,26 @@ feito uma vez, fora do app, para importar o histórico da planilha "Filmes Com N
 - lista de séries e busca de obras: sem paginação por enquanto
 
 ### retenção de dados
-- auditoria do diário: enquanto o diário existir. o engrafi não grava IP (eventos de login e IPs ficam na conta)
-- o engrafi não tem job agendado: não guarda nada que vença. a limpeza de sessões de login, códigos e eventos de auth roda na conta
+- auditoria do diário: enquanto o diário existir. o engrafi não grava IP (eventos de login e IPs ficam no imago)
+- o engrafi não tem job agendado: não guarda nada que vença. a limpeza de sessões de login, códigos e eventos de auth roda no imago
 
 ### termos de uso e política de privacidade
-- um par só para todas as aplicações, na conta (ver "conta única"), com uma seção do engrafi
+- um par só para todas as aplicações, no imago (ver "imago"), com uma seção do engrafi
 - a seção do engrafi nos termos: o dono controla o diário; apagar o diário apaga o que os membros registraram nele, e o diário também é apagado quando o dono exclui a conta (não há transferência de dono); a retrospectiva é gerada no navegador e só sai do aparelho se a pessoa compartilhar
 - a seção do engrafi na privacidade: dados guardados (diários, sessões, séries, "quero ver", observações), quem vê (membros do diário, que também veem o email uns dos outros, e o administrador, que tem acesso ao conteúdo dos diários)
 
-## conta única
-o login é a conta única do `manasomali.com`, descrita no `conta-plan.md` e compartilhada com o ethos. para o engrafi, isso quer dizer:
-- o engrafi não tem auth, cookie, SMTP nem tela de conta próprios. a conta precisa estar no ar antes dele
-- o usuário chega nos headers `X-User-Id`, `X-User-Email`, `X-User-Locale`, `X-User-Timezone` e `X-User-Admin`, que o nginx põe a partir da conta com `auth_request`. o engrafi ignora o `X-User-Timezone` (ver "datas"). sem `X-User-Id`, toda rota que exige login responde 401, e o front manda para `/conta/entrar?next=<caminho atual>`
+## imago
+o login é o imago, a conta única do `manasomali.com`, descrito no `imago-plan.md` e compartilhado com o ethos. para o engrafi, isso quer dizer:
+- o engrafi não tem auth, cookie, SMTP nem tela de conta próprios. o imago precisa estar no ar antes dele
+- o usuário chega nos headers `X-User-Id`, `X-User-Email`, `X-User-Locale`, `X-User-Timezone` e `X-User-Admin`, que o nginx põe a partir do imago com `auth_request`. o engrafi ignora o `X-User-Timezone` (ver "datas"). sem `X-User-Id`, toda rota que exige login responde 401, e o front manda para `/imago/entrar?next=<caminho atual>`
 - a cada request com login, o engrafi cria ou atualiza a linha em `app_users` (só grava quando algo mudou)
 - csrf: recusa POST/PUT/PATCH/DELETE cujo header `Origin` não seja a origem do `APP_URL`
-- emails saem pela conta (`POST /internal/mail`, tipo `notification`) e entram no teto compartilhado entre as aplicações. o convidado é buscado por `POST /internal/users/lookup`
-- o engrafi expõe `POST /internal/users/{id}/delete` e `POST /internal/users/{id}/refresh`, chamados pela conta com o `INTERNAL_API_TOKEN` (ver "exclusão de conta e dados")
-- para entrar no ar: linha `engrafi=http://127.0.0.1:3002` no `CONTA_APPS` da conta e seção do engrafi nos termos e na privacidade, o que gera uma versão nova dos termos
+- emails saem pelo imago (`POST /internal/mail`, tipo `notification`) e entram no teto compartilhado entre as aplicações. o convidado é buscado por `POST /internal/users/lookup`
+- o engrafi expõe `POST /internal/users/{id}/delete` e `POST /internal/users/{id}/refresh`, chamados pelo imago com o `INTERNAL_API_TOKEN` (ver "exclusão de conta e dados")
+- para entrar no ar: linha `engrafi=http://127.0.0.1:3002` no `IMAGO_APPS` do imago e seção do engrafi nos termos e na privacidade, o que gera uma versão nova dos termos
 
 ## migracao de ambiente
-- mesma regra do ethos: toda config por variável de ambiente. o engrafi só depende de `packages/`, de `infra/apps/engrafi/` e da conta (pela API interna e pelos headers do nginx), e pode sair do repo sem desmontar nada. levar o engrafi para outro servidor exige levar a conta junto ou trocar o `auth_request` por outro jeito de identificar o usuário
+- mesma regra do ethos: toda config por variável de ambiente. o engrafi só depende de `packages/`, de `infra/apps/engrafi/` e do imago (pela API interna e pelos headers do nginx), e pode sair do repo sem desmontar nada. levar o engrafi para outro servidor exige levar o imago junto ou trocar o `auth_request` por outro jeito de identificar o usuário
 
 ## interface
 - moderna, responsiva, tema claro e escuro, pt e en, WCAG 2.1 AA, mesmos navegadores do ethos
@@ -276,12 +276,12 @@ o login é a conta única do `manasomali.com`, descrita no `conta-plan.md` e com
   - **estatísticas**: os gráficos e números de "estatísticas", e o botão da retrospectiva do ano
   - **diário**: nome, membros, convites, obras do diário (renomear, mudar ano e tipo, apagar), importar, exportar, histórico
 - página de ajuda, em pt e en, como a do ethos, com link no menu. explica as regras que não são óbvias: o Oscar só conta sessões da obra global (registrar com o título do cadastro do Oscar), a data fixa (a mesma para todos, em qualquer fuso), a saída automática do "quero ver", o que entra na retrospectiva, como montar um CSV para importar e que a exclusão da conta do dono apaga o diário compartilhado
-- sair e excluir conta levam para a tela da conta
+- sair e excluir conta levam para a tela de conta do imago
 - gráficos em SVG gerado pelo próprio código, sem biblioteca de gráficos (mantém o bundle pequeno e a CSP só com `'self'`). cada gráfico tem uma tabela equivalente para leitores de tela
 - stack do front igual à do ethos: TanStack Query, CSS Modules com os tokens de `packages/tokens`, sem biblioteca de componentes, ícones do `react-icons` em pixels inteiros
 
 ## painel de admin
-- contas ficam no painel da conta. aqui, a lista de quem usa o engrafi (`app_users`), com contagens (diários, sessões)
+- contas ficam no painel do imago. aqui, a lista de quem usa o engrafi (`app_users`), com contagens (diários, sessões)
 - catálogo global (qualquer filme ou série): adicionar, editar, excluir e unir títulos. uma obra global usada por alguma sessão, série, item do "quero ver" ou indicado não pode ser apagada, só juntada com outra: sessões, séries e itens do "quero ver" de todos os diários, e os indicados do Oscar, passam para a que fica. se um diário acompanha as duas séries, a junção é recusada e o painel mostra quais diários. se um diário tem as duas no "quero ver", fica o item mais antigo
 - oscar:
   - criar edição (ano e data da cerimônia), copiar as categorias da edição anterior, criar, renomear, reordenar e apagar categorias
@@ -309,10 +309,10 @@ o login é a conta única do `manasomali.com`, descrita no `conta-plan.md` e com
 ## stack
 igual à do ethos (seção "stack" do `ethos-plan.md`), trocando `ethos` por `engrafi`. as diferenças:
 - frontend em `/var/www/engrafi/` (vite `base: '/engrafi/'`, react router `basename="/engrafi"`), backend como `app-engrafi` na porta 3002
-- sem auth, cookie e SMTP próprios: tudo vem da conta
+- sem auth, cookie e SMTP próprios: tudo vem do imago
 - sem job agendado
-- emails (templates em pt e en, enviados pela conta como `notification`): convite para um diário, perda de acesso a um diário (conta do dono excluída), diário apagado (para os membros)
-- `APP_URL=https://manasomali.com/engrafi`, `DATABASE_PATH=/var/lib/sqlite/engrafi/app.db`, `CONTA_INTERNAL_URL` e os limites acima, em `infra/apps/engrafi/app.env`. a unit lê também `/etc/infra/internal.env`
+- emails (templates em pt e en, enviados pelo imago como `notification`): convite para um diário, perda de acesso a um diário (conta do dono excluída), diário apagado (para os membros)
+- `APP_URL=https://manasomali.com/engrafi`, `DATABASE_PATH=/var/lib/sqlite/engrafi/app.db`, `IMAGO_INTERNAL_URL` e os limites acima, em `infra/apps/engrafi/app.env`. a unit lê também `/etc/infra/internal.env`
 - nginx (`infra/apps/engrafi/nginx.conf`): os mesmos blocos, headers e cache do ethos, com `auth_request` em `/api/engrafi/`, `/api/engrafi/health` fora dele e 404 em `/api/engrafi/internal/`. sem `nginx-http.conf`, porque o engrafi não tem rate limit próprio. o `client_max_body_size 5m` desses blocos é também o tamanho máximo do arquivo de importação
 - deploy (`.github/workflows/engrafi.yaml`): os mesmos 9 passos do ethos, com `concurrency: engrafi-deploy`, a variável `ENGRAFI_URL` e a checagem da versão do python (`.github/scripts/check-python-version.sh`)
 
@@ -321,7 +321,7 @@ igual à do ethos (seção "stack" do `ethos-plan.md`), trocando `ethos` por `en
 .github/workflows/engrafi.yaml
 infra/apps/engrafi/
   app.conf               # PORT=3002, PYTHON_VERSION
-  app.env                # APP_URL, CONTA_INTERNAL_URL, limites (sem segredos)
+  app.env                # APP_URL, IMAGO_INTERNAL_URL, limites (sem segredos)
   app-engrafi.service
   nginx.conf             # /engrafi/ e /api/engrafi/ (com auth_request)
 apps/engrafi/
@@ -342,7 +342,7 @@ apps/engrafi/
       cli.py             # seed
       normalize.py       # título normalizado, usado na busca, nas duplicatas e na importação
       identity.py        # lê os headers X-User-*, mantém app_users, require_user, require_admin
-      conta_client.py    # chamadas à API interna da conta (email, busca por email)
+      imago_client.py    # chamadas à API interna do imago (email, busca por email)
       internal/          # /internal/users/{id}/delete e /refresh
       diaries/           # diários, membros, convites
       titles/            # catálogo e busca
@@ -365,10 +365,10 @@ apps/engrafi/
 ```
 
 ### dados do app: tabelas
-- `app_users`: user_id (id da conta, chave primária), email, locale, first_seen_at, updated_at. sem fuso
+- `app_users`: user_id (id do usuário no imago, chave primária), email, locale, first_seen_at, updated_at. sem fuso
 - `diaries`: id, name, created_at, updated_at
 - `diary_members`: diary_id, user_id, role (`owner` | `editor` | `viewer`), joined_at. o dono também é uma linha, com `owner`. um índice único parcial impede dois `owner` no mesmo diário, e o serviço garante que sempre existe um
-- `diary_invites`: id, diary_id, email, invited_user_id (id da conta, vazio se o email não tinha conta; sem chave estrangeira, porque o convidado pode nunca ter aberto o engrafi), role, created_at
+- `diary_invites`: id, diary_id, email, invited_user_id (id do usuário no imago, vazio se o email não tinha conta; sem chave estrangeira, porque o convidado pode nunca ter aberto o engrafi), role, created_at
 - `titles`: id, diary_id (vazio = global), kind (`movie` | `series`), name, name_en (só global), name_norm, year, created_by, created_at, updated_at. índice em (diary_id, kind, name_norm)
 - `watches`: id, diary_id, title_id, watched_on (data), place (`cinema` | `home`), fell_asleep, note, created_by, created_at, updated_at. índice em (diary_id, watched_on)
 - `diary_series`: id, diary_id, title_id, status (`watching` | `finished` | `dropped` | `cancelled`), started_on, status_changed_on (datas, podem ser vazias), note, created_by, created_at, updated_at. único em (diary_id, title_id)
@@ -379,7 +379,7 @@ apps/engrafi/
 - `oscar_nominees`: id, category_id, title_id (obra global do tipo filme), credit, is_winner, position
 - `banners`: como no ethos
 - `audit_log`: id, user_id, diary_id, event, created_at, details (json). sem IP
-- `watches` e não `sessions`, para não confundir com as sessões de login da conta
+- `watches` e não `sessions`, para não confundir com as sessões de login do imago
 - chaves estrangeiras desde a primeira migração:
   - `ON DELETE CASCADE` do diário para membros, convites, obras do diário, sessões, séries, itens do "quero ver" e linhas do `audit_log`, e de `app_users` para `diary_members`
   - `ON DELETE CASCADE` da edição do Oscar para as categorias, e da categoria para os indicados
@@ -408,11 +408,11 @@ apps/engrafi/
   - categorias: `POST /admin/oscars/{year}/categories/copy` (da edição anterior) e CRUD em `/admin/oscars/{year}/categories`
   - indicados: CRUD em `/admin/oscars/{year}/nominees` (o `PATCH` também marca o vencedor), `POST /admin/oscars/{year}/nominees/import/preview` e `POST /admin/oscars/{year}/nominees/import`
   - banners: `GET`, `POST` e `PATCH /admin/banners`, como no ethos
-- API interna: `POST /internal/users/{id}/delete` e `POST /internal/users/{id}/refresh` (ver "conta única")
+- API interna: `POST /internal/users/{id}/delete` e `POST /internal/users/{id}/refresh` (ver "imago")
 - toda criação, edição e exclusão de sessão, série, item do "quero ver" e obra grava no `audit_log` quem fez, quando e o que mudou
 
 ### exclusão de conta e dados
-`POST /internal/users/{id}/delete`, chamado pela conta, segue as regras do ethos trocando hábito por diário:
+`POST /internal/users/{id}/delete`, chamado pelo imago, segue as regras do ethos trocando hábito por diário:
 - apaga os diários dos quais a pessoa é dona, com tudo o que há neles, e avisa os membros por email
 - tira a participação dela nos diários de outras pessoas e os convites pendentes enviados e recebidos
 - sessões, séries e itens do "quero ver" que ela criou em diários de outras pessoas ficam, com `created_by` vazio ("usuário removido")
@@ -424,10 +424,10 @@ apps/engrafi/
 - **catálogo próprio ou TMDB desde o início**: o plano começa com catálogo próprio (sem chave de API, sem dependência externa, aceita "BBB 2023"). o TMDB evitaria duplicatas e daria pôsteres, mas exige chave, atribuição e licença comercial se o app tiver ads ou planos pagos
 
 ## riscos aceitos
-- os riscos do login (código no chute, admin sem segundo fator, conta como ponto único de falha, exclusão não atômica entre os bancos, teto de email compartilhado) estão no `conta-plan.md`
-- emails enviados por `BackgroundTasks` (convites, avisos) se perdem se o serviço reiniciar antes de chamar a conta
-- memória: com a conta, o engrafi é o terceiro processo python na VM de 1 GB (cada um com `MemoryMax=150M`), além do nginx e do litestream. medir depois do go-live
-- cota do Object Storage: o `engrafi` é mais um banco no Litestream, junto com o `ethos` e o `conta`. escreve pouco, mas a estimativa de ~45 mil requisições por mês do `infra/config.env` é para um banco só. medir depois do go-live; se passar de 80% da cota, subir o `LITESTREAM_SYNC_INTERVAL`
+- os riscos do login (código no chute, admin sem segundo fator, imago como ponto único de falha, exclusão não atômica entre os bancos, teto de email compartilhado) estão no `imago-plan.md`
+- emails enviados por `BackgroundTasks` (convites, avisos) se perdem se o serviço reiniciar antes de chamar o imago
+- memória: com o imago, o engrafi é o terceiro processo python na VM de 1 GB (cada um com `MemoryMax=150M`), além do nginx e do litestream. medir depois do go-live
+- cota do Object Storage: o `engrafi` é mais um banco no Litestream, junto com o `ethos` e o `imago`. escreve pouco, mas a estimativa de ~45 mil requisições por mês do `infra/config.env` é para um banco só. medir depois do go-live; se passar de 80% da cota, subir o `LITESTREAM_SYNC_INTERVAL`
 - o Oscar só conta sessões da obra global: um indicado registrado com outro nome ou com erro de digitação fica fora da contagem até alguém trocar a obra das sessões para a global. na planilha, isso deixaria de fora 24 dos 44 indicados vistos em categorias de filme
 - mudar o tipo de uma obra do diário em uso deixa sessões ligadas a uma série (ou uma série ligada a um filme). as estatísticas contam essas sessões normalmente
 - excluir a conta do dono apaga o diário compartilhado inteiro, com o que os outros membros registraram nele. não há transferência de dono

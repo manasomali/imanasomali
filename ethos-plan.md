@@ -7,7 +7,7 @@
 - conta com um frontend e um backend
 - usa o nginx para roteamento
 - usa banco de dados sqlite já provisionado
-- login pela conta única do `manasomali.com` (`/conta/`), compartilhada com as outras aplicações (ver `conta-plan.md`). o ethos não tem auth próprio
+- login pelo imago, a conta única do `manasomali.com` (`/imago/`), compartilhado com as outras aplicações (ver `imago-plan.md`). o ethos não tem auth próprio
 
 ## monorepo
 
@@ -24,18 +24,18 @@ imanasomali/
     tokens/tokens.css                       # tokens de design compartilhados entre site e apps
   apps/
     README.md                               # convenção para criar uma aplicação nova
-    conta/                                  # login único de todas as aplicações (conta-plan.md)
+    imago/                                  # login único de todas as aplicações (imago-plan.md)
     ethos/
       README.md
       backend/
       frontend/
   infra/
     apps/
-      conta/
+      imago/
       ethos/                                # o que roda como root na VM: units, nginx, config
   .github/workflows/
     deploy.yaml                             # site (já existe)
-    conta.yaml                              # conta: checagens em PR, deploy na main
+    imago.yaml                              # imago: checagens em PR, deploy na main
     ethos.yaml                              # ethos: checagens em PR, deploy na main
     infra.yaml
     backup-verify.yaml
@@ -68,13 +68,13 @@ imanasomali/
 ### checagens entre áreas (só possíveis no monorepo)
 - a versão do python em `infra/apps/ethos/app.conf` é igual à de `apps/ethos/backend/.python-version`
 - a porta de cada aplicação é única e está na tabela do `infra/README.md`
-- cada aplicação de `infra/apps/` (menos a conta) está no `CONTA_APPS` da conta, com a mesma porta
-- a versão dos termos é igual no front e no back da conta
+- cada aplicação de `infra/apps/` (menos o imago) está no `IMAGO_APPS` do imago, com a mesma porta
+- a versão dos termos é igual no front e no back do imago
 
 ### identidade compartilhada
 - tokens de design (cores, tipografia, larguras, valores do tema escuro) saem do `site/src/index.css` para `packages/tokens/tokens.css`, usado pelo site e pelas aplicações
 - site e aplicações estão na mesma origem (`manasomali.com`), então dividem o `localStorage`. o tema (`localStorage.theme`) e o idioma (`localStorage.i18nextLng`) usam as mesmas chaves em todos: quem escolhe tema escuro no site entra no ethos com tema escuro
-- a conta também é compartilhada: um login vale para todas as aplicações (ver `conta-plan.md`)
+- a conta também é compartilhada: o imago dá um login só para todas as aplicações (ver `imago-plan.md`)
 - o site ganha uma vitrine de aplicações, com link para o ethos, quando ele entrar no ar
 
 ## nome do projeto
@@ -150,8 +150,8 @@ o produto server para monitorar certo "habitos" no decorrer do tempo, a pagina p
 - dias antes da criação do hábito podem ser marcados (para registrar o histórico), mas ficam fora da pontuação
 - toggle com duração ligada: o clique marca com a duração padrão do hábito (`duration_minutes`). os minutos podem ser editados nos detalhes da marcação
 - editar marcação: dono e editor editam observação, duração e custo de qualquer marcação. a data não muda; para mudar, apaga e cria de novo
-- o fuso (`users.timezone`, IANA) fica na conta e chega ao ethos no header `X-User-Timezone`, com uma cópia em `app_users` para os alertas. é só preferência, usado pelo backend para calcular pontuação e alertas. os dados continuam em UTC
-- o fuso nasce com o do navegador no primeiro login e depois só muda na tela de conta (`/conta/`). quando o fuso do navegador fica diferente do salvo (ex.: numa viagem), o app sugere a troca, com um link para lá
+- o fuso (`users.timezone`, IANA) fica no imago e chega ao ethos no header `X-User-Timezone`, com uma cópia em `app_users` para os alertas. é só preferência, usado pelo backend para calcular pontuação e alertas. os dados continuam em UTC
+- o fuso nasce com o do navegador no primeiro login e depois só muda na tela de conta (`/imago/`). quando o fuso do navegador fica diferente do salvo (ex.: numa viagem), o app sugere a troca, com um link para lá
 - limitação aceita: num hábito compartilhado entre fusos muito distantes, uma marcação pode aparecer no dia vizinho para o outro membro
 
 ### pausar e arquivar
@@ -167,7 +167,7 @@ o produto server para monitorar certo "habitos" no decorrer do tempo, a pagina p
   - edição: marca, desmarca e apaga marcações, inclusive de outras pessoas
   - visualização: só vê
 - todos os membros veem custo, recompensa, punição e observações
-- só dá para convidar email que já tem conta no `manasomali.com` (o ethos pergunta à conta por `POST /internal/users/lookup`). para não revelar quem tem conta, a resposta é sempre "convite enviado". se o email não tem conta, o convite fica pendente para sempre e nunca é entregue (nem se a conta for criada depois)
+- só dá para convidar email que já tem conta no `manasomali.com` (o ethos pergunta ao imago por `POST /internal/users/lookup`). para não revelar quem tem conta, a resposta é sempre "convite enviado". se o email não tem conta, o convite fica pendente para sempre e nunca é entregue (nem se a conta for criada depois)
 - o convite não expira. o dono pode cancelar um convite pendente
 - o convidado aceita ou recusa dentro do app e recebe um email avisando do convite
 - o convidado pode sair sozinho, e o dono pode removê-lo. nos dois casos, as marcações dele continuam no hábito e os alertas dele naquele hábito são apagados
@@ -188,7 +188,7 @@ o produto server para monitorar certo "habitos" no decorrer do tempo, a pagina p
   - `exato`: passou de N, ou está atrasado no ritmo
   - custo: o gasto do período chegou a 80% do limite (aviso) ou passou do limite
 - no máximo um email por membro e hábito por dia, juntando tudo o que disparou (meta e custo). o email tem link para a tela de configuração do alerta
-- o email sai pela conta, como `notification`, e entra no teto compartilhado entre as aplicações. se o teto recusar, o alerta não grava `last_sent_at` e tenta de novo na hora seguinte
+- o email sai pelo imago, como `notification`, e entra no teto compartilhado entre as aplicações. se o teto recusar, o alerta não grava `last_sent_at` e tenta de novo na hora seguinte
 
 ### custo
 - só monetário, numa unidade genérica de dinheiro: sem símbolo de moeda, número formatado pelo idioma com 2 casas
@@ -228,18 +228,18 @@ o produto server para monitorar certo "habitos" no decorrer do tempo, a pagina p
 - paginação de listas (histórico, admin): 50 itens por página por padrão, máximo 200
 
 ### retenção de dados
-- eventos de auth, sessões, códigos e IPs ficam na conta, com os prazos de lá (`conta-plan.md`, "retenção de dados")
+- eventos de auth, sessões, códigos e IPs ficam no imago, com os prazos de lá (`imago-plan.md`, "retenção de dados")
 - auditoria de marcações e de configuração: enquanto o hábito existir. o ethos não grava IP
 - o ethos não tem limpeza agendada: o `ethos-alerts.timer` só roda os alertas
 
 ### termos de uso e política de privacidade
-- um par só para todas as aplicações, na conta (`/conta/termos` e `/conta/privacidade`, ver `conta-plan.md`), com uma seção do ethos. o rodapé do ethos tem link para as duas páginas
+- um par só para todas as aplicações, no imago (`/imago/termos` e `/imago/privacidade`, ver `imago-plan.md`), com uma seção do ethos. o rodapé do ethos tem link para as duas páginas
 - seção do ethos nos termos: limites de uso do ethos e regras do compartilhamento (o dono controla, apagar o hábito apaga as marcações dos convidados)
 - seção do ethos na privacidade: dados guardados (hábitos, marcações, observações, custos, configuração dos alertas), quem vê (membros dos hábitos compartilhados e o administrador do serviço, que tem acesso ao conteúdo dos hábitos), emails que o ethos manda (convite, alerta, hábito apagado e perda de acesso a um hábito)
 
 ## migracao de ambiente
 - o sistema deve ser desenvolvido de modo que seja possivel migrar de infraestrutura de forma facil e rapida (hospedagem, dominio, banco de dados, etc)
-- no monorepo, isso também vale para tirar o ethos do repo: ele só depende de `packages/`, da config em `infra/apps/ethos/` e da conta (`conta-plan.md`). levar o ethos para outro servidor exige levar a conta junto ou trocar o `auth_request` por outro jeito de identificar o usuário
+- no monorepo, isso também vale para tirar o ethos do repo: ele só depende de `packages/`, da config em `infra/apps/ethos/` e do imago (`imago-plan.md`). levar o ethos para outro servidor exige levar o imago junto ou trocar o `auth_request` por outro jeito de identificar o usuário
 
 ## interface
 - a aplicacao deve ser moderna e ter uma interface atrativa e responsiva para ser usada em diferentes tamanhos de tela
@@ -256,7 +256,7 @@ o produto server para monitorar certo "habitos" no decorrer do tempo, a pagina p
 
 ## painel de admin
 - a aplicacao deve ter um painel de admin somente para mim, onde consigo executar acoes na aplicao e nos usuarios
-- contas (listar, bloquear, trocar email, excluir) ficam no painel da conta (`/conta/admin`). aqui, a lista de quem usa o ethos (`app_users`), com email, primeiro acesso e contagens (hábitos, marcações)
+- contas (listar, bloquear, trocar email, excluir) ficam no painel do imago (`/imago/admin`). aqui, a lista de quem usa o ethos (`app_users`), com email, primeiro acesso e contagens (hábitos, marcações)
 - o admin vê o conteúdo dos hábitos de qualquer usuário (configuração, marcações, observações). cada acesso a esse conteúdo grava um evento no `audit_log`, e a política de privacidade avisa que esse acesso existe
 - notificações, disparo de avisos globais (banners no app, com texto em pt e em en)
 - ~~e-mails diretamente pelo painel admin para grupos específicos de usuários~~: cancelado. o admin não manda email em massa; os únicos emails são os de conta, segurança, convite e alerta
@@ -271,7 +271,7 @@ o produto server para monitorar certo "habitos" no decorrer do tempo, a pagina p
 
 ## stack
 - frontend: react + vite, servido em `manasomali.com/ethos/` (vite `base: '/ethos/'`, react router `basename="/ethos"`). arquivos em `/var/www/ethos/`, fora do `/var/www/html/`: o deploy do site faz `rsync --delete` lá e apagaria o ethos
-- backend: python + fastapi, rodando como `app-ethos`. sem auth próprio: o login é da conta, e o usuário chega nos headers `X-User-*` (ver "login" e `conta-plan.md`)
+- backend: python + fastapi, rodando como `app-ethos`. sem auth próprio: o login é do imago, e o usuário chega nos headers `X-User-*` (ver "login" e `imago-plan.md`)
 - python: última versão estável, fixada em `apps/ethos/backend/.python-version` e repetida em `infra/apps/ethos/app.conf` (o CI confere se são iguais). o apt do ubuntu não traz a última versão, então quem instala é o `uv` (`uv python install`, binário pronto, sem compilar). o `uv` entra no provision com versão e SHA256 fixos, como o litestream
 - banco: o sqlite já provisionado em `/var/lib/sqlite/ethos/app.db` (adicionar `ethos` em `infra/databases.txt`), um banco só para auth e dados do app
 - acesso ao banco: sqlalchemy 2 síncrono + alembic com `render_as_batch=True` (o sqlite não altera coluna nem chave estrangeira sem recriar a tabela, e o batch mode faz isso). endpoints `def` (não `async def`), o fastapi roda em threadpool, o que basta para sqlite
@@ -279,27 +279,27 @@ o produto server para monitorar certo "habitos" no decorrer do tempo, a pagina p
 - servidor: `uvicorn --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1`, com `MemoryMax=150M` na unit
 - dependências: `uv` + `uv.lock`. lint e testes no CI. na VM, só `uv sync --frozen --no-dev --no-build`: baixa wheels prontas e falha se faltar alguma, em vez de tentar compilar com 1 GB de RAM
 - agendador: `ethos-alerts.timer` (systemd, de hora em hora) roda `python -m app.cli run-alerts` como `app-ethos`. não existe outro job agendado por enquanto. `OnFailure=` grava uma linha de erro no journald quando o job falha
-- email: o ethos não fala com o SMTP. manda cada email pela conta (`POST /internal/mail`, tipo `notification`), que aplica o teto compartilhado entre as aplicações. envio em `BackgroundTasks`, depois do commit
+- email: o ethos não fala com o SMTP. manda cada email pelo imago (`POST /internal/mail`, tipo `notification`), que aplica o teto compartilhado entre as aplicações. envio em `BackgroundTasks`, depois do commit
 - emails que o ethos envia (templates em pt e en, no idioma do destinatário):
   - convite para um hábito
   - alerta (meta e custo, num email só)
   - perda de acesso a um hábito (conta do dono excluída)
   - hábito apagado (para os membros)
-- os emails de conta (código de login, código de exclusão, conta excluída, troca de email, teto de envio) são da conta
+- os emails de conta (código de login, código de exclusão, conta excluída, troca de email, teto de envio) são do imago
 - erros da API: corpo `{"error": "<codigo>", "field": "<campo>" | null}`. os códigos ficam num catálogo em `app/errors.py` e cada um tem tradução nos `translation.json` do front. a API nunca manda mensagem pronta para o usuário
 - logs: uma linha por request (método, rota, status, duração), nível `INFO` em produção. nunca IP, email, token, cookie nem os headers `X-User-*`
 - dados de desenvolvimento: `python -m app.cli seed` cria usuários e hábitos de exemplo e recusa rodar fora de dev
 - monitoramento: um monitor externo gratuito chama `/api/ethos/health` de tempos em tempos e avisa por email se falhar (configurado à mão)
 - toda config por variável de ambiente, nada fixo no código (facilita migrar):
   - `DATABASE_PATH`, `APP_URL` (ex.: `https://manasomali.com/ethos`)
-  - `CONTA_INTERNAL_URL` (ex.: `http://127.0.0.1:3003`) e `INTERNAL_API_TOKEN` (de `/etc/infra/internal.env`)
+  - `IMAGO_INTERNAL_URL` (ex.: `http://127.0.0.1:3003`) e `INTERNAL_API_TOKEN` (de `/etc/infra/internal.env`)
   - os limites de "decisões de produto"
 
 ### onde cada coisa fica na VM
 - código do backend: `/opt/apps/ethos/`, dono `ubuntu` (quem faz deploy), só leitura para o `app-ethos`. o serviço não consegue alterar o próprio código
 - frontend: `/var/www/ethos/`, dono `ubuntu`
-- credenciais SMTP: só a conta lê `/etc/infra/smtp.env`. o ethos lê `/etc/infra/internal.env` (`0600`, root), com o token da API interna, gerado pelo provision na própria VM
-- config não secreta do ethos (`APP_URL`, `CONTA_INTERNAL_URL`, limites): versionada em `infra/apps/ethos/app.env` e instalada em `/etc/infra/apps/ethos.env` (`0644`, root)
+- credenciais SMTP: só o imago lê `/etc/infra/smtp.env`. o ethos lê `/etc/infra/internal.env` (`0600`, root), com o token da API interna, gerado pelo provision na própria VM
+- config não secreta do ethos (`APP_URL`, `IMAGO_INTERNAL_URL`, limites): versionada em `infra/apps/ethos/app.env` e instalada em `/etc/infra/apps/ethos.env` (`0644`, root)
 - a unit lê os dois arquivos com `EnvironmentFile=`
 - unit `app-ethos.service`, `ethos-alerts.service` / `.timer` e os snippets do nginx ficam em `infra/apps/ethos/` e são instalados pelo provision, como root. o workflow do ethos só entrega código
 
@@ -313,11 +313,11 @@ location /ethos/ {
 }
 
 location /api/ethos/ {
-        # quem é o usuário: o nginx pergunta à conta (ver conta-plan.md)
-        auth_request /_conta/session;
-        auth_request_set $conta_user_id $upstream_http_x_user_id;
+        # quem é o usuário: o nginx pergunta ao imago (ver imago-plan.md)
+        auth_request /_imago/session;
+        auth_request_set $imago_user_id $upstream_http_x_user_id;
         # ... idem para email, locale, timezone e admin
-        proxy_set_header X-User-Id $conta_user_id;
+        proxy_set_header X-User-Id $imago_user_id;
         proxy_pass http://127.0.0.1:__PORTA__/;
 }
 
@@ -325,9 +325,9 @@ location = /api/ethos/health { proxy_pass http://127.0.0.1:__PORTA__/health; }
 location /api/ethos/internal/ { return 404; }
 ```
 - `__PORTA__` é trocado pelo provision a partir do `infra/apps/ethos/app.conf`
-- o `/health` fica fora do `auth_request`, para o monitor e o deploy não dependerem da conta
-- `/api/ethos/internal/` só é usado pela conta direto em `127.0.0.1`, nunca pelo nginx
-- o rate limit do login fica na conta (`/api/conta/auth/`). o ethos não tem `nginx-http.conf`
+- o `/health` fica fora do `auth_request`, para o monitor e o deploy não dependerem do imago
+- `/api/ethos/internal/` só é usado pelo imago direto em `127.0.0.1`, nunca pelo nginx
+- o rate limit do login fica no imago (`/api/imago/auth/`). o ethos não tem `nginx-http.conf`
 - `index.html` sem cache, arquivos de `assets/` (nome com hash) com cache longo e `immutable`
 - headers de segurança em `/ethos/` e `/api/ethos/`:
   - `Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
@@ -353,14 +353,14 @@ roda em PRs (só as checagens) e a cada push na `main` que toca `apps/ethos/**`,
 - migrações só aditivas (criar tabela ou coluna; remover só num deploy seguinte), para o código anterior continuar funcionando com o banco novo
 - rollback: rodar o workflow de novo (`workflow_dispatch`) apontando para o commit anterior. se uma migração estragou dados, restaurar o `pre-deploy-<sha>.db` seguindo o `infra/RESTORE.md`
 - `GET /health`: responde 200 se o banco responde a `SELECT 1`
-- a conta precisa estar no ar antes do primeiro deploy do ethos: sem ela, o `auth_request` faz toda a API responder 500 (menos o `/health`)
+- o imago precisa estar no ar antes do primeiro deploy do ethos: sem ele, o `auth_request` faz toda a API responder 500 (menos o `/health`)
 
 ### estrutura do ethos no monorepo
 ```
 .github/workflows/ethos.yaml
 infra/apps/ethos/
   app.conf             # PORT=3001, PYTHON_VERSION
-  app.env              # APP_URL, CONTA_INTERNAL_URL, limites (sem segredos)
+  app.env              # APP_URL, IMAGO_INTERNAL_URL, limites (sem segredos)
   app-ethos.service
   ethos-alerts.service
   ethos-alerts.timer
@@ -382,10 +382,10 @@ apps/ethos/
       errors.py        # catálogo de códigos de erro da API
       cli.py           # run-alerts, seed
       identity.py      # lê os headers X-User-*, mantém app_users, require_user, require_admin, checagem de Origin
-      conta_client.py  # API interna da conta: envio de email e busca de usuário por email
+      imago_client.py  # API interna do imago: envio de email e busca de usuário por email
       mail.py          # templates dos emails do ethos (convite, alerta, avisos)
       internal/
-        router.py      # /internal/users/{id}/delete e /refresh, chamados pela conta
+        router.py      # /internal/users/{id}/delete e /refresh, chamados pelo imago
       habits/
         router.py      # hábitos, marcações, membros e convites
         service.py
@@ -404,15 +404,15 @@ apps/ethos/
 ```
 
 ### dados do app: tabelas
-- `app_users`: user_id (id da conta, chave primária), email, locale, timezone, first_seen_at, updated_at. `owner_id`, `user_id` e `created_by` das outras tabelas apontam para cá
+- `app_users`: user_id (id do usuário no imago, chave primária), email, locale, timezone, first_seen_at, updated_at. `owner_id`, `user_id` e `created_by` das outras tabelas apontam para cá
 - `habits`: id, owner_id, name, code (sigla), description, color (nome da cor da paleta), goal_type (`min` | `max` | `exact`), goal_count, goal_period (`week` | `month` | `year`), multi_mark, duration_enabled, duration_minutes, notes_enabled, score_enabled, score_threshold, reward, punishment, cost_enabled, cost_level (`habit` | `mark`), cost_cents, cost_limit_cents, cost_limit_period, status (`active` | `paused` | `archived`), archived_at, created_at, updated_at
 - `habit_pauses`: habit_id, started_at, ended_at. diz quais períodos a pontuação ignora
 - `habit_members`: habit_id, user_id, role (`viewer` | `editor`), joined_at
-- `habit_invites`: id, habit_id, email, invited_user_id (id da conta, vazio se o email não tinha conta no convite; sem chave estrangeira, porque o convidado pode nunca ter aberto o ethos), role, created_at
+- `habit_invites`: id, habit_id, email, invited_user_id (id do usuário no imago, vazio se o email não tinha conta no convite; sem chave estrangeira, porque o convidado pode nunca ter aberto o ethos), role, created_at
 - `marks`: id, habit_id, user_id (autor), marked_at (UTC), duration_minutes, cost_cents (custo gravado na criação), note, created_at, updated_at
 - `alerts`: habit_id, user_id, goal_enabled, cost_enabled, hour, frequency (`daily` | `weekly`), weekday, last_sent_at
 - `banners`: id, text_pt, text_en, starts_at, ends_at, created_by
-- `audit_log`: id, user_id, event, created_at, details (json). auditoria das marcações e da configuração, sem IP (os eventos de login ficam na conta)
+- `audit_log`: id, user_id, event, created_at, details (json). auditoria das marcações e da configuração, sem IP (os eventos de login ficam no imago)
 
 ### hábitos: endpoints além de marcar
 - CRUD de hábitos, pausar/retomar, arquivar/desarquivar
@@ -422,23 +422,23 @@ apps/ethos/
 - alertas: ler e salvar a configuração do dono ou do editor no hábito (visualização recebe 403)
 - `GET /banners/active`: o banner ativo, sem login
 - `GET /me`: o usuário (dos headers) e os convites pendentes
-- API interna, chamada pela conta: `POST /internal/users/{id}/delete` e `POST /internal/users/{id}/refresh` (ver `conta-plan.md`)
+- API interna, chamada pelo imago: `POST /internal/users/{id}/delete` e `POST /internal/users/{id}/refresh` (ver `imago-plan.md`)
 ### marcar e desmarcar
 - hábito "toggle": `POST /habits/{id}/toggle` recebe o início e o fim do dia de quem clicou (em UTC). o intervalo tem entre 23 h e 25 h (dias com mudança de horário de verão), senão é recusado. numa transação `BEGIN IMMEDIATE`: se já existe marcação nesse intervalo, apaga todas; senão, cria uma. isso resolve clique duplo e dois membros clicando ao mesmo tempo
 - hábito com várias marcações por dia: `POST /habits/{id}/marks`. o limite `MAX_MARKS_PER_DAY` é checado no dia de quem marcou, na mesma transação da inserção
 - toda marcação e desmarcação grava no `audit_log` quem fez, quando e o que mudou
 
 ### login
-o ethos não tem auth próprio. login, sessão, cookie, termos, tela de conta, troca de email e o teto de envio de email ficam na conta (`conta-plan.md`). o ethos:
-- lê o usuário dos headers `X-User-*` que o nginx põe a partir da conta, e responde 401 sem `X-User-Id` em toda rota que exige login
+o ethos não tem auth próprio. login, sessão, cookie, termos, tela de conta, troca de email e o teto de envio de email ficam no imago (`imago-plan.md`). o ethos:
+- lê o usuário dos headers `X-User-*` que o nginx põe a partir do imago, e responde 401 sem `X-User-Id` em toda rota que exige login
 - cria ou atualiza a linha em `app_users` a cada request com login (só grava quando algo mudou)
 - confere o `X-User-Admin` no `require_admin`
 - recusa POST/PUT/PATCH/DELETE cujo header `Origin` não seja a origem do `APP_URL` (esquema + host, ex.: `https://manasomali.com`). o `Origin` nunca traz o caminho, então comparar com o `APP_URL` inteiro recusaria tudo
-- no 401, o front manda para `/conta/entrar?next=<caminho atual>`
+- no 401, o front manda para `/imago/entrar?next=<caminho atual>`
 - confere o token da API interna (`INTERNAL_API_TOKEN`, com `hmac.compare_digest`) em `/internal/*`
 
 ### exclusão de conta e dados
-a exclusão de conta é pedida e coordenada pela conta (`conta-plan.md`, "exclusão de conta"): pela própria pessoa, com código por email, ou pelo admin. o ethos apaga a parte dele em `POST /internal/users/{id}/delete`, chamado pela conta.
+a exclusão de conta é pedida e coordenada pelo imago (`imago-plan.md`, "exclusão de conta"): pela própria pessoa, com código por email, ou pelo admin. o ethos apaga a parte dele em `POST /internal/users/{id}/delete`, chamado pelo imago.
 
 o que é apagado:
 - os hábitos dos quais a pessoa é dona, com todas as marcações deles, inclusive as feitas por convidados. os convidados perdem o acesso e recebem um email avisando
@@ -455,14 +455,14 @@ como é feito:
 - tudo numa transação só, `BEGIN IMMEDIATE`. ou apaga tudo ou nada
 - as chaves estrangeiras definem o comportamento no próprio banco: `ON DELETE CASCADE` de `app_users` para o que é da pessoa e `ON DELETE SET NULL` para autoria em dados de outras pessoas (`marks.user_id`, `audit_log.user_id`). funciona porque a conexão já usa `PRAGMA foreign_keys=ON`. as tabelas precisam nascer com essas regras desde a primeira migração
 - `PRAGMA secure_delete=ON` faz o sqlite sobrescrever com zeros as páginas apagadas em vez de só marcá-las como livres no arquivo
-- os ids dos convidados afetados são lidos antes de apagar, e os avisos ("você perdeu acesso a este hábito") vão pela conta depois do commit. não antes, para não avisar de uma exclusão que falhou
-- idempotente: chamar de novo, ou para um id que o ethos não conhece, responde 200. é o que permite à conta repetir a chamada quando ela falha e depois de um restore
-- backups, prazo de até 8 dias e reaplicação das exclusões depois de um restore: ver `conta-plan.md`
+- os ids dos convidados afetados são lidos antes de apagar, e os avisos ("você perdeu acesso a este hábito") vão pelo imago depois do commit. não antes, para não avisar de uma exclusão que falhou
+- idempotente: chamar de novo, ou para um id que o ethos não conhece, responde 200. é o que permite ao imago repetir a chamada quando ela falha e depois de um restore
+- backups, prazo de até 8 dias e reaplicação das exclusões depois de um restore: ver `imago-plan.md`
 
 ## riscos aceitos
-- os riscos do login (código no chute, admin sem segundo fator, conta como ponto único de falha, exclusão não atômica entre os bancos, reaplicação de exclusões dependente do journald) estão no `conta-plan.md`
-- cota do Object Storage: o `infra/config.env` estima ~45 mil requests por mês para um banco com escrita contínua (`LITESTREAM_SYNC_INTERVAL=1m`), perto das ~50 mil do Always Free. o `exemplo` sai do `databases.txt` quando o ethos entra, mas a conta e o engrafi trazem mais dois bancos. depois do go-live, medir o uso; se passar de 80% da cota, subir o intervalo
-- emails enviados por `BackgroundTasks` (alertas, avisos de exclusão, convites) se perdem se o serviço reiniciar antes de chamar a conta
+- os riscos do login (código no chute, admin sem segundo fator, imago como ponto único de falha, exclusão não atômica entre os bancos, reaplicação de exclusões dependente do journald) estão no `imago-plan.md`
+- cota do Object Storage: o `infra/config.env` estima ~45 mil requests por mês para um banco com escrita contínua (`LITESTREAM_SYNC_INTERVAL=1m`), perto das ~50 mil do Always Free. o `exemplo` sai do `databases.txt` quando o ethos entra, mas o imago e o engrafi trazem mais dois bancos. depois do go-live, medir o uso; se passar de 80% da cota, subir o intervalo
+- emails enviados por `BackgroundTasks` (alertas, avisos de exclusão, convites) se perdem se o serviço reiniciar antes de chamar o imago
 - teto de email compartilhado: os alertas do ethos disputam o teto com as outras aplicações. um alerta recusado tenta de novo na hora seguinte
 - LGPD ignorada por enquanto, mesmo que alguns hábitos (fumo, apostas, saúde) possam ser dados sensíveis
 - hábito compartilhado entre fusos muito distantes pode mostrar uma marcação no dia vizinho
