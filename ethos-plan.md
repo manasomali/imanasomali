@@ -8,6 +8,7 @@
 - usa o nginx para roteamento
 - usa banco de dados sqlite já provisionado
 - login pelo imago, a conta única do `manasomali.com` (`/imago/`), compartilhado com as outras aplicações (ver `imago-plan.md`). o ethos não tem auth próprio
+- o ethos no ar hoje ainda tem login próprio. a passagem para o imago segue a ordem da seção "migração do login do ethos" do `imago-plan.md`: as contas vão para o imago com os mesmos ids, e `users` vira `app_users`
 
 ## monorepo
 
@@ -69,6 +70,7 @@ imanasomali/
 - a versão do python em `infra/apps/ethos/app.conf` é igual à de `apps/ethos/backend/.python-version`
 - a porta de cada aplicação é única e está na tabela do `infra/README.md`
 - cada aplicação de `infra/apps/` (menos o imago) está no `IMAGO_APPS` do imago, com a mesma porta
+- cada aplicação do `IMAGO_APPS` tem os textos dela (o que some na exclusão e onde exportar) na tela de conta do imago, em pt e en
 - a versão dos termos é igual no front e no back do imago
 
 ### identidade compartilhada
@@ -288,17 +290,17 @@ o produto server para monitorar certo "habitos" no decorrer do tempo, a pagina p
 - os emails de conta (código de login, código de exclusão, conta excluída, troca de email, teto de envio) são do imago
 - erros da API: corpo `{"error": "<codigo>", "field": "<campo>" | null}`. os códigos ficam num catálogo em `app/errors.py` e cada um tem tradução nos `translation.json` do front. a API nunca manda mensagem pronta para o usuário
 - logs: uma linha por request (método, rota, status, duração), nível `INFO` em produção. nunca IP, email, token, cookie nem os headers `X-User-*`
-- dados de desenvolvimento: `python -m app.cli seed` cria usuários e hábitos de exemplo e recusa rodar fora de dev
+- dados de desenvolvimento: `python -m app.cli seed` cria hábitos de exemplo e recusa rodar fora de dev. as contas são as do `seed` do imago, com ids fixos: o do ethos cria as linhas de `app_users` com esses ids
 - monitoramento: um monitor externo gratuito chama `/api/ethos/health` de tempos em tempos e avisa por email se falhar (configurado à mão)
 - toda config por variável de ambiente, nada fixo no código (facilita migrar):
   - `DATABASE_PATH`, `APP_URL` (ex.: `https://manasomali.com/ethos`)
-  - `IMAGO_INTERNAL_URL` (ex.: `http://127.0.0.1:3003`) e `INTERNAL_API_TOKEN` (de `/etc/infra/internal.env`)
+  - `IMAGO_INTERNAL_URL` (ex.: `http://127.0.0.1:3003`) e `INTERNAL_API_TOKEN` (o token do ethos, de `/etc/infra/internal/ethos.env`)
   - os limites de "decisões de produto"
 
 ### onde cada coisa fica na VM
 - código do backend: `/opt/apps/ethos/`, dono `ubuntu` (quem faz deploy), só leitura para o `app-ethos`. o serviço não consegue alterar o próprio código
 - frontend: `/var/www/ethos/`, dono `ubuntu`
-- credenciais SMTP: só o imago lê `/etc/infra/smtp.env`. o ethos lê `/etc/infra/internal.env` (`0600`, root), com o token da API interna, gerado pelo provision na própria VM
+- credenciais SMTP: só o imago lê `/etc/infra/smtp.env`. o ethos lê `/etc/infra/internal/ethos.env` (`0600`, root), com o token dele para a API interna (um por aplicação, gerado pelo provision na própria VM). com esse token o ethos não chama a API interna de outra aplicação
 - config não secreta do ethos (`APP_URL`, `IMAGO_INTERNAL_URL`, limites): versionada em `infra/apps/ethos/app.env` e instalada em `/etc/infra/apps/ethos.env` (`0644`, root)
 - a unit lê os dois arquivos com `EnvironmentFile=`
 - unit `app-ethos.service`, `ethos-alerts.service` / `.timer` e os snippets do nginx ficam em `infra/apps/ethos/` e são instalados pelo provision, como root. o workflow do ethos só entrega código
@@ -321,11 +323,16 @@ location /api/ethos/ {
         proxy_pass http://127.0.0.1:__PORTA__/;
 }
 
-location = /api/ethos/health { proxy_pass http://127.0.0.1:__PORTA__/health; }
+location = /api/ethos/health {
+        # fora do auth_request: os cinco X-User-* vazios, para os do cliente não passarem
+        proxy_set_header X-User-Id "";
+        # ... idem para os outros quatro
+        proxy_pass http://127.0.0.1:__PORTA__/health;
+}
 location /api/ethos/internal/ { return 404; }
 ```
 - `__PORTA__` é trocado pelo provision a partir do `infra/apps/ethos/app.conf`
-- o `/health` fica fora do `auth_request`, para o monitor e o deploy não dependerem do imago
+- o `/health` fica fora do `auth_request`, para o monitor e o deploy não dependerem do imago. como toda `location` que chega ao backend, ele define os cinco `X-User-*` (vazios), para nenhum mandado pelo navegador chegar ao ethos
 - `/api/ethos/internal/` só é usado pelo imago direto em `127.0.0.1`, nunca pelo nginx
 - o rate limit do login fica no imago (`/api/imago/auth/`). o ethos não tem `nginx-http.conf`
 - `index.html` sem cache, arquivos de `assets/` (nome com hash) com cache longo e `immutable`
@@ -334,7 +341,7 @@ location /api/ethos/internal/ { return 404; }
   - `X-Content-Type-Options: nosniff`
   - `Referrer-Policy: same-origin`
   - sem `'unsafe-inline'`: o ethos não tem script inline. o tema é aplicado antes da primeira pintura por `/ethos/theme-init.js`, carregado no `<head>` sem `defer`
-- o nginx tira o prefixo `/api/ethos`, então as rotas do fastapi ficam em `/habits/...` e o app usa `root_path="/api/ethos"`
+- o nginx tira o prefixo `/api/ethos`, então as rotas do fastapi ficam em `/habits/...`, e a unit passa `--root-path /api/ethos` ao `uvicorn` (o parâmetro `root_path` do `FastAPI()` está obsoleto desde o FastAPI 0.162)
 - porta do backend: 3001 (`PORT=3001` no `infra/apps/ethos/app.conf`), registrada na tabela do `infra/README.md`
 
 ### deploy (`.github/workflows/ethos.yaml`)
@@ -353,7 +360,7 @@ roda em PRs (só as checagens) e a cada push na `main` que toca `apps/ethos/**`,
 - migrações só aditivas (criar tabela ou coluna; remover só num deploy seguinte), para o código anterior continuar funcionando com o banco novo
 - rollback: rodar o workflow de novo (`workflow_dispatch`) apontando para o commit anterior. se uma migração estragou dados, restaurar o `pre-deploy-<sha>.db` seguindo o `infra/RESTORE.md`
 - `GET /health`: responde 200 se o banco responde a `SELECT 1`
-- o imago precisa estar no ar antes do primeiro deploy do ethos: sem ele, o `auth_request` faz toda a API responder 500 (menos o `/health`)
+- o imago precisa estar no ar antes do `auth_request` entrar em `/api/ethos/`: sem ele, toda a API responde 500 (menos o `/health`). o deploy do ethos que passa a ler os headers só entra depois das contas importadas no imago (`imago-plan.md`, "migração do login do ethos"), e é o único sem rollback só de código: voltar dele exige o `pre-deploy-<sha>.db`
 
 ### estrutura do ethos no monorepo
 ```
@@ -374,7 +381,7 @@ apps/ethos/
     alembic.ini
     alembic/versions/
     app/
-      main.py          # FastAPI(root_path="/api/ethos"), inclui os routers, GET /health
+      main.py          # FastAPI(), inclui os routers, GET /health (o prefixo vem do --root-path)
       config.py        # settings e limites lidos do ambiente
       db.py            # engine, PRAGMAs, sessão por request
       models.py
@@ -404,7 +411,7 @@ apps/ethos/
 ```
 
 ### dados do app: tabelas
-- `app_users`: user_id (id do usuário no imago, chave primária), email, locale, timezone, first_seen_at, updated_at. `owner_id`, `user_id` e `created_by` das outras tabelas apontam para cá
+- `app_users`: user_id (id do usuário no imago, chave primária, sem autoincremento: as contas de antes do imago mantêm o id que já tinham, e as novas vêm com o id aleatório do imago), email, locale, timezone, first_seen_at, updated_at. `owner_id`, `user_id` e `created_by` das outras tabelas apontam para cá
 - `habits`: id, owner_id, name, code (sigla), description, color (nome da cor da paleta), goal_type (`min` | `max` | `exact`), goal_count, goal_period (`week` | `month` | `year`), multi_mark, duration_enabled, duration_minutes, notes_enabled, score_enabled, score_threshold, reward, punishment, cost_enabled, cost_level (`habit` | `mark`), cost_cents, cost_limit_cents, cost_limit_period, status (`active` | `paused` | `archived`), archived_at, created_at, updated_at
 - `habit_pauses`: habit_id, started_at, ended_at. diz quais períodos a pontuação ignora
 - `habit_members`: habit_id, user_id, role (`viewer` | `editor`), joined_at
@@ -433,9 +440,9 @@ o ethos não tem auth próprio. login, sessão, cookie, termos, tela de conta, t
 - lê o usuário dos headers `X-User-*` que o nginx põe a partir do imago, e responde 401 sem `X-User-Id` em toda rota que exige login
 - cria ou atualiza a linha em `app_users` a cada request com login (só grava quando algo mudou)
 - confere o `X-User-Admin` no `require_admin`
-- recusa POST/PUT/PATCH/DELETE cujo header `Origin` não seja a origem do `APP_URL` (esquema + host, ex.: `https://manasomali.com`). o `Origin` nunca traz o caminho, então comparar com o `APP_URL` inteiro recusaria tudo
+- recusa com 403 toda request que não seja GET, HEAD ou OPTIONS sem exatamente um header `Origin` igual à origem do `APP_URL` (esquema + host, ex.: `https://manasomali.com`); sem `Origin` também é recusada. o `Origin` nunca traz o caminho, então comparar com o `APP_URL` inteiro recusaria tudo. a exceção é `/internal/*`, que não vem do navegador e confere o token
 - no 401, o front manda para `/imago/entrar?next=<caminho atual>`
-- confere o token da API interna (`INTERNAL_API_TOKEN`, com `hmac.compare_digest`) em `/internal/*`
+- confere o token do ethos (`INTERNAL_API_TOKEN`, com `hmac.compare_digest`) em `/internal/*`. é o mesmo que ele usa para chamar o imago
 
 ### exclusão de conta e dados
 a exclusão de conta é pedida e coordenada pelo imago (`imago-plan.md`, "exclusão de conta"): pela própria pessoa, com código por email, ou pelo admin. o ethos apaga a parte dele em `POST /internal/users/{id}/delete`, chamado pelo imago.
