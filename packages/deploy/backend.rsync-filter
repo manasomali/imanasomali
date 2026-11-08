@@ -1,5 +1,6 @@
-# Regras do rsync do backend para /opt/apps/ethos/ (com --delete), lidas pelo ethos.yaml e pelo
-# test-vm.sh com --filter="merge <este arquivo>". O caminho começa na pasta apps/ethos/backend/.
+# Regras do rsync do backend de uma aplicação para /opt/apps/<nome>/ (com --delete), lidas pelo
+# workflow dela (.github/workflows/<nome>.yaml) e pelo test-vm.sh com --filter="merge <este
+# arquivo>". O caminho começa na pasta apps/<nome>/backend/.
 
 # .venv: criada na VM pelo uv sync. Fica de fora dos dois lados: nem é enviada nem é apagada
 - /.venv/

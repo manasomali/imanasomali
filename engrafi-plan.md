@@ -325,7 +325,7 @@ igual à do ethos (seção "stack" do `ethos-plan.md`), trocando `ethos` por `en
 - `APP_URL=https://manasomali.com/engrafi`, `DATABASE_PATH=/var/lib/sqlite/engrafi/app.db`, `IMAGO_INTERNAL_URL` e os limites acima, em `infra/apps/engrafi/app.env`. a unit lê também `/etc/infra/internal/engrafi.env`, com o token do engrafi
 - nginx (`infra/apps/engrafi/nginx.conf`): os mesmos blocos, headers e cache do ethos, com `auth_request` em `/api/engrafi/`, `/api/engrafi/health` fora dele (com os cinco `X-User-*` vazios, como no ethos) e 404 em `/api/engrafi/internal/`. sem `nginx-http.conf`, porque o engrafi não tem rate limit próprio. o `client_max_body_size 5m` desses blocos é também o tamanho máximo do arquivo de importação
 - deploy (`.github/workflows/engrafi.yaml`): os mesmos 9 passos do ethos (`apps/ethos/README.md`, "Deploy"), com `concurrency: engrafi-deploy`, a variável `ENGRAFI_URL` e a checagem da versão do python (`.github/scripts/check-python-version.sh`)
-- os scripts de `apps/ethos/deploy/` têm o nome da aplicação fixo (`APP=ethos` no `vm.sh`), e o engrafi não importa código do ethos. por isso, num PR anterior ao do engrafi, eles vão para `packages/deploy/` com os testes deles, recebendo o nome da aplicação, e servem ao ethos, ao imago e ao engrafi. uma mudança ali dispara o deploy dos três, cada um no seu grupo de concorrência
+- os scripts do deploy ficam em `packages/deploy/` com os testes deles, recebendo o nome da aplicação (contrato em `packages/deploy/README.md`), porque o engrafi não importa código do ethos. servem ao ethos, ao imago e ao engrafi, e uma mudança ali dispara o deploy dos três, cada um no seu grupo de concorrência
 
 ### estrutura no monorepo
 ```

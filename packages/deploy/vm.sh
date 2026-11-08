@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Passos do deploy do ethos que rodam na VM, como o usuário de deploy (DEPLOY_USER do
-# infra/config.env, com sudo sem senha). O workflow manda o script pelo SSH:
+# Passos do deploy de uma aplicação de apps/ que rodam na VM, como o usuário de deploy
+# (DEPLOY_USER do infra/config.env, com sudo sem senha). O workflow da aplicação manda o script
+# pelo SSH, com o nome dela:
 #
-#   ssh ... bash -s -- <comando> [args] < apps/ethos/deploy/vm.sh
+#   ssh ... bash -s -- <nome> <comando> [args] < packages/deploy/vm.sh
 #
 #   check <python>  confere o que o provision instala antes de mexer em qualquer coisa: a unit,
 #                   as pastas, o uv, o Python <python>, o sqlite3, o banco e a pasta de backup
@@ -11,25 +12,38 @@
 #   backup <sha>    cópia do banco em pre-deploy-<sha>.db, antes do restart (que migra)
 #   restart         reinicia a unit; o ExecStartPre roda "alembic upgrade head"
 #
-# Os caminhos vêm das variáveis DEPLOY_* só no teste (test-vm.sh); na VM valem os padrões.
+# Do <nome> saem a unit app-<nome>.service, o usuário app-<nome>, /opt/apps/<nome>,
+# /var/www/<nome>, o banco /var/lib/sqlite/<nome>/app.db e /var/backups/sqlite/<nome> (contrato em
+# packages/deploy/README.md). Os caminhos vêm das variáveis DEPLOY_* só no teste (test-vm.sh); na
+# VM valem os padrões.
 set -euo pipefail
 shopt -s inherit_errexit
 
-APP=ethos
-UNIT=${DEPLOY_UNIT:-app-$APP.service}
-APP_USER=${DEPLOY_APP_USER:-app-$APP}
-APP_DIR=${DEPLOY_APP_DIR:-/opt/apps/$APP}
-WEB_DIR=${DEPLOY_WEB_DIR:-/var/www/$APP}
-DB=${DEPLOY_DB:-/var/lib/sqlite/$APP/app.db}
-BACKUP_DIR=${DEPLOY_BACKUP_DIR:-/var/backups/sqlite/$APP}
-INFRA_CONFIG=${DEPLOY_INFRA_CONFIG:-/etc/infra/config.env}
-UV=${DEPLOY_UV:-/usr/local/bin/uv}
+# A regra do infra/databases.txt (DB_NAME_RE do infra/lib/common.sh): app-<nome> cabe nos 32
+# caracteres de um usuário do Linux, e o nome entra em caminhos e comandos sem "/", "." nem espaço
+APP_NAME_RE='^[a-z][a-z0-9-]{1,26}$'
 
 RUN_INFRA="rode o workflow Infra (Actions → Infra → Run workflow) e depois este deploy de novo"
 
 die() {
   echo "::error::$*" >&2
   exit 1
+}
+
+# Com LC_ALL=C, [a-z] é só a-z em qualquer locale da VM
+valid_app_name() { (LC_ALL=C && [[ $1 =~ $APP_NAME_RE ]]); }
+
+# Unit, usuário e caminhos da aplicação $1, já validada
+set_app() {
+  APP=$1
+  UNIT=${DEPLOY_UNIT:-app-$APP.service}
+  APP_USER=${DEPLOY_APP_USER:-app-$APP}
+  APP_DIR=${DEPLOY_APP_DIR:-/opt/apps/$APP}
+  WEB_DIR=${DEPLOY_WEB_DIR:-/var/www/$APP}
+  DB=${DEPLOY_DB:-/var/lib/sqlite/$APP/app.db}
+  BACKUP_DIR=${DEPLOY_BACKUP_DIR:-/var/backups/sqlite/$APP}
+  INFRA_CONFIG=${DEPLOY_INFRA_CONFIG:-/etc/infra/config.env}
+  UV=${DEPLOY_UV:-/usr/local/bin/uv}
 }
 
 as_app() { sudo -n -u "$APP_USER" -- "$@"; }
@@ -55,11 +69,11 @@ run_uv() {
 }
 
 check() {
-  (($# == 1)) || die "uso: vm.sh check <versão do Python>"
+  (($# == 1)) || die "uso: vm.sh <nome> check <versão do Python>"
   local version=$1
   [[ $version =~ ^3\.[0-9]+\.[0-9]+$ ]] || die "versão do Python inválida: '$version'"
 
-  # A unit vem do provision (infra/apps/ethos/). Sem ela, o restart não teria o que reiniciar
+  # A unit vem do provision (infra/apps/<nome>/). Sem ela, o restart não teria o que reiniciar
   systemctl cat "$UNIT" >/dev/null 2>&1 \
     || die "$UNIT não está instalada na VM: $RUN_INFRA"
   sudo -n true 2>/dev/null || die "o usuário de deploy precisa de sudo sem senha (ver infra/PLANO.md)"
@@ -81,7 +95,7 @@ check() {
 }
 
 revision() {
-  (($# == 0)) || die "uso: vm.sh revision"
+  (($# == 0)) || die "uso: vm.sh <nome> revision"
   local table
   table=$(as_app sqlite3 "$DB" \
     "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'alembic_version';")
@@ -91,7 +105,7 @@ revision() {
 }
 
 install_venv() {
-  (($# == 0)) || die "uso: vm.sh install"
+  (($# == 0)) || die "uso: vm.sh <nome> install"
   cd "$APP_DIR"
   [[ -f uv.lock && -f .python-version ]] || die "$APP_DIR sem uv.lock ou .python-version: o rsync do backend falhou?"
   # O app-<nome> lê o código e a .venv, mas não grava
@@ -109,7 +123,7 @@ install_venv() {
 }
 
 backup() {
-  (($# == 1)) || die "uso: vm.sh backup <sha>"
+  (($# == 1)) || die "uso: vm.sh <nome> backup <sha>"
   local sha=$1 out tmp result
   [[ $sha =~ ^[0-9a-f]{40}$ ]] || die "sha inválido: '$sha'"
 
@@ -140,7 +154,7 @@ backup() {
 }
 
 restart() {
-  (($# == 0)) || die "uso: vm.sh restart"
+  (($# == 0)) || die "uso: vm.sh <nome> restart"
   # Um deploy anterior com migração quebrada pode ter esgotado o StartLimitBurst da unit
   sudo -n systemctl reset-failed "$UNIT" 2>/dev/null || true
   # Type=exec: volta depois do ExecStartPre (migração) e do exec do uvicorn; falha se a migração
@@ -153,9 +167,13 @@ restart() {
 }
 
 main() {
-  (($# >= 1)) || die "uso: vm.sh <check|revision|install|backup|restart> [args]"
-  local command=$1
-  shift
+  (($# >= 2)) || die "uso: vm.sh <nome> <check|revision|install|backup|restart> [args]"
+  local name=$1 command=$2
+  shift 2
+  # Antes de qualquer outra coisa: o nome vira unit, usuário e caminhos
+  valid_app_name "$name" || die "nome da aplicação inválido: '$name' (regra do infra/databases.txt)"
+  set_app "$name"
+
   case $command in
     check | revision | backup | restart) "$command" "$@" ;;
     install) install_venv "$@" ;;

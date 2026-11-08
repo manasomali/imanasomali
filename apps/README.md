@@ -15,7 +15,7 @@ O nome segue a regra do `infra/databases.txt`: `^[a-z][a-z0-9-]{1,26}$`.
 | Rotas no nginx | `infra/apps/<nome>/nginx.conf` (locations dentro do server 443, instalado em `/etc/nginx/apps.d/<nome>.conf`) e, se precisar do contexto `http` (`limit_req_zone`), `nginx-http.conf` (em `/etc/nginx/conf.d/<nome>.conf`). `__PORTA__` vira o `PORT` do `app.conf`. Um `add_header` dentro de `location` apaga os do server: repita o HSTS do site |
 | Banco SQLite | linha `<nome>` em [infra/databases.txt](../infra/databases.txt) |
 | Rotas | front em `/<nome>/`, API em `/api/<nome>/` |
-| Workflow | `.github/workflows/<nome>.yaml`, com `paths` em `apps/<nome>/**`, `packages/**` e no próprio workflow |
+| Workflow | `.github/workflows/<nome>.yaml`, com `paths` em `apps/<nome>/**`, `packages/**` e no próprio workflow. O deploy usa os scripts de [packages/deploy/](../packages/deploy/README.md), com o nome da aplicação como parâmetro |
 | Porta do backend | única, registrada na tabela de portas do [infra/README.md](../infra/README.md#portas-em-uso) |
 
 ## Regras
