@@ -58,6 +58,90 @@
       "signing_out": "Signing out…",
       "disagree": "If you do not agree, you can delete your account on the <account>account page</account> without accepting."
     },
+    "account": {
+      "title": "Account",
+      "saving": "Saving…",
+      "terms_pending": {
+        "title": "New terms of use",
+        "text": "The terms of use and the privacy policy changed. To keep using the applications and to change your language or time zone, read and accept the new version. If you do not agree, you can sign out or delete your account below.",
+        "accept": "Read and accept"
+      },
+      "email": {
+        "title": "Email",
+        "help": "To change your email, write to <mail>{{supportEmail}}</mail> from the account's current email, saying what the new one is. Before changing it, support confirms the new email by asking for a reply sent from it, so a typo cannot hand the account to someone else. After the change, you need to sign in again on every device.",
+        "lost_access": "Lost access to the current email? Write anyway, from another address. In that case, support asks for information only the account's user knows (such as data in the applications) before deciding."
+      },
+      "apps": {
+        "title": "Your applications",
+        "intro": "This account signs you in to all of them.",
+        "empty": "No applications yet."
+      },
+      "language": {
+        "title": "Language",
+        "help": "The language of the emails from manasomali.com and its applications (codes, invites and alerts). When you save, it also becomes the screen language in this browser.",
+        "save": "Save language",
+        "saved": "Language saved."
+      },
+      "timezone": {
+        "title": "Time zone",
+        "help": "The time zone of every application (in ethos, it sets the calendar days, the score and the alert times). Current account time zone: {{timezone}}.",
+        "device": "This device is in another time zone: {{timezone}}.",
+        "use_device": "Select this device's time zone",
+        "search": "Search time zone (city, region or UTC-03)",
+        "found_one": "{{count}} time zone found.",
+        "found_other": "{{count}} time zones found.",
+        "list": "Time zones",
+        "chosen": "Selected: {{timezone}}",
+        "save": "Save time zone",
+        "saved": "Time zone saved."
+      },
+      "sessions": {
+        "title": "Sessions",
+        "sign_out": "Sign out",
+        "sign_out_help": "Ends the session on this device only, in every application.",
+        "sign_out_all": "Sign out of all devices",
+        "sign_out_all_help": "Ends the session on every device, this one included. Use it if you lost a device or signed in on a computer that is not yours.",
+        "signing_out": "Signing out…"
+      },
+      "delete": {
+        "title": "Delete account",
+        "intro": "Deletes the account and your data in every application right away. First, the screen shows what goes away and where to take a copy of your data.",
+        "start": "Delete my account…",
+        "steps": "Deletion steps",
+        "step": "{{number}}. {{name}}",
+        "step_warning": "What goes away",
+        "step_export": "Your data",
+        "step_request": "Code",
+        "step_code": "Confirmation",
+        "warning_title": "What goes away with the account",
+        "warning_intro": "Deletion is immediate, applies to every application and cannot be undone. Gone for good:",
+        "lose_account": "your manasomali.com account: email, language, time zone, sessions and the record of your sign-ins;",
+        "app_fallback": "your data in this application.",
+        "backups": "Deleted data still stays a few days in the backups, until they expire (see the <privacy>privacy policy</privacy>, which opens in a new tab).",
+        "export_title": "Take a copy of your data",
+        "export_text": "Optional. Each application has its own export. After deletion, there is nothing left to download.",
+        "export_none": "None of your applications has an export.",
+        "export_new_tab": "The links open in a new tab; come back here to continue.",
+        "request_title": "Confirmation code",
+        "request_text": "We will send a 6-digit code to {{email}}. It is valid for 10 minutes.",
+        "send_code": "Send code",
+        "sending": "Sending…",
+        "have_code": "I already have a code",
+        "code_title": "Enter the code",
+        "code_sent": "We sent a 6-digit code to {{email}}. It is valid for 10 minutes. If it does not arrive, check your spam folder.",
+        "code": "6-digit code",
+        "final_title": "Final confirmation",
+        "final_confirm": "I understand the account and the data in every application go away right away and this cannot be undone.",
+        "submit": "Delete my account",
+        "deleting": "Deleting…",
+        "resend": "Send another code",
+        "resend_in": "Send another code in {{seconds}} s",
+        "resent": "We sent a new code.",
+        "continue": "Continue",
+        "back": "Back",
+        "cancel": "Cancel"
+      }
+    },
     "terms": {
       "title": "Terms of use"
     },

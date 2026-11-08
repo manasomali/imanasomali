@@ -58,6 +58,90 @@
       "signing_out": "Saindo…",
       "disagree": "Se não concordar, você pode excluir a conta na <account>tela de conta</account>, sem aceitar."
     },
+    "account": {
+      "title": "Conta",
+      "saving": "Salvando…",
+      "terms_pending": {
+        "title": "Novos termos de uso",
+        "text": "Os termos de uso e a política de privacidade mudaram. Para continuar usando as aplicações e mudar o idioma ou o fuso, leia e aceite a nova versão. Se não concordar, você pode sair ou excluir a conta aqui embaixo.",
+        "accept": "Ler e aceitar"
+      },
+      "email": {
+        "title": "Email",
+        "help": "Para trocar o email, escreva para <mail>{{supportEmail}}</mail> a partir do email atual da conta, dizendo qual é o novo. Antes da troca, o suporte confirma o email novo pedindo uma resposta enviada dele, para um erro de digitação não entregar a conta a outra pessoa. Depois da troca, é preciso entrar de novo em todos os aparelhos.",
+        "lost_access": "Perdeu o acesso ao email atual? Escreva assim mesmo, de outro endereço. Nesse caso, o suporte pede informações que só quem usa a conta sabe (como dados nas aplicações) antes de decidir."
+      },
+      "apps": {
+        "title": "Suas aplicações",
+        "intro": "Com esta conta você entra em todas elas.",
+        "empty": "Nenhuma aplicação ainda."
+      },
+      "language": {
+        "title": "Idioma",
+        "help": "O idioma dos emails do manasomali.com e das aplicações (códigos, convites e alertas). Ao salvar, ele vira também o idioma da tela neste navegador.",
+        "save": "Salvar idioma",
+        "saved": "Idioma salvo."
+      },
+      "timezone": {
+        "title": "Fuso horário",
+        "help": "O fuso de todas as aplicações (no ethos, ele define os dias do calendário, a pontuação e o horário dos alertas). Fuso atual da conta: {{timezone}}.",
+        "device": "Este aparelho está noutro fuso: {{timezone}}.",
+        "use_device": "Escolher o fuso deste aparelho",
+        "search": "Buscar fuso (cidade, região ou UTC-03)",
+        "found_one": "{{count}} fuso encontrado.",
+        "found_other": "{{count}} fusos encontrados.",
+        "list": "Fusos horários",
+        "chosen": "Escolhido: {{timezone}}",
+        "save": "Salvar fuso",
+        "saved": "Fuso salvo."
+      },
+      "sessions": {
+        "title": "Sessões",
+        "sign_out": "Sair",
+        "sign_out_help": "Encerra a sessão só neste aparelho, em todas as aplicações.",
+        "sign_out_all": "Sair de todos os aparelhos",
+        "sign_out_all_help": "Encerra a sessão em todos os aparelhos, inclusive neste. Use se perdeu um aparelho ou entrou num computador que não é seu.",
+        "signing_out": "Saindo…"
+      },
+      "delete": {
+        "title": "Excluir conta",
+        "intro": "Apaga a conta e os seus dados em todas as aplicações na hora. Antes, a tela mostra o que some e onde levar uma cópia dos seus dados.",
+        "start": "Excluir minha conta…",
+        "steps": "Etapas da exclusão",
+        "step": "{{number}}. {{name}}",
+        "step_warning": "O que some",
+        "step_export": "Seus dados",
+        "step_request": "Código",
+        "step_code": "Confirmação",
+        "warning_title": "O que some com a conta",
+        "warning_intro": "A exclusão é imediata, vale para todas as aplicações e não dá para desfazer. Some de vez:",
+        "lose_account": "a sua conta do manasomali.com: email, idioma, fuso, sessões e o registro dos seus acessos;",
+        "app_fallback": "os seus dados nesta aplicação.",
+        "backups": "Os dados apagados ainda ficam alguns dias nas cópias de segurança, até elas vencerem (veja a <privacy>política de privacidade</privacy>, que abre em outra aba).",
+        "export_title": "Leve uma cópia dos seus dados",
+        "export_text": "Opcional. Cada aplicação tem o seu export. Depois da exclusão, não dá mais para baixar nada.",
+        "export_none": "Nenhuma das suas aplicações tem export.",
+        "export_new_tab": "Os links abrem em outra aba; volte aqui para continuar.",
+        "request_title": "Código de confirmação",
+        "request_text": "Vamos mandar um código de 6 dígitos para {{email}}. Ele vale por 10 minutos.",
+        "send_code": "Enviar código",
+        "sending": "Enviando…",
+        "have_code": "Já tenho um código",
+        "code_title": "Digite o código",
+        "code_sent": "Enviamos um código de 6 dígitos para {{email}}. Ele vale por 10 minutos. Se não chegar, confira a caixa de spam.",
+        "code": "Código de 6 dígitos",
+        "final_title": "Confirmação final",
+        "final_confirm": "Entendo que a conta e os dados em todas as aplicações somem na hora e que não dá para desfazer.",
+        "submit": "Excluir minha conta",
+        "deleting": "Excluindo…",
+        "resend": "Enviar outro código",
+        "resend_in": "Enviar outro código em {{seconds}} s",
+        "resent": "Enviamos um novo código.",
+        "continue": "Continuar",
+        "back": "Voltar",
+        "cancel": "Cancelar"
+      }
+    },
     "terms": {
       "title": "Termos de uso"
     },
