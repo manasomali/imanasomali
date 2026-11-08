@@ -72,6 +72,9 @@ class Settings(BaseModel):
     # URL pública do front, ex.: https://manasomali.com/ethos (sem barra no fim)
     app_url: str
     database_path: Path
+    # API interna do imago, a conta única (ex.: http://127.0.0.1:3003). Entra no app.env antes da
+    # passagem do login para o imago (ETH-64); este ethos, com login próprio, ainda não a usa
+    imago_internal_url: str | None = None
     email_backend: EmailBackend
     mail_from: str
     support_email: str
