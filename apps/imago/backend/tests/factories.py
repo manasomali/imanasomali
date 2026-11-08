@@ -6,22 +6,22 @@
 - `count(session, Modelo, *where)`: quantas linhas batem.
 """
 
-import secrets
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth.security import generate_account_id
 from app.db import write_transaction
-from app.models import MAX_ACCOUNT_ID, User
+from app.models import User
 
 TERMS_ACCEPTED_AT = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
 
 
 def new_user(email: str = "ana@example.com", **fields: Any) -> User:
     values: dict[str, Any] = {
-        "id": secrets.randbelow(MAX_ACCOUNT_ID) + 1,
+        "id": generate_account_id(),
         "email": email,
         "timezone": "America/Sao_Paulo",
         "locale": "pt",

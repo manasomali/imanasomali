@@ -69,6 +69,7 @@ jobs:
         env:
           FULL_COVERAGE: |
             app/audit.py
+            app/auth/security.py
             app/config.py
             app/retention.py
             app/seed.py
