@@ -1,0 +1,28 @@
+# Tarefas pendentes para as aplicações (exclusão de conta e refresh de app_users) e limpeza do
+# imago, disparado pelo imago-cleanup.timer de hora em hora.
+
+[Unit]
+Description=imago: tarefas das aplicações e limpeza
+ConditionPathExists=/opt/apps/imago/.venv/bin/python
+# Grava uma linha de erro no journald (journalctl -t infra -p err)
+OnFailure=infra-unit-failed@%n.service
+
+[Service]
+Type=oneshot
+User=app-imago
+Group=app-imago
+WorkingDirectory=/opt/apps/imago
+# O run-tasks manda o "conta excluída" quando a última tarefa de uma exclusão termina
+EnvironmentFile=/etc/infra/smtp.env
+EnvironmentFile=/etc/infra/internal/imago.env
+EnvironmentFile=/etc/infra/apps/imago.env
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/apps/imago/.venv/bin/python -m app.cli run-tasks
+ExecStart=/opt/apps/imago/.venv/bin/python -m app.cli cleanup
+
+MemoryMax=150M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/sqlite/imago

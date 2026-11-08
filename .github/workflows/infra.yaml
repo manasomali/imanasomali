@@ -12,6 +12,9 @@ on:
       - "infra/**"
       - ".github/workflows/infra.yaml"
       - ".github/scripts/**"
+      # nginx de dev, gerado a partir de infra/apps/ (o nginx -t dele roda aqui). Só em PR: no push
+      # na main, uma mudança só nele não precisa de provision
+      - "apps/imago/dev/**"
   workflow_dispatch:
 
 # Nunca dois provisions (nem um provision e um teste de restauração) ao mesmo tempo
@@ -27,13 +30,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: shellcheck
-        run: shellcheck -x infra/provision.sh infra/scripts/*.sh infra/tests/*.sh .github/scripts/*.sh
+        run: shellcheck -x infra/provision.sh infra/scripts/*.sh infra/tests/*.sh .github/scripts/*.sh apps/imago/dev/*.sh
 
       - name: databases.txt
         run: bash -c 'source infra/lib/common.sh && read_databases infra/databases.txt'
-
-      - name: Python do app.conf igual ao .python-version de cada app
-        run: bash .github/scripts/check-python-version.sh
 
       - name: Portas dos app.conf únicas e na tabela do infra/README.md
         run: bash .github/scripts/check-ports.sh
@@ -41,36 +41,36 @@ jobs:
       - name: Testes do stdin e dos arquivos de ambiente (infra/tests)
         run: sudo bash infra/tests/test-input.sh
 
+      - name: Testes dos tokens da API interna (infra/tests)
+        run: sudo bash infra/tests/test-internal-tokens.sh
+
+      - name: Teste da checagem do IMAGO_APPS
+        run: bash .github/scripts/test-check-imago-apps.sh
+
       - name: nginx -t (mesma versão da VM, com certificados falsos, o site e as rotas das apps)
         run: |
-          source infra/config.env
           stub=$(mktemp -d)
-          mkdir -p "$stub/le/live/$SITE_DOMAIN" "$stub/apps.d" "$stub/conf.d"
-          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=$SITE_DOMAIN" \
-            -keyout "$stub/le/live/$SITE_DOMAIN/privkey.pem" \
-            -out "$stub/le/live/$SITE_DOMAIN/fullchain.pem" 2>/dev/null
-          touch "$stub/le/options-ssl-nginx.conf"
-          openssl dhparam -dsaparam -out "$stub/le/ssl-dhparams.pem" 2048 2>/dev/null
-          cp infra/nginx/site.conf "$stub/conf.d/default.conf"
-          # O modelo genérico e a config de cada app, como o provision instala
+          bash .github/scripts/nginx-stub-config.sh "$stub"
+          # O modelo genérico também, como o provision o instalaria
           sed -e 's/__PROJETO__/exemplo/g' -e 's/__PORTA__/3999/g' \
             infra/templates/app-nginx.conf.tmpl > "$stub/apps.d/exemplo.conf"
-          for dir in infra/apps/*/; do
-            name=$(basename "$dir")
-            port=$(sed -n 's/^PORT=//p' "$dir/app.conf" 2>/dev/null | tail -n1)
-            if [[ -f $dir/nginx.conf ]]; then
-              sed "s/__PORTA__/$port/g" "$dir/nginx.conf" > "$stub/apps.d/$name.conf"
-            fi
-            if [[ -f $dir/nginx-http.conf ]]; then
-              sed "s/__PORTA__/$port/g" "$dir/nginx-http.conf" > "$stub/conf.d/$name.conf"
-            fi
-          done
           ls "$stub/apps.d" "$stub/conf.d"
           docker run --rm \
             -v "$stub/conf.d:/etc/nginx/conf.d:ro" \
             -v "$stub/le:/etc/letsencrypt:ro" \
             -v "$stub/apps.d:/etc/nginx/apps.d:ro" \
             nginx:1.24 nginx -t
+
+      - name: nginx -t na config de dev (apps/imago/dev)
+        run: bash apps/imago/dev/nginx.sh check
+
+      # Por último, para uma falha aqui não esconder as checagens acima: conferem o infra/apps/
+      # contra o código das apps (apps/<nome>/)
+      - name: Python do app.conf igual ao .python-version de cada app
+        run: bash .github/scripts/check-python-version.sh
+
+      - name: IMAGO_APPS com todas as apps, nas portas dos app.conf, e os textos delas no front do imago
+        run: bash .github/scripts/check-imago-apps.sh
 
   # install_uv e install_pythons de verdade, no mesmo Ubuntu da VM
   uv:
@@ -110,9 +110,20 @@ jobs:
       - name: Instalar as rotas e testar com curl
         run: sudo bash .github/scripts/test-provision-nginx.sh
 
+  # Quem é o usuário: o auth_request de cada app para o imago, no container nginx:1.24 com a config
+  # de produção, um imago falso e uma app de teste; nenhum X-User-* do cliente chega aos backends
+  nginx-auth:
+    name: 🔐 auth_request do imago no nginx
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: imago falso, app de teste e as apps de infra/apps/ com auth_request
+        run: bash .github/scripts/test-nginx-auth.sh
+
   deploy:
     name: 🚀 Provisionar VM
-    needs: [lint, uv, apps, nginx]
+    needs: [lint, uv, apps, nginx, nginx-auth]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: production

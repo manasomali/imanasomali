@@ -1,0 +1,42 @@
+# API do imago (manasomali.com/api/imago/), a conta única das aplicações. Instalada pelo provision,
+# com a porta do app.conf. O código e a .venv chegam pelo deploy (.github/workflows/imago.yaml) em
+# /opt/apps/imago. O nginx pergunta a ele quem é o usuário em cada request de /api/<app>/
+# (auth_request em /_imago/session): parado, a API das aplicações responde 500 (menos o /health).
+
+[Unit]
+Description=imago: API em /api/imago/
+After=network.target
+# Antes do primeiro deploy não há .venv: a unit fica parada, sem erro
+ConditionPathExists=/opt/apps/imago/.venv/bin/uvicorn
+# Migração quebrada ou crash em loop: no máximo 5 tentativas em 5 min, depois fica em "failed"
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User=app-imago
+Group=app-imago
+WorkingDirectory=/opt/apps/imago
+# Só o imago lê as credenciais SMTP: as aplicações mandam email por ele (POST /internal/mail)
+EnvironmentFile=/etc/infra/smtp.env
+# IMAGO_APP_TOKENS: o token da API interna de cada aplicação, gerado na VM pelo provision
+EnvironmentFile=/etc/infra/internal/imago.env
+EnvironmentFile=/etc/infra/apps/imago.env
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+# Migração quebrada impede o serviço de subir
+ExecStartPre=/opt/apps/imago/.venv/bin/alembic upgrade head
+# Só em 127.0.0.1: o nginx tira o prefixo /api/imago e repassa; --root-path devolve o prefixo
+# público às URLs geradas pelo FastAPI. As aplicações chamam a API interna direto nesta porta
+ExecStart=/opt/apps/imago/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port __PORTA__ --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1 --root-path /api/imago
+Restart=on-failure
+RestartSec=5
+
+MemoryMax=150M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/sqlite/imago
+
+[Install]
+WantedBy=multi-user.target

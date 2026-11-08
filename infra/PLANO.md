@@ -315,6 +315,16 @@ Medição real em 2026-10-17: 964 MiB no total, **516 MiB usados, só 282 MiB di
 - **Firewall:** a VM tem `firewalld` e `netfilter-persistent` ligados no boot. O firewalld sobe depois, apaga as regras do iptables e fica valendo sozinho. A 443 só estava liberada no `rules.v4`, e o reboot de 2026-10-18 derrubou o https até 2026-10-21 (liberado com `firewall-cmd --permanent --zone=public --add-service=https`). O smoke test não pegou porque testa pelo `127.0.0.1`. Ainda falta deixar um firewall só, gerenciado pelo provision.
 - Próximo salto: 24.04 → 26.04, com o mesmo roteiro (backup do boot volume, `backup-verify`, console da OCI aberto) e trocando de novo a imagem do nginx no CI.
 
+## Conta única e API interna (2026-11-08)
+
+O imago ([imago-plan.md](../imago-plan.md)) entra como mais uma aplicação (`infra/apps/imago/`, porta 3003, banco `imago`). Decisões de infra:
+
+- **Tokens da API interna gerados na VM** (`lib/apps.sh`, `install_internal_tokens`), um por aplicação, em `/etc/infra/internal/<app>.env`, e juntados em `/etc/infra/internal/imago.env`. Não passam pelo GitHub: um secret por aplicação teria de ser cadastrado à mão a cada aplicação nova, e o token só precisa existir na VM. São criados só se o arquivo não existir (`/dev/urandom`, 32 bytes em base64url), o que mantém o provision idempotente, e nunca aparecem em log, em argumento de processo nem em mensagem de erro (a validação diz só que o formato está errado). O `imago.env` sai em ordem `LC_ALL=C`, para não mudar de um provision para outro por causa do locale.
+- **Aplicação que sai de `infra/apps/`** sai do `imago.env` no mesmo provision (o imago reinicia e o token dela deixa de valer), mas o arquivo do token fica, como o código e os dados. Se ela voltar, volta com o mesmo token.
+- **Quem reinicia:** o serviço principal reinicia quando muda um arquivo que a unit dele lê com `EnvironmentFile=` (o `app.env`, o `smtp.env`, o token). O provision descobre isso lendo a unit no repo (`app_reads_env_file`), em vez de reiniciar todas as aplicações quando o `smtp.env` muda. Os jobs de timer leem os arquivos de novo a cada execução.
+- **`auth_request` no `/_imago/session`:** além do que o plano lista, o `location` manda `X-Forwarded-For: $remote_addr`. Sem isso, o `X-Forwarded-For` do cliente iria como veio ao imago, que confia no `127.0.0.1` (`--forwarded-allow-ips`) e tomaria o último endereço da lista, forjável, como o IP do cliente.
+- **Testes:** o `auth_request` roda no CI com o `nginx:1.24` em container, a config de produção, um imago falso e uma aplicação de teste (`.github/scripts/test-nginx-auth.sh`); toda aplicação de `infra/apps/` que usa o `auth_request` passa pelos mesmos casos. O nginx de dev (`apps/imago/dev/`) é gerado dos mesmos snippets, e o CI roda `nginx -t` nele.
+
 ## Riscos e mitigações
 
 | Risco | Mitigação |

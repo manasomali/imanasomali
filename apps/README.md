@@ -17,6 +17,8 @@ O nome segue a regra do `infra/databases.txt`: `^[a-z][a-z0-9-]{1,26}$`.
 | Rotas | front em `/<nome>/`, API em `/api/<nome>/` |
 | Workflow | `.github/workflows/<nome>.yaml`, com `paths` em `apps/<nome>/**`, `packages/**` e no próprio workflow. O deploy usa os scripts de [packages/deploy/](../packages/deploy/README.md), com o nome da aplicação como parâmetro |
 | Porta do backend | única, registrada na tabela de portas do [infra/README.md](../infra/README.md#portas-em-uso) |
+| Login | do imago, a conta única ([imago-plan.md](../imago-plan.md)): a `location /api/<nome>/` usa `auth_request /_imago/session` e repassa os cinco `X-User-*`, e toda location que chega ao backend os define (vazios fora do `auth_request`); modelo em [.github/scripts/nginx-auth/teste.conf](../.github/scripts/nginx-auth/teste.conf). A aplicação entra no `IMAGO_APPS` do `infra/apps/imago/app.env`, com os textos dela no front do imago |
+| API interna | só em `127.0.0.1`, com o token da aplicação, que o provision gera em `/etc/infra/internal/<nome>.env` (`EnvironmentFile=` nas units); o nginx responde 404 para `/api/<nome>/internal/`. Ver [infra/README.md](../infra/README.md#conta-única-imago-e-api-interna) |
 
 ## Regras
 

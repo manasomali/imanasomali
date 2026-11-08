@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Testa provision_databases e provision_apps num runner Ubuntu com systemd, como root, com o usuário
 # do runner no papel do usuário de deploy (sudo total sem senha, como o ubuntu da VM). O código das
-# apps é trocado por stubs em /opt/apps/<nome>/.venv/bin (uvicorn, alembic, python).
+# apps é trocado por stubs em /opt/apps/<nome>/.venv/bin (uvicorn, alembic, python). Inclui os
+# tokens da API interna e o restart só de quem lê o smtp.env ou o imago.env.
 # Roda na raiz do repo, pelo infra.yaml: sudo DEPLOY_USER=runner .github/scripts/test-provision-apps.sh
 set -euo pipefail
 
@@ -60,7 +61,23 @@ run_apps
 
 echo "--- segunda execução: não muda nem avisa nada"
 provision_databases
+tokens_before=$(sha256sum "$INTERNAL_DIR"/*.env)
 quiet_run "segunda execução"
+[[ $(sha256sum "$INTERNAL_DIR"/*.env) == "$tokens_before" ]] || fail "a segunda execução mudou os tokens"
+
+echo "--- tokens da API interna (o teste completo está em infra/tests/test-internal-tokens.sh)"
+stat_is "$INTERNAL_DIR" "root 700"
+stat_is "$INTERNAL_DIR/$IMAGO_APP.env" "root 600"
+for name in "${apps[@]}"; do
+  [[ $name != "$IMAGO_APP" ]] || continue
+  stat_is "$INTERNAL_DIR/$name.env" "root 600"
+  token=$(sed -n 's/^INTERNAL_API_TOKEN=//p' "$INTERNAL_DIR/$name.env")
+  grep -qE "^IMAGO_APP_TOKENS=(.*,)?$name:$token(,|$)" "$INTERNAL_DIR/$IMAGO_APP.env" \
+    || fail "$IMAGO_APP.env sem o token de $name"
+done
+if grep -qE "[=,]$IMAGO_APP:" "$INTERNAL_DIR/$IMAGO_APP.env"; then
+  fail "o imago ganhou token para ele mesmo"
+fi
 
 for name in "${apps[@]}"; do
   echo "--- $name: pastas, config e sudo"
@@ -154,17 +171,27 @@ EOF
     listening=$(ss -ltnH "sport = :$port" | awk '{print $4}')
     [[ $listening == "127.0.0.1:$port" ]] || fail "$service escuta em '$listening', esperado só 127.0.0.1:$port"
     [[ $(systemctl show -p MemoryMax --value "$service") == 157286400 ]] || fail "MemoryMax diferente de 150M"
-    grep -qx "EnvironmentFile=$INFRA_STATE_DIR/smtp.env" "$UNIT_DIR/$service" || fail "$service sem smtp.env"
     grep -qx "EnvironmentFile=$INFRA_STATE_DIR/apps/$name.env" "$UNIT_DIR/$service" || fail "$service sem $name.env"
+    # Cada EnvironmentFile= obrigatório (sem "-") existe depois do provision: sem ele a unit não sobe
+    while IFS= read -r env_file; do
+      [[ -f $env_file ]] || fail "$service lê $env_file, que o provision não criou"
+    done < <(sed -n 's/^EnvironmentFile=\([^-].*\)$/\1/p' "$UNIT_DIR/$service")
 
-    echo "--- $name: restart só quando a config muda"
+    echo "--- $name: restart só quando a config muda (o smtp.env, só para quem o lê)"
     pid_before=$(pid "$service")
     SMTP_CHANGED=1 run_apps
-    log_has "reiniciado: $service" || fail "mudança no smtp.env não reiniciou $service"
+    if grep -qx "EnvironmentFile=$INFRA_STATE_DIR/smtp.env" "$UNIT_DIR/$service"; then
+      log_has "reiniciado: $service" || fail "mudança no smtp.env não reiniciou $service, que o lê"
+      [[ $(pid "$service") != "$pid_before" ]] || fail "$service não foi reiniciado (mesmo PID)"
+    else
+      if log_has "reiniciado: $service"; then
+        fail "mudança no smtp.env reiniciou $service, que não o lê"
+      fi
+      [[ $(pid "$service") == "$pid_before" ]] || fail "$service reiniciou sem ler o smtp.env"
+    fi
     if log_has 'reiniciado: .*\.timer'; then
       fail "mudança no smtp.env reiniciou timer"
     fi
-    [[ $(pid "$service") != "$pid_before" ]] || fail "$service não foi reiniciado (mesmo PID)"
     if [[ -f $INFRA_DIR/apps/$name/app.env ]]; then
       pid_before=$(pid "$service")
       cp "$INFRA_DIR/apps/$name/app.env" "$tmp_env"
@@ -217,20 +244,25 @@ EOF
   done < <(units_of "$name")
 done
 
-# O ethos: alertas e depois limpeza, nessa ordem, como app-ethos
-if [[ -f $UNIT_DIR/ethos-alerts.service ]]; then
-  echo "--- ethos-alerts.service roda run-alerts e depois cleanup"
+# Job $2 da aplicação $1: roda os comandos do CLI $3 (separados por espaço), nessa ordem, como
+# app-<nome>, e o timer dele é de hora em hora
+check_job() {
+  local name=$1 job=$2 want=$3 ran since
+  [[ -f $UNIT_DIR/$job.service ]] || return 0
+  echo "--- $job.service roda: $want"
   # O --since tem resolução de segundo: separa das execuções anteriores
   sleep 1.1
   since=$(date '+%Y-%m-%d %H:%M:%S')
-  systemctl start ethos-alerts.service
-  ran=$(journalctl -u ethos-alerts.service --since "$since" -o cat | grep 'stub python' | tr '\n' '|')
-  [[ $ran == "stub python: -m app.cli run-alerts|stub python: -m app.cli cleanup|" ]] \
-    || fail "ethos-alerts.service rodou: $ran"
-  [[ $(systemctl show -p User --value ethos-alerts.service) == app-ethos ]] || fail "ethos-alerts não roda como app-ethos"
-  [[ $(systemctl show -p TimersCalendar --value ethos-alerts.timer) == *"*-*-* *:00:00"* ]] \
-    || fail "ethos-alerts.timer não é de hora em hora"
-fi
+  systemctl start "$job.service"
+  ran=$(journalctl -u "$job.service" --since "$since" -o cat | sed -n 's/^stub python: -m app\.cli //p' | paste -sd' ' -)
+  [[ $ran == "$want" ]] || fail "$job.service rodou: $ran"
+  [[ $(systemctl show -p User --value "$job.service") == "app-$name" ]] || fail "$job não roda como app-$name"
+  [[ $(systemctl show -p TimersCalendar --value "$job.timer") == *"*-*-* *:00:00"* ]] \
+    || fail "$job.timer não é de hora em hora"
+}
+# O ethos: alertas e depois limpeza. O imago: tarefas para as aplicações e depois limpeza
+check_job ethos ethos-alerts "run-alerts cleanup"
+check_job imago imago-cleanup "run-tasks cleanup"
 
 echo "--- dono ou modo errado é corrigido"
 name=${apps[0]}
@@ -285,9 +317,33 @@ printf '[Service]\nExecStart=/bin/sleep infinity\n\n[Install]\nWantedBy=multi-us
   > "$INFRA_DIR/apps/$old/app-$old.service"
 printf '[Service]\nType=oneshot\nExecStart=/bin/true\n' > "$INFRA_DIR/apps/$old/$old-job.service"
 printf '[Timer]\nOnCalendar=daily\n\n[Install]\nWantedBy=timers.target\n' > "$INFRA_DIR/apps/$old/$old-job.timer"
+tokens_before=$(sha256sum "$INTERNAL_DIR"/*.env | grep -v "/$IMAGO_APP.env")
 run_apps
 systemctl is-active --quiet "app-$old.service" || fail "app-$old.service não subiu"
 systemctl is-active --quiet "$old-job.timer" || fail "$old-job.timer não subiu"
+
+echo "--- app nova: ganha o token dela, entra no imago.env e só o imago reinicia"
+stat_is "$INTERNAL_DIR/$old.env" "root 600"
+token=$(sed -n 's/^INTERNAL_API_TOKEN=//p' "$INTERNAL_DIR/$old.env")
+grep -qE "[=,]$old:$token(,|$)" "$INTERNAL_DIR/$IMAGO_APP.env" || fail "$IMAGO_APP.env sem o token de $old"
+[[ $(sha256sum "$INTERNAL_DIR"/*.env | grep -v "/$IMAGO_APP.env\|/$old.env") == "$tokens_before" ]] \
+  || fail "a app nova mudou o token de outra"
+if [[ -f $UNIT_DIR/app-$IMAGO_APP.service ]]; then
+  log_has "reiniciado: app-$IMAGO_APP.service" || fail "imago.env mudou e app-$IMAGO_APP não reiniciou"
+fi
+for name in "${apps[@]}"; do
+  [[ $name != "$IMAGO_APP" ]] || continue
+  if log_has "reiniciado: app-$name.service"; then
+    fail "a app nova reiniciou app-$name"
+  fi
+done
+
+echo "--- smtp.env novo não reinicia app-$old, que não o lê"
+SMTP_CHANGED=1 run_apps
+if log_has "reiniciado: app-$old.service"; then
+  fail "mudança no smtp.env reiniciou app-$old"
+fi
+quiet_run "depois da app nova"
 printf 'codigo\n' > "/opt/apps/$old/codigo.txt"
 printf 'front\n' > "/var/www/$old/index.html"
 install -d /etc/nginx/apps.d
@@ -309,6 +365,13 @@ ls /var/backups/infra/nginx-*-"$old".conf.* >/dev/null || fail "cópia da config
 [[ $(cat "/opt/apps/$old/codigo.txt") == codigo ]] || fail "código de $old foi mexido"
 [[ $(cat "/var/www/$old/index.html") == front ]] || fail "frontend de $old foi mexido"
 log_has "AVISO: $old saiu de infra/apps/" || fail "remoção sem aviso no log"
+if grep -qE "[=,]$old:" "$INTERNAL_DIR/$IMAGO_APP.env"; then
+  fail "o token de $old continua no $IMAGO_APP.env"
+fi
+[[ -f $INTERNAL_DIR/$old.env ]] || fail "o arquivo do token de $old foi apagado"
+if [[ -f $UNIT_DIR/app-$IMAGO_APP.service ]]; then
+  log_has "reiniciado: app-$IMAGO_APP.service" || fail "imago.env mudou e app-$IMAGO_APP não reiniciou"
+fi
 run_apps
 if log_has "desligado|removido"; then
   fail "segunda execução depois da remoção mexeu de novo"

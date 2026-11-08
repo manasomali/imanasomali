@@ -56,7 +56,8 @@ install_runtime_files() {
     CREDS_CHANGED=1
   fi
   write_env_file "$INFRA_STATE_DIR/s3.env" 0644 S3_ENDPOINT S3_BUCKET OCI_REGION || true
-  # Um provedor e um domínio só: as apps dividem as credenciais (EnvironmentFile= de cada unit)
+  # Um provedor e um domínio só. Lido pelas units que têm EnvironmentFile= dele (o imago manda os
+  # emails de todas as aplicações); só elas reiniciam quando muda
   if write_env_file "$INFRA_STATE_DIR/smtp.env" 0600 SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD; then
     SMTP_CHANGED=1
   fi
