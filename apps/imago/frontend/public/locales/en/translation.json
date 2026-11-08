@@ -27,6 +27,37 @@
     "contents": "Contents"
   },
   "pages": {
+    "login": {
+      "title": "Sign in",
+      "intro": "Enter your email and we will send you a 6-digit code. One account works in every application on manasomali.com; if you do not have one yet, it is created when you confirm the code.",
+      "email": "Email",
+      "send_code": "Send code",
+      "sending": "Sending…",
+      "have_code": "I already have a code",
+      "code_sent": "We sent a 6-digit code to {{email}}. It is valid for 10 minutes. If it does not arrive, check your spam folder.",
+      "code": "6-digit code",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "resend": "Send a new code",
+      "resend_in": "Send a new code in {{seconds}} s",
+      "resent": "We sent a new code.",
+      "change_email": "Use another email",
+      "consent": "By continuing, you agree to the <terms>terms of use</terms> and the <privacy>privacy policy</privacy> (links open in a new tab).",
+      "account_deleted": "Your account was deleted from every application. We sent a confirmation to your email."
+    },
+    "terms_acceptance": {
+      "title": "New terms of use",
+      "signed_in_as": "Signed in as {{email}}.",
+      "text": "The terms of use and the privacy policy of manasomali.com changed. To keep using the applications, read and accept the new version.",
+      "links": "Texts (open in a new tab)",
+      "accept": "Accept and continue",
+      "accepting": "Saving…",
+      "outdated": "A newer version of the terms was published while this page was open. Reload the page to read it.",
+      "reload": "Reload page",
+      "sign_out": "Sign out",
+      "signing_out": "Signing out…",
+      "disagree": "If you do not agree, you can delete your account on the <account>account page</account> without accepting."
+    },
     "terms": {
       "title": "Terms of use"
     },
