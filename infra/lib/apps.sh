@@ -240,6 +240,7 @@ app_reads_env_file() {
 # nasceu agora e com o imago, se o imago.env mudou.
 install_internal_tokens() {
   local apps=$1 name file token entries=""
+  local -A owner=()
   TOKENS_CHANGED=()
 
   sync_dir "$INTERNAL_DIR" 0700 root || true
@@ -259,10 +260,17 @@ install_internal_tokens() {
       log "atualizado: $file (root 600)"
     fi
     token=$(<"$file")
-    if [[ ! $token =~ ^INTERNAL_API_TOKEN=([A-Za-z0-9_-]{32,})$ ]]; then
+    # O formato que o imago aceita (32 a 512 caracteres base64url), senão ele não sobe
+    if [[ ! $token =~ ^INTERNAL_API_TOKEN=([A-Za-z0-9_-]{32,})$ ]] || ((${#BASH_REMATCH[1]} > 512)); then
       die "$file fora do formato INTERNAL_API_TOKEN=<base64url> (conteúdo omitido): apague-o e rode o provision de novo para gerar outro"
     fi
-    entries+="$name:${BASH_REMATCH[1]},"
+    token=${BASH_REMATCH[1]}
+    # O token diz ao imago quem chamou: dois iguais, e ele não sobe
+    if [[ -n ${owner[$token]:-} ]]; then
+      die "$file tem o mesmo token de $INTERNAL_DIR/${owner[$token]}.env: apague um dos dois e rode o provision de novo"
+    fi
+    owner[$token]=$name
+    entries+="$name:$token,"
   done < <(LC_ALL=C sort <<< "$apps")
 
   if printf 'IMAGO_APP_TOKENS=%s\n' "${entries%,}" | sync_content "$INTERNAL_DIR/$IMAGO_APP.env" 0600; then

@@ -142,6 +142,11 @@ printf 'INTERNAL_API_TOKEN=%s\nOUTRA=segredo-extra\n' "$ethos_token" > "$INTERNA
 assert "segunda linha recusada" run_tokens_fails engrafi ethos imago
 printf 'INTERNAL_API_TOKEN=%s\r\n' "$ethos_token" > "$INTERNAL_DIR/ethos.env"
 assert "CRLF recusado" run_tokens_fails engrafi ethos imago
+printf 'INTERNAL_API_TOKEN=%s\n' "$(printf 'x%.0s' {1..513})" > "$INTERNAL_DIR/ethos.env"
+assert "token com mais de 512 caracteres recusado (o imago não aceitaria)" run_tokens_fails engrafi ethos imago
+printf 'INTERNAL_API_TOKEN=%s\n' "$engrafi_token" > "$INTERNAL_DIR/ethos.env"
+assert "o mesmo token em duas aplicações recusado" run_tokens_fails engrafi ethos imago
+assert "mensagem do token repetido" grep -q "tem o mesmo token de $INTERNAL_DIR/engrafi.env" "$out"
 rm "$INTERNAL_DIR/ethos.env"
 ln -s "$tmp/ethos.env" "$INTERNAL_DIR/ethos.env"
 assert "link simbólico recusado" run_tokens_fails engrafi ethos imago
