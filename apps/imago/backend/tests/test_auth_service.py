@@ -136,6 +136,18 @@ def test_is_valid_timezone(name, expected):
     assert is_valid_timezone(name) is expected
 
 
+def test_localtime_of_the_system_zone_files_is_not_a_timezone(monkeypatch):
+    # No Debian/Ubuntu (a VM e o CI), o available_timezones() lista o link
+    # /usr/share/zoneinfo/localtime; no Windows, não. Simula a lista do Linux em qualquer máquina
+    monkeypatch.setattr(service, "available_timezones", lambda: {"America/Sao_Paulo", "localtime"})
+    service._timezones.cache_clear()
+    try:
+        assert is_valid_timezone("America/Sao_Paulo") is True
+        assert is_valid_timezone("localtime") is False
+    finally:
+        service._timezones.cache_clear()
+
+
 @pytest.mark.parametrize(
     ("values", "expected"),
     [
