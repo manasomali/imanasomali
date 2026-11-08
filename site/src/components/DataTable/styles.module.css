@@ -1,0 +1,43 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem 0.75rem;
+  text-align: start;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-inline-start: 0;
+}
+
+.table th:last-child,
+.table td:last-child {
+  padding-inline-end: 0;
+}
+
+.table thead th {
+  font-weight: 700;
+  white-space: nowrap;
+  border-bottom: 2px solid var(--border);
+}
+
+.table tbody th {
+  font-weight: 500;
+}
+
+.table .numeric {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.table .nowrap {
+  white-space: nowrap;
+}

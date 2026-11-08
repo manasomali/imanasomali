@@ -59,6 +59,23 @@
             }
         },
         "publications": {"title": "Publicações"},
+        "posts": {
+            "title": "Posts",
+            "intro": "Textos sobre projetos pessoais, ideias e coisas que ando fazendo.",
+            "tags": {"diy": "DIY", "woodworking": "Marcenaria"},
+            "items": {
+                "playground-gatos": {
+                    "title": "Playground de parede para gatos",
+                    "summary": "Projeto DIY em compensado naval: 14 plataformas e 2 casas penduradas em trilhos french cleat, todas tiradas de uma única chapa de 220 × 160 cm. Com lista de peças, plano e roteiro de corte e ordem de montagem."
+                }
+            }
+        },
+        "post": {
+            "back": "Todos os posts",
+            "loading": "Carregando o post…",
+            "error": "Não foi possível carregar o post.",
+            "reload": "Recarregar a página"
+        },
         "page404": {"title": "Página não encontrada", "message": "O endereço que você tentou acessar não existe ou foi removido.", "back": "Voltar para o início"}
     },
     "meta": {"tagline": "Engenheiro Eletricista e Desenvolvedor"},
@@ -73,6 +90,7 @@
     },
     "menu": {
         "about": "SOBRE",
+        "posts": "POSTS",
         "projects": "PROJETOS",
         "apps": "APLICAÇÕES",
         "publications": "PUBLICAÇÕES"
@@ -150,6 +168,12 @@
         },
         "project": {
             "access": "Acessar"
+        },
+        "post_card": {
+            "read": "Ler post"
+        },
+        "post_meta": {
+            "tags": "Tags"
         },
         "publication": {
             "accessed": "Disponível em",

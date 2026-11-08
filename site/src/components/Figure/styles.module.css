@@ -1,0 +1,10 @@
+.figure {
+  margin: 0;
+}
+
+.caption {
+  margin-top: 0.75rem;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}

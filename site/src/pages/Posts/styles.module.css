@@ -1,0 +1,15 @@
+.intro {
+  margin-top: calc(-1 * clamp(0.5rem, 1.5vw, 1rem));
+  margin-bottom: clamp(1.75rem, 4vw, 2.5rem);
+  color: var(--muted);
+  font-size: var(--text-lg);
+  line-height: 1.7;
+}
+
+.list {
+  display: grid;
+  gap: clamp(1.25rem, 3vw, 2rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

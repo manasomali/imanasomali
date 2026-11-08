@@ -59,6 +59,23 @@
             }
         },
         "publications": {"title": "Publications"},
+        "posts": {
+            "title": "Posts",
+            "intro": "Writing about personal projects, ideas and things I have been making.",
+            "tags": {"diy": "DIY", "woodworking": "Woodworking"},
+            "items": {
+                "playground-gatos": {
+                    "title": "Cat wall playground",
+                    "summary": "A DIY marine plywood project: 14 platforms and 2 houses hung on French cleat rails, all cut from a single 220 × 160 cm sheet. With the parts list, cutting plan and sequence, and assembly order."
+                }
+            }
+        },
+        "post": {
+            "back": "All posts",
+            "loading": "Loading the post…",
+            "error": "The post could not be loaded.",
+            "reload": "Reload the page"
+        },
         "page404": {"title": "Page not found", "message": "The page you are looking for does not exist or has been removed.", "back": "Back to home"}
     },
     "meta": {"tagline": "Electrical Engineer and Developer"},
@@ -73,6 +90,7 @@
     },
     "menu": {
         "about": "ABOUT",
+        "posts": "POSTS",
         "projects": "PROJECTS",
         "apps": "APPS",
         "publications": "PUBLICATIONS"
@@ -150,6 +168,12 @@
         },
         "project": {
             "access": "Open"
+        },
+        "post_card": {
+            "read": "Read post"
+        },
+        "post_meta": {
+            "tags": "Tags"
         },
         "publication": {
             "accessed": "Available at",

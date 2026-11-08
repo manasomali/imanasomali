@@ -1,0 +1,26 @@
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag {
+  padding: 0.05rem 0.6rem;
+  color: var(--fg);
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}

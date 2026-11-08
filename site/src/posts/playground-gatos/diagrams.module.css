@@ -1,0 +1,220 @@
+/* Piece colors of the plan's diagrams. The design tokens have no such categorical palette,
+   so it lives here, scoped to the diagrams. Like the tokens, the dark values are defined
+   twice (data-theme and the media query): change both together. */
+.palette {
+  --d-house: #f2ccba;
+  --d-top: #c7e0a3;
+  --d-back: #f7c7c7;
+  --d-cleat: #bad6f5;
+  --d-rail: #b8adee;
+  --d-waste: #e8e6e1;
+  --d-wall: #f5f5f2;
+  --d-door: #dedbd6;
+  --d-ink: #1a1a1a;
+  --d-line: #4d4d47;
+  --d-mark: #ba7517;
+  --d-hinge: #333333;
+}
+
+:global(:root[data-theme='dark']) .palette {
+  --d-house: #6e4a3b;
+  --d-top: #4a5e33;
+  --d-back: #6e3f45;
+  --d-cleat: #34506e;
+  --d-rail: #4b4380;
+  --d-waste: #2e2e2b;
+  --d-wall: #1a1a1a;
+  --d-door: #2e2d2b;
+  --d-ink: #f2f2f2;
+  --d-line: #8f8f8a;
+  --d-mark: #e6a24f;
+  --d-hinge: #d9d9d9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light'])) .palette {
+    --d-house: #6e4a3b;
+    --d-top: #4a5e33;
+    --d-back: #6e3f45;
+    --d-cleat: #34506e;
+    --d-rail: #4b4380;
+    --d-waste: #2e2e2b;
+    --d-wall: #1a1a1a;
+    --d-door: #2e2d2b;
+    --d-ink: #f2f2f2;
+    --d-line: #8f8f8a;
+    --d-mark: #e6a24f;
+    --d-hinge: #d9d9d9;
+  }
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* piece kinds: `fill` colors SVG shapes, `background-color` the legend swatches */
+.house { fill: var(--d-house); background-color: var(--d-house); }
+.top { fill: var(--d-top); background-color: var(--d-top); }
+.back { fill: var(--d-back); background-color: var(--d-back); }
+.cleat { fill: var(--d-cleat); background-color: var(--d-cleat); }
+.rail { fill: var(--d-rail); background-color: var(--d-rail); }
+.waste,
+.spacer { fill: var(--d-waste); background-color: var(--d-waste); }
+
+.piece {
+  stroke: var(--d-line);
+  stroke-width: 1;
+}
+
+/* text inside a piece; its size comes from the fontSize attribute */
+.pieceLabel {
+  fill: var(--d-ink);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.text,
+.muted {
+  font-size: 12px;
+}
+
+.text {
+  fill: var(--fg);
+}
+
+.muted {
+  fill: var(--muted);
+}
+
+.strong {
+  font-weight: 700;
+}
+
+.start {
+  text-anchor: start;
+}
+
+.middle {
+  text-anchor: middle;
+}
+
+.end {
+  text-anchor: end;
+}
+
+.central {
+  dominant-baseline: central;
+}
+
+.outline {
+  fill: none;
+  stroke: var(--d-line);
+  stroke-width: 1.5;
+}
+
+.dashed {
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.cut {
+  stroke: var(--d-ink);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+
+.mark {
+  stroke: var(--d-mark);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.dashedMark {
+  stroke-width: 2.5;
+  stroke-dasharray: 5 3;
+  stroke-linecap: butt;
+}
+
+.tick {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+
+.leader {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.arrow {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wallLine {
+  stroke: var(--fg);
+  stroke-width: 2;
+}
+
+.hatch {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+
+.hinge {
+  fill: var(--d-hinge);
+}
+
+.wallFace {
+  fill: var(--d-wall);
+  stroke: var(--d-line);
+  stroke-width: 1;
+}
+
+.door {
+  fill: var(--d-door);
+  stroke: var(--d-line);
+  stroke-width: 1;
+}
+
+.floor {
+  stroke: var(--fg);
+  stroke-width: 2.5;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.swatch {
+  flex: none;
+  width: 18px;
+  height: 12px;
+  border: 1px solid var(--d-line);
+  border-radius: 2px;
+}
+
+.markSwatch {
+  flex: none;
+  width: 18px;
+  height: 3px;
+  background: var(--d-mark);
+  border-radius: 2px;
+}

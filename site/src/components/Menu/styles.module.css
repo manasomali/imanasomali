@@ -106,9 +106,10 @@
   display: none;
 }
 
-/* With four links the inline menu needs about 880px in pt (the longest labels); below 960px it
-   collapses into the toggle, leaving some slack for wider fallback fonts */
-@media (max-width: 960px) {
+/* With five links the inline menu needs about 990px in pt (the longest labels) at this width;
+   up to 1040px it collapses into the toggle, which leaves room for a vertical scrollbar (the
+   media query counts it, the layout does not) and some slack for wider fallback fonts */
+@media (max-width: 1040px) {
   .toggle {
     display: inline-flex;
   }

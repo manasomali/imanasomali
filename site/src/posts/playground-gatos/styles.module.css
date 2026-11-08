@@ -1,0 +1,54 @@
+.intro {
+  font-size: var(--text-lg);
+}
+
+.toc {
+  padding: 1.25rem 1.5rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.tocTitle {
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.toc ol {
+  margin: 0;
+  padding-inline-start: 1.5rem;
+  columns: 2 14rem;
+  column-gap: 2.5rem;
+}
+
+.toc li::marker {
+  font-weight: 700;
+}
+
+.toc li {
+  break-inside: avoid;
+}
+
+.toc li + li {
+  margin-top: 0.25rem;
+}
+
+.toc a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.toc a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.callout {
+  padding: 1rem 1.25rem;
+  background: var(--surface);
+  border-inline-start: 4px solid var(--fg);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.note {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
