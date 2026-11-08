@@ -11,11 +11,20 @@ Convenções:
 - Enums: texto, com `CHECK` no banco. Os valores válidos são os das classes `StrEnum` abaixo.
 - Tamanhos fixos do plano: `CHECK` no banco, além da validação da API. Os limites que vêm do
   ambiente (ex.: `MAX_NOTE_LENGTH`) ficam só na API, porque o banco não muda com a config.
-- Ids inteiros com AUTOINCREMENT: um id apagado nunca volta para outra linha. A auditoria e o
-  log de exclusões guardam ids numéricos, que não podem passar a apontar para outra conta.
+- Ids inteiros com AUTOINCREMENT: um id apagado nunca volta para outra linha. A auditoria guarda
+  ids numéricos, que não podem passar a apontar para outra coisa. A exceção é `app_users`: o id é
+  o do usuário no imago (a conta única, `imago-plan.md`), sem AUTOINCREMENT.
+- Usuários: o login é do imago. `app_users` guarda uma cópia do que o ethos usa da conta (email,
+  idioma e fuso), criada e atualizada pelos headers `X-User-*` (`app/identity.py`) e pelo
+  `refresh` da API interna (`app/internal/router.py`).
 - Exclusão: `ON DELETE CASCADE` no que é do usuário e do hábito; `SET NULL` na autoria em dados
   de outras pessoas (`marks.user_id`, `audit_log.user_id`) e em `banners.created_by`. Depende do
   `PRAGMA foreign_keys=ON` que o `app/db.py` liga em toda conexão.
+- Legado do login próprio (antes do imago): as tabelas `sessions` e `login_codes` e a coluna
+  `audit_log.ip` continuam no banco (vazias) até a migração do deploy seguinte, que as apaga. O
+  app não as lê nem grava. As chaves estrangeiras para `app_users` mantêm o nome de antes do
+  rename (`fk_<tabela>_<coluna>_users`, `user_fk`): no SQLite, renomear uma constraint exige
+  recriar a tabela inteira.
 
 Qualquer mudança aqui vai junto com uma migração nova, escrita e revisada à mão; o teste de
 drift (tests/test_migrations.py) compara os dois.
@@ -42,7 +51,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-# Mesmos idiomas do front e dos emails (users.locale)
+# Mesmos idiomas do front e dos emails (app_users.locale)
 from app.mail.language import Locale
 
 # Nomes previsíveis para toda constraint e índice: o modo batch do Alembic no SQLite recria a
@@ -66,23 +75,30 @@ BANNER_TEXT_MAX_LENGTH = 280
 DEFAULT_SCORE_THRESHOLD = 70
 # Nomes de fuso IANA têm até ~32 caracteres; a validação de verdade é do zoneinfo, na API
 TIMEZONE_MAX_LENGTH = 64
-# sha256 em hexadecimal (app/auth/security.py: hash_secret)
+# Id de usuário do imago: inteiro de 1 a 2^53 - 1 (cabe num Number do javascript)
+MAX_USER_ID = 2**53 - 1
+# Tamanhos das tabelas legadas (sessions, login_codes, audit_log.ip): sha256 em hexadecimal e IPv6
+# por extenso com IPv4 no fim
 SECRET_HASH_LENGTH = 64
-# IPv6 por extenso com IPv4 no fim
 IP_MAX_LENGTH = 45
 USER_AGENT_MAX_LENGTH = 512
-TERMS_VERSION_MAX_LENGTH = 32
 EVENT_MAX_LENGTH = 64
+
+
+def user_fk(table: str, column: str, *, ondelete: str) -> ForeignKey:
+    """Chave estrangeira para `app_users.user_id`, com o nome de antes do rename de `users`.
+
+    O nome explícito vence a `NAMING_CONVENTION` (que daria `fk_<tabela>_<coluna>_app_users`) e
+    é o que está no banco: a migração 0005 renomeou a tabela e a coluna, não as constraints.
+    """
+    return ForeignKey("app_users.user_id", ondelete=ondelete, name=f"fk_{table}_{column}_users")
+
+
 # Cor própria do hábito: "#" e 6 dígitos hexadecimais em minúsculas. O GLOB do SQLite diferencia
 # maiúsculas e minúsculas e casa o texto inteiro (exatamente 7 caracteres). Igual na migração 0004
 CUSTOM_COLOR_GLOB = "#" + "[0-9a-f]" * 6
 # Expressão da coluna calculada `audit_log.mark_id` (igual na migração 0002)
 AUDIT_MARK_ID = "CASE WHEN json_valid(details) THEN json_extract(details, '$.mark_id') END"
-
-
-class CodePurpose(StrEnum):
-    LOGIN = "login"
-    DELETE_ACCOUNT = "delete_account"
 
 
 class HabitColor(StrEnum):
@@ -186,39 +202,39 @@ class Base(DeclarativeBase):
     type_annotation_map = {datetime: UTCDateTime}  # noqa: RUF012 (atributo de classe do SQLAlchemy)
 
 
-class User(Base):
-    __tablename__ = "users"
+class AppUser(Base):
+    """Quem usa o ethos: a cópia do que o ethos usa da conta do imago.
+
+    A chave é o id do usuário no imago (coluna `user_id`; no ORM, `AppUser.id`), sem
+    AUTOINCREMENT: as contas de antes do imago mantêm o id que tinham aqui, e as novas vêm com o
+    id aleatório do imago. A linha nasce no primeiro request com login e é atualizada quando
+    email, idioma ou fuso mudam (headers `X-User-*` ou `refresh` do imago). O email não é único:
+    a cópia de uma conta pode estar velha (o `refresh` atrasado) quando outra conta passa a usar o
+    email que ela tinha.
+    """
+
+    __tablename__ = "app_users"
     __table_args__ = (
-        # Salvo com strip + lower pela API; aqui só a rede de segurança. O lower() do SQLite só
-        # mexe em ASCII, então um email já passado pelo str.lower() do Python sempre passa
+        # O imago manda o email com strip + lower; aqui só a rede de segurança (o lower() do
+        # SQLite só mexe em ASCII, e o email do imago é ASCII)
         CheckConstraint("email = lower(trim(email))", name="email_normalized"),
         CheckConstraint(_max_length("email", EMAIL_MAX_LENGTH, minimum=3), name="email_length"),
         CheckConstraint(_max_length("timezone", TIMEZONE_MAX_LENGTH), name="timezone_length"),
         CheckConstraint(_in("locale", Locale), name="locale"),
-        CheckConstraint(
-            _max_length("terms_version", TERMS_VERSION_MAX_LENGTH), name="terms_version_length"
-        ),
-        {"sqlite_autoincrement": True},
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(EMAIL_MAX_LENGTH), unique=True)
-    # false: conta bloqueada pelo admin (não recebe código nem entra; os dados ficam)
-    is_active: Mapped[bool] = mapped_column(default=True, server_default=text("1"))
-    is_admin: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    # Fuso IANA, só preferência: usado para pontuação e alertas
-    timezone: Mapped[str] = mapped_column(String(TIMEZONE_MAX_LENGTH))
+    id: Mapped[int] = mapped_column("user_id", primary_key=True, autoincrement=False)
+    email: Mapped[str] = mapped_column(String(EMAIL_MAX_LENGTH))
     locale: Mapped[str] = mapped_column(String(2))
-    # Versão dos termos aceita. A conta já nasce com o aceite da versão atual
-    terms_version: Mapped[str] = mapped_column(String(TERMS_VERSION_MAX_LENGTH))
-    terms_accepted_at: Mapped[datetime]
-    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    # Fuso IANA, só preferência: usado pelos alertas, que rodam sem request
+    timezone: Mapped[str] = mapped_column(String(TIMEZONE_MAX_LENGTH))
+    # Primeiro request com login no ethos (ou o cadastro, para as contas de antes do imago)
+    first_seen_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
-    last_login_at: Mapped[datetime | None]
 
 
 class UserSession(Base):
-    """Sessão de login. O token fica só no cookie; aqui, o sha256 dele."""
+    """LEGADO (login próprio, antes do imago): vazia, sai na migração do deploy seguinte."""
 
     __tablename__ = "sessions"
     __table_args__ = (
@@ -233,38 +249,34 @@ class UserSession(Base):
     )
 
     token_hash: Mapped[str] = mapped_column(String(SECRET_HASH_LENGTH), primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(user_fk("sessions", "user_id", ondelete="CASCADE"))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     expires_at: Mapped[datetime]
     last_seen_at: Mapped[datetime] = mapped_column(default=utcnow)
-    # Apagado (NULL) depois de 90 dias pelo cleanup
     ip: Mapped[str | None] = mapped_column(String(IP_MAX_LENGTH))
     user_agent: Mapped[str | None] = mapped_column(String(USER_AGENT_MAX_LENGTH))
 
 
 class LoginCode(Base):
-    """Código de 6 dígitos mandado por email (login ou confirmação de ação da conta)."""
+    """LEGADO (login próprio, antes do imago): vazia, sai na migração do deploy seguinte."""
 
     __tablename__ = "login_codes"
     __table_args__ = (
-        CheckConstraint(_in("purpose", CodePurpose), name="purpose"),
+        CheckConstraint("purpose IN ('login', 'delete_account')", name="purpose"),
         CheckConstraint(f"length(code_hash) = {SECRET_HASH_LENGTH}", name="code_hash_length"),
         CheckConstraint("attempts >= 0", name="attempts_not_negative"),
-        # Limite por email (1 por minuto, 5 por hora) e invalidação dos anteriores
         Index(None, "email", "created_at"),
-        # Teto global por hora e por dia
         Index(None, "created_at"),
-        # Limpeza dos vencidos
         Index(None, "expires_at"),
         Index(None, "user_id"),
         {"sqlite_autoincrement": True},
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    # Destino do código, já normalizado (strip + lower)
     email: Mapped[str] = mapped_column(String(EMAIL_MAX_LENGTH))
-    # Vazio no login; preenchido nas ações de uma conta existente (ex.: exclusão)
-    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    user_id: Mapped[int | None] = mapped_column(
+        user_fk("login_codes", "user_id", ondelete="CASCADE")
+    )
     purpose: Mapped[str] = mapped_column(String(16))
     code_hash: Mapped[str] = mapped_column(String(SECRET_HASH_LENGTH))
     attempts: Mapped[int] = mapped_column(default=0, server_default=text("0"))
@@ -274,14 +286,16 @@ class LoginCode(Base):
 
 
 class AuditLog(Base):
-    """Eventos de auth, de configuração e de marcações. A lista de eventos fica em app/audit.py."""
+    """Auditoria das marcações, da configuração dos hábitos, do compartilhamento e do admin.
+
+    A lista de eventos fica em app/audit.py. Os eventos de login e de conta ficam no imago.
+    """
 
     __tablename__ = "audit_log"
     __table_args__ = (
         CheckConstraint(_max_length("event", EVENT_MAX_LENGTH), name="event_length"),
         CheckConstraint(_max_length("ip", IP_MAX_LENGTH), name="ip_length"),
         CheckConstraint("json_valid(details)", name="details_json"),
-        # Limpeza por data (retenção de 90 dias)
         Index(None, "created_at"),
         # Anonimização na exclusão da conta
         Index(None, "user_id"),
@@ -294,10 +308,14 @@ class AuditLog(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     # Quem fez; NULL quando a conta foi apagada ("usuário removido") ou em evento do sistema
-    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[int | None] = mapped_column(
+        user_fk("audit_log", "user_id", ondelete="SET NULL")
+    )
     # Hábito a que o evento se refere: apagar o hábito apaga a auditoria dele junto
     habit_id: Mapped[int | None] = mapped_column(ForeignKey("habits.id", ondelete="CASCADE"))
     event: Mapped[str] = mapped_column(String(EVENT_MAX_LENGTH))
+    # LEGADO: sempre NULL (o ethos não grava IP; a migração 0005 apagou os que havia). A coluna sai
+    # na migração do deploy seguinte
     ip: Mapped[str | None] = mapped_column(String(IP_MAX_LENGTH))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, server_default=text("'{}'"))
@@ -357,7 +375,7 @@ class Habit(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    owner_id: Mapped[int] = mapped_column(user_fk("habits", "owner_id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(HABIT_NAME_MAX_LENGTH))
     # Sigla opcional; quando definida, aparece no lugar do nome
     code: Mapped[str | None] = mapped_column(String(HABIT_CODE_MAX_LENGTH))
@@ -431,7 +449,7 @@ class HabitMember(Base):
         ForeignKey("habits.id", ondelete="CASCADE"), primary_key=True
     )
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+        user_fk("habit_members", "user_id", ondelete="CASCADE"), primary_key=True
     )
     role: Mapped[str] = mapped_column(String(8))
     joined_at: Mapped[datetime] = mapped_column(default=utcnow)
@@ -455,8 +473,11 @@ class HabitInvite(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     habit_id: Mapped[int] = mapped_column(ForeignKey("habits.id", ondelete="CASCADE"))
     email: Mapped[str] = mapped_column(String(EMAIL_MAX_LENGTH))
-    # Vazio se o email não tinha conta no convite: esse convite nunca é entregue
-    invited_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # Id do usuário no imago (`POST /internal/users/lookup`), vazio se o email não tinha conta
+    # (ativa) no convite: esse convite nunca é entregue. Sem chave estrangeira: o convidado pode
+    # nunca ter aberto o ethos (sem linha em `app_users`). A exclusão da conta apaga os convites
+    # dela por este id (`app/internal/deletion.py`)
+    invited_user_id: Mapped[int | None]
     role: Mapped[str] = mapped_column(String(8))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
@@ -476,7 +497,7 @@ class Mark(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     habit_id: Mapped[int] = mapped_column(ForeignKey("habits.id", ondelete="CASCADE"))
     # Autor; NULL depois que a conta dele é apagada ("usuário removido")
-    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[int | None] = mapped_column(user_fk("marks", "user_id", ondelete="SET NULL"))
     marked_at: Mapped[datetime]
     duration_minutes: Mapped[int | None]
     # Custo gravado na criação: mudar o custo do hábito não reescreve o passado
@@ -505,11 +526,11 @@ class Alert(Base):
         ForeignKey("habits.id", ondelete="CASCADE"), primary_key=True
     )
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+        user_fk("alerts", "user_id", ondelete="CASCADE"), primary_key=True
     )
     goal_enabled: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
     cost_enabled: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
-    # Hora cheia no fuso do usuário (users.timezone)
+    # Hora cheia no fuso do usuário (app_users.timezone)
     hour: Mapped[int]
     frequency: Mapped[str] = mapped_column(String(8))
     weekday: Mapped[int | None]
@@ -537,6 +558,8 @@ class Banner(Base):
     starts_at: Mapped[datetime]
     ends_at: Mapped[datetime]
     # Admin que criou; o banner fica se a conta dele for apagada
-    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_by: Mapped[int | None] = mapped_column(
+        user_fk("banners", "created_by", ondelete="SET NULL")
+    )
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)

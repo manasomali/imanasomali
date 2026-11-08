@@ -1,44 +1,34 @@
-// Regras do painel de admin que não dependem do React: filtros da listagem de contas,
-// confirmação das ações destrutivas e o id da conta vindo da URL
+// Regras do painel de admin que não dependem do React: filtros da listagem de quem usa o ethos e o
+// id da pessoa vindo da URL. As contas (bloquear, trocar email, excluir) são do imago (/imago/admin)
 
-const USER_ID_RE = /^[1-9]\d{0,14}$/;
+// O id do imago: inteiro de 1 a 2^53 - 1 (Number.MAX_SAFE_INTEGER)
+const USER_ID_RE = /^[1-9]\d{0,15}$/;
 
-export const ACCOUNT_STATUSES = Object.freeze(['active', 'blocked']);
+export const USER_DATE_FILTERS = Object.freeze(['first_seen_from', 'first_seen_to']);
 
-export const EMPTY_ACCOUNT_FILTERS = Object.freeze({
+export const EMPTY_USER_FILTERS = Object.freeze({
   email: '',
-  status: '',
-  created_from: '',
-  created_to: '',
-  last_login_from: '',
-  last_login_to: '',
+  first_seen_from: '',
+  first_seen_to: '',
 });
 
 /**
- * Query do GET /admin/users a partir do formulário de filtros: campo vazio fica de fora, email sem
- * os espaços das pontas e status só se for um dos conhecidos.
+ * Query do GET /admin/users a partir do formulário de filtros: campo vazio fica de fora e o email
+ * vai sem os espaços das pontas.
  */
-export function accountQuery(filters) {
+export function userQuery(filters) {
   const query = {};
   const email = filters.email?.trim();
   if (email) query.email = email;
-  if (ACCOUNT_STATUSES.includes(filters.status)) query.status = filters.status;
-  for (const name of ['created_from', 'created_to', 'last_login_from', 'last_login_to']) {
+  for (const name of USER_DATE_FILTERS) {
     if (filters[name]) query[name] = filters[name];
   }
   return query;
 }
 
-/**
- * A ação destrutiva só libera quando o admin digita o email da conta. Espaços nas pontas e
- * maiúsculas não importam (o email é salvo em minúsculas); trecho ou outro email não passa.
- */
-export function confirmsEmail(typed, email) {
-  if (typeof typed !== 'string' || typeof email !== 'string' || email === '') return false;
-  return typed.trim().toLowerCase() === email.toLowerCase();
-}
-
-/** Id de conta do parâmetro da URL (inteiro positivo), ou null. */
+/** Id da pessoa do parâmetro da URL (inteiro de 1 a 2^53 - 1), ou null. */
 export function parseUserId(value) {
-  return typeof value === 'string' && USER_ID_RE.test(value) ? Number(value) : null;
+  if (typeof value !== 'string' || !USER_ID_RE.test(value)) return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) ? id : null;
 }

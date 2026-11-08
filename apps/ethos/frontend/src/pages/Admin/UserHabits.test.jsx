@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
-import { accountFixture, adminRequests, signedIn, trackRequests } from '../../test/admin';
+import { adminRequests, appUserFixture, signedIn, trackRequests } from '../../test/admin';
 import { axe } from '../../test/axe';
 import { renderApp } from '../../test/render';
 import { api, server } from '../../test/server';
@@ -91,7 +91,7 @@ function content() {
       const page = marks.filter((item) => habitId === null || item.habit_id === Number(habitId));
       const first = params.get('cursor') === null;
       return HttpResponse.json({
-        user: accountFixture(),
+        user: appUserFixture(),
         habits: HABITS,
         marks: first ? page.slice(0, 1) : page.slice(1),
         next_cursor: first && page.length > 1 ? 'next' : null,
@@ -204,11 +204,11 @@ describe('habit content of an account', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('Not found.');
   });
 
-  it('shows an account without habits', async () => {
+  it('shows a person without habits', async () => {
     signedIn();
     server.use(
       http.get(api('/admin/users/2/habits'), () =>
-        HttpResponse.json({ user: accountFixture({ last_login_at: null }), habits: [], marks: [], next_cursor: null }),
+        HttpResponse.json({ user: appUserFixture(), habits: [], marks: [], next_cursor: null }),
       ),
     );
     const user = userEvent.setup();
@@ -216,9 +216,11 @@ describe('habit content of an account', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Show the content' }));
 
-    expect(await screen.findByText('This account owns no habits.')).toBeDefined();
+    expect(await screen.findByText('This person owns no habits.')).toBeDefined();
     expect(screen.getByText('No marks.')).toBeDefined();
-    expect(screen.getByText('Never signed in')).toBeDefined();
+    // O primeiro acesso, no fuso do admin (São Paulo)
+    expect(screen.getByText('First access')).toBeDefined();
+    expect(screen.getByText('First access').closest('div').textContent).toBe('First access10/1/26, 9:00 AM');
     expect(screen.queryByLabelText('Habit')).toBeNull();
   });
 });

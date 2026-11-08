@@ -20,12 +20,12 @@ Escrita: dono e editor (viewer: 403 `forbidden`); arquivado: 409 `habit_archived
 
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query, Request
+from fastapi import APIRouter, Path, Query
 
-from app.auth.deps import CurrentUser
 from app.config import SettingsDep
 from app.db import SessionDep
 from app.habits.access import MAX_ID, HabitId
+from app.identity import CurrentUser
 from app.marks import service
 from app.marks.schemas import (
     Author,
@@ -38,7 +38,6 @@ from app.marks.schemas import (
     ToggleOut,
 )
 from app.marks.service import MAX_PAGE_SIZE, MarkEntry
-from app.request_info import client_ip
 
 router = APIRouter(prefix="/habits", tags=["marks"])
 
@@ -69,10 +68,8 @@ def toggle_mark(
     habit_id: HabitId,
     body: ToggleIn,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
 ) -> ToggleOut:
-    # O write_transaction expira o usuário: os valores dele são lidos antes
     user_id = user.id
     entry = service.toggle_mark(
         session,
@@ -81,7 +78,6 @@ def toggle_mark(
         day_start=body.day_start,
         day_end=body.day_end,
         marked_at=body.marked_at,
-        ip=client_ip(request),
     )
     if entry is None:
         return ToggleOut(marked=False, mark=None)
@@ -93,7 +89,6 @@ def create_mark(
     habit_id: HabitId,
     body: MarkCreate,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
     settings: SettingsDep,
 ) -> MarkOut:
@@ -108,7 +103,6 @@ def create_mark(
         note=body.note,
         duration_minutes=body.duration_minutes,
         cost_cents=body.cost_cents,
-        ip=client_ip(request),
     )
     return mark_out(entry)
 
@@ -141,7 +135,6 @@ def update_mark(
     mark_id: MarkId,
     body: MarkUpdate,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
     settings: SettingsDep,
 ) -> MarkOut:
@@ -153,7 +146,6 @@ def update_mark(
         habit_id=habit_id,
         mark_id=mark_id,
         values=body.model_dump(exclude_unset=True),
-        ip=client_ip(request),
     )
     return mark_out(entry)
 
@@ -163,10 +155,7 @@ def delete_mark(
     habit_id: HabitId,
     mark_id: MarkId,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
 ) -> None:
     user_id = user.id
-    service.delete_mark(
-        session, user_id=user_id, habit_id=habit_id, mark_id=mark_id, ip=client_ip(request)
-    )
+    service.delete_mark(session, user_id=user_id, habit_id=habit_id, mark_id=mark_id)

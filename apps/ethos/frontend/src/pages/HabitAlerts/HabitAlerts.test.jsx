@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { configure, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
-import { BASENAME, PATHS } from '../../paths';
+import { page } from '../../lib/page';
+import { BASENAME } from '../../paths';
 import { alertFixture, mockAlertsApi } from '../../test/alerts';
 import { axe } from '../../test/axe';
 import { habitFixture, mockHabitsApi } from '../../test/habits';
@@ -17,7 +18,7 @@ const ALERTS_PATH = '/habits/1/alerts';
 const OLD = '2020-01-06T12:00:00Z';
 
 function signedIn(overrides = {}) {
-  server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture(overrides))));
+  server.use(http.get(api('/me'), () => HttpResponse.json(meFixture(overrides))));
 }
 
 /** Tela de alertas do hábito 1 com a API falsa. */
@@ -69,35 +70,23 @@ describe('habit alerts: access', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('comes back to the alerts after the login (link of the email)', async () => {
-    let session = false;
+  it('sends to the imago login and back to the alerts (link of the email)', async () => {
     server.use(
-      http.get(api('/auth/me'), () =>
-        session
-          ? HttpResponse.json(meFixture())
-          : HttpResponse.json({ error: 'unauthorized', field: null }, { status: 401 }),
+      http.get(api('/me'), () =>
+        HttpResponse.json({ error: 'not_authenticated', field: null }, { status: 401 }),
       ),
-      http.post(api('/auth/code/request'), () => HttpResponse.json({ status: 'accepted' }, { status: 202 })),
-      http.post(api('/auth/code/verify'), () => {
-        session = true;
-        return HttpResponse.json({ new_account: false });
-      }),
     );
     mockHabitsApi({ habits: [habitFixture({ created_at: OLD })], marks: {} });
     mockAlertsApi();
-    const user = userEvent.setup();
-    const { router } = renderApp(ALERTS_PATH);
+    renderApp(ALERTS_PATH);
 
-    // Sem sessão: o login, guardando a tela de alertas
-    expect(await screen.findByRole('heading', { level: 1, name: 'Sign in' })).toBeTruthy();
-    expect(router.state.location.pathname).toBe(`${BASENAME}${PATHS.login}`);
-    await user.type(screen.getByLabelText('Email'), 'ana@example.com');
-    await user.click(screen.getByRole('button', { name: 'Send code' }));
-    await user.type(await screen.findByLabelText('6-digit code'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-
-    expect(await screen.findByRole('form', { name: 'Save alerts' })).toBeTruthy();
-    expect(router.state.location.pathname).toBe(`${BASENAME}${ALERTS_PATH}`);
+    // Sem login: o login do imago, com a tela de alertas no `next`
+    await waitFor(() => {
+      expect(page.assign).toHaveBeenCalledExactlyOnceWith(
+        `/imago/entrar?next=${encodeURIComponent(`${BASENAME}${ALERTS_PATH}`)}`,
+      );
+    });
+    expect(screen.queryByRole('form', { name: 'Save alerts' })).toBeNull();
   });
 });
 
@@ -130,9 +119,7 @@ describe('habit alerts: form', () => {
     await openAlerts({}, { me: { timezone: 'Asia/Tokyo' }, alert: { last_sent_at: '2026-03-04T23:00:00Z' } });
 
     const hint = screen.getByText(/In your time zone, Asia\/Tokyo\./);
-    expect(within(hint).getByRole('link', { name: 'your account' }).getAttribute('href')).toBe(
-      `${BASENAME}${PATHS.account}`,
-    );
+    expect(within(hint).getByRole('link', { name: 'your account' }).getAttribute('href')).toBe('/imago/');
     expect(screen.getByLabelText('Hour').getAttribute('aria-describedby')).toContain(hint.id);
     // 23:00 UTC = 08:00 do dia seguinte em Tóquio
     expect(screen.getByText('Last alert email: Mar 5, 2026, 8:00 AM.')).toBeTruthy();

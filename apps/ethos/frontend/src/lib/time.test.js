@@ -3,7 +3,6 @@ import {
   addDays,
   browserTimezone,
   dayBounds,
-  isValidTimezone,
   localDate,
   localTime,
   markedAtFor,
@@ -171,13 +170,6 @@ describe('markedAtFor', () => {
 });
 
 describe('time zones', () => {
-  it('validates IANA names', () => {
-    expect(isValidTimezone('America/Sao_Paulo')).toBe(true);
-    expect(isValidTimezone('Mars/Olympus')).toBe(false);
-    expect(isValidTimezone('')).toBe(false);
-    expect(isValidTimezone(undefined)).toBe(false);
-  });
-
   it('compares names after canonicalization', () => {
     expect(sameTimezone('America/Sao_Paulo', 'America/Sao_Paulo')).toBe(true);
     expect(sameTimezone('america/sao_paulo', 'America/Sao_Paulo')).toBe(true);
@@ -187,7 +179,7 @@ describe('time zones', () => {
   });
 
   it('reads the browser time zone', () => {
-    expect(isValidTimezone(browserTimezone())).toBe(true);
+    expect(() => new Intl.DateTimeFormat('en-US', { timeZone: browserTimezone() })).not.toThrow();
   });
 
   it('falls back to UTC when the browser has no time zone', () => {

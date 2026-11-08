@@ -11,17 +11,9 @@ DOCS_PATHS = ("/openapi.json", "/docs", "/redoc", "/docs/oauth2-redirect")
 
 
 @pytest.fixture
-def prod_app(make_settings, database, outbox) -> FastAPI:
-    settings = make_settings(
-        app_env="prod",
-        app_url="https://manasomali.com/ethos",
-        email_backend="smtp",
-        smtp_host="smtp.exemplo.com",
-        smtp_port=587,
-        smtp_user="usuario",
-        smtp_password="senha-falsa",  # noqa: S106 (senha falsa do teste)
-    )
-    return create_app(settings, mail_backend=outbox)
+def prod_app(make_settings, database, imago) -> FastAPI:
+    settings = make_settings(app_env="prod", app_url="https://manasomali.com/ethos")
+    return create_app(settings, imago_transport=imago.transport)
 
 
 @pytest.mark.parametrize("path", DOCS_PATHS)

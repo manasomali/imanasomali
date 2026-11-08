@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useMe } from '../../api/auth';
+import { useMe } from '../../api/me';
 import { useHabits } from '../../api/habits';
 import { useReportData } from '../../api/report';
 import ErrorMessage from '../../components/ErrorMessage';

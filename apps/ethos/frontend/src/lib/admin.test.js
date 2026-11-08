@@ -1,62 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_ACCOUNT_FILTERS, accountQuery, confirmsEmail, parseUserId } from './admin';
+import { EMPTY_USER_FILTERS, parseUserId, userQuery } from './admin';
 
-describe('account filters', () => {
+describe('user filters', () => {
   it('leaves empty fields out', () => {
-    expect(accountQuery(EMPTY_ACCOUNT_FILTERS)).toEqual({});
-    expect(accountQuery({ email: '   ' })).toEqual({});
+    expect(userQuery(EMPTY_USER_FILTERS)).toEqual({});
+    expect(userQuery({ email: '   ' })).toEqual({});
   });
 
   it('sends the filled fields, with the email trimmed', () => {
     expect(
-      accountQuery({
-        email: '  bia@ ',
-        status: 'blocked',
-        created_from: '2026-01-01',
-        created_to: '2026-01-31',
-        last_login_from: '2026-02-01',
-        last_login_to: '2026-02-28',
-      }),
-    ).toEqual({
-      email: 'bia@',
-      status: 'blocked',
-      created_from: '2026-01-01',
-      created_to: '2026-01-31',
-      last_login_from: '2026-02-01',
-      last_login_to: '2026-02-28',
-    });
+      userQuery({ email: '  bia@ ', first_seen_from: '2026-01-01', first_seen_to: '2026-01-31' }),
+    ).toEqual({ email: 'bia@', first_seen_from: '2026-01-01', first_seen_to: '2026-01-31' });
   });
 
-  it('ignores an unknown status', () => {
-    expect(accountQuery({ ...EMPTY_ACCOUNT_FILTERS, status: 'deleted' })).toEqual({});
-  });
-});
-
-describe('confirmation by email', () => {
-  it('accepts the account email, ignoring case and outer spaces', () => {
-    expect(confirmsEmail('bia@example.com', 'bia@example.com')).toBe(true);
-    expect(confirmsEmail('  BIA@Example.com ', 'bia@example.com')).toBe(true);
-  });
-
-  it('refuses anything else', () => {
-    expect(confirmsEmail('', 'bia@example.com')).toBe(false);
-    expect(confirmsEmail('bia@example', 'bia@example.com')).toBe(false);
-    expect(confirmsEmail('bia@example.com.br', 'bia@example.com')).toBe(false);
-    expect(confirmsEmail('ana@example.com', 'bia@example.com')).toBe(false);
-    expect(confirmsEmail(undefined, 'bia@example.com')).toBe(false);
-    expect(confirmsEmail('', '')).toBe(false);
-    expect(confirmsEmail('x', null)).toBe(false);
+  it('ignores fields that are not filters', () => {
+    expect(userQuery({ ...EMPTY_USER_FILTERS, status: 'blocked', last_login_from: '2026-01-01' })).toEqual({});
   });
 });
 
 describe('user id from the URL', () => {
-  it('reads positive integers', () => {
+  it('reads the imago ids, up to 2^53 - 1', () => {
     expect(parseUserId('1')).toBe(1);
     expect(parseUserId('123456789012345')).toBe(123456789012345);
+    expect(parseUserId(String(Number.MAX_SAFE_INTEGER))).toBe(Number.MAX_SAFE_INTEGER);
   });
 
   it('refuses anything else', () => {
-    for (const value of ['0', '-1', '01', '1.5', '1e3', 'abc', '', ' 1', '1234567890123456', undefined]) {
+    for (const value of ['0', '-1', '01', '1.5', '1e3', 'abc', '', ' 1', '9007199254740992', '12345678901234567', undefined]) {
       expect(parseUserId(value), String(value)).toBeNull();
     }
   });

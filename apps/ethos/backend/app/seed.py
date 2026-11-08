@@ -1,17 +1,18 @@
 """Dados de exemplo para desenvolver: `python -m app.cli seed` (só com `APP_ENV=dev`).
 
-Cria, numa transação só, três contas (`SEED_EMAILS`, com os termos atuais aceitos), hábitos que
+Cria, numa transação só, as linhas de `app_users` das três contas do `seed` do imago (`SEED_USERS`,
+com os mesmos ids fixos: 101, 102 e 103; as contas, o login e os termos são do imago), hábitos que
 cobrem os tipos de configuração (toggle e várias por dia; meta mínima, máxima; duração,
 observação, pontuação, custo nos dois níveis; ativo, pausado e arquivado; compartilhado com
 editor e viewer) e marcações nos últimos `SEED_DAYS` dias. As marcações seguem as regras da API
 (`app/marks/service.py`: duração e custo resolvidos como na criação, auditoria `mark_created`),
 cada uma às 12:00 (ou 08:00, 13:00 e 20:00 nos hábitos com várias por dia) do fuso do autor.
 
-Não é idempotente por cópia: se alguma das contas de exemplo já existe, não grava nada e devolve
-None (o CLI avisa). Para recriar, apague o banco de dev e rode as migrações de novo.
+Não é idempotente por cópia: se alguma das contas de exemplo já existe em `app_users`, não grava
+nada e devolve None (o CLI avisa). Para recriar, apague o banco de dev e rode as migrações de novo.
 
-Para entrar como uma das contas, use o email dela no login; com `EMAIL_BACKEND=console`, o código
-sai no terminal do servidor.
+Para entrar como uma das contas, rode o `seed` do imago e entre pelo `/imago/entrar` com o email
+dela.
 """
 
 from collections.abc import Callable
@@ -30,18 +31,18 @@ from app.db import require_write_transaction
 from app.habits.schemas import HabitCreate
 from app.habits.service import check_config
 from app.marks.service import insert_mark, mark_cost, mark_duration
-from app.models import Habit, HabitMember, HabitPause, HabitStatus, MemberRole, User
-from app.terms import TERMS_VERSION
+from app.models import AppUser, Habit, HabitMember, HabitPause, HabitStatus, MemberRole
 
 ANA = "ana@example.com"
 BIA = "bia@example.com"
 CAIO = "caio@example.com"
-SEED_EMAILS = (ANA, BIA, CAIO)
-# Fuso e idioma de cada conta: o Caio fica em outro fuso, para ver o "dia vizinho"
-_PROFILES = {
-    ANA: ("America/Sao_Paulo", "pt"),
-    BIA: ("America/Sao_Paulo", "pt"),
-    CAIO: ("Europe/Lisbon", "en"),
+# As contas do seed do imago (contrato: o imago cria as contas com estes ids, e aqui nascem as
+# linhas de app_users com os mesmos): id, fuso e idioma. O Caio fica em outro fuso, para ver o
+# "dia vizinho"
+SEED_USERS = {
+    ANA: (101, "America/Sao_Paulo", "pt"),
+    BIA: (102, "America/Sao_Paulo", "pt"),
+    CAIO: (103, "Europe/Lisbon", "en"),
 }
 # Dias com marcações, contando de ontem para trás
 SEED_DAYS = 60
@@ -235,17 +236,18 @@ def seed(session: Session, settings: Settings, *, now: datetime) -> SeedResult |
     Exige `write_transaction` e `now` com fuso. Quem chama confere `settings.is_dev` antes.
     """
     require_write_transaction(session)
-    if session.scalar(select(User.id).where(User.email.in_(SEED_EMAILS)).limit(1)) is not None:
+    ids = [user_id for user_id, _, _ in SEED_USERS.values()]
+    if session.scalar(select(AppUser.id).where(AppUser.id.in_(ids)).limit(1)) is not None:
         return None
 
-    users: dict[str, User] = {}
-    for email, (timezone, locale) in _PROFILES.items():
-        users[email] = User(
+    users: dict[str, AppUser] = {}
+    for email, (user_id, timezone, locale) in SEED_USERS.items():
+        users[email] = AppUser(
+            id=user_id,
             email=email,
             timezone=timezone,
             locale=locale,
-            terms_version=TERMS_VERSION,
-            terms_accepted_at=now,
+            first_seen_at=now - HABIT_AGE,
         )
     session.add_all(users.values())
     session.flush()
@@ -268,7 +270,6 @@ def seed(session: Session, settings: Settings, *, now: datetime) -> SeedResult |
                     note=mark.note,
                     duration_minutes=mark_duration(habit, None),
                     cost_cents=mark_cost(habit, mark.cost_cents),
-                    ip=None,
                 )
                 marks += 1
     return SeedResult(users=len(users), habits=len(seeds), marks=marks)
@@ -278,7 +279,7 @@ def _add_habit(
     session: Session,
     settings: Settings,
     item: _SeedHabit,
-    users: dict[str, User],
+    users: dict[str, AppUser],
     *,
     now: datetime,
 ) -> Habit:

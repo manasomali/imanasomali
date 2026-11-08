@@ -93,6 +93,6 @@ class HabitProgressOut(BaseModel):
 class ProgressOut(BaseModel):
     first_day: date = Field(serialization_alias="from")
     last_day: date = Field(serialization_alias="to")
-    # Fuso de quem pede (`users.timezone`), usado em todos os cálculos
+    # Fuso de quem pede (`X-User-Timezone`), usado em todos os cálculos
     timezone: str
     habits: list[HabitProgressOut]

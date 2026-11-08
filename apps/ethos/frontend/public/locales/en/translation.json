@@ -18,10 +18,7 @@
     "admin": "Admin",
     "invites": "Invites",
     "invites_pending_one": "{{count}} pending invite",
-    "invites_pending_other": "{{count}} pending invites",
-    "sign_out": "Sign out",
-    "sign_out_retry": "Sign out (try again)",
-    "sign_out_failed": "Could not sign out. Try again."
+    "invites_pending_other": "{{count}} pending invites"
   },
   "footer": {
     "tagline": "ethos: an app for tracking habits",
@@ -32,107 +29,12 @@
   "common": {
     "loading": "Loading…",
     "retry": "Try again",
-    "coming_soon": "This screen is still under construction."
+    "coming_soon": "This screen is still under construction.",
+    "redirecting": "Going to your manasomali.com account…"
   },
   "pages": {
     "home": {
       "title": "Habits"
-    },
-    "login": {
-      "title": "Sign in",
-      "intro": "Enter your email and we will send you a 6-digit code. If you do not have an account yet, it is created when you confirm the code.",
-      "email": "Email",
-      "send_code": "Send code",
-      "sending": "Sending…",
-      "have_code": "I already have a code",
-      "code_sent": "We sent a 6-digit code to {{email}}. It is valid for 10 minutes. If it does not arrive, check your spam folder.",
-      "code": "6-digit code",
-      "submit": "Sign in",
-      "submitting": "Signing in…",
-      "resend": "Send a new code",
-      "resend_in": "Send a new code in {{seconds}} s",
-      "resent": "We sent a new code.",
-      "change_email": "Use another email",
-      "consent": "By continuing, you agree to the <terms>terms of use</terms> and the <privacy>privacy policy</privacy> (links open in a new tab).",
-      "account_deleted": "Your account was deleted. We sent a confirmation to your email."
-    },
-    "account": {
-      "title": "Account",
-      "saving": "Saving…",
-      "email": {
-        "title": "Email",
-        "help": "To change your email, write to <mail>{{supportEmail}}</mail> from the account's current email, saying what the new one is. Before changing it, support confirms the new email by asking for a reply sent from it, so a typo cannot hand the account to someone else. After the change, you need to sign in again on every device.",
-        "lost_access": "Lost access to the current email? Write anyway, from another address. In that case, support asks for information only the account's user knows (such as habits and dates) before deciding."
-      },
-      "language": {
-        "title": "Language",
-        "help": "The language of ethos emails (codes, invites and alerts). When you save, it also becomes the screen language in this browser.",
-        "save": "Save language",
-        "saved": "Language saved."
-      },
-      "timezone": {
-        "title": "Time zone",
-        "help": "The time zone sets the calendar days, the score and the alert times. Current account time zone: {{timezone}}.",
-        "suggested": "This device's time zone ({{timezone}}) is already selected. Save to use it in your account.",
-        "search": "Search time zone (city, region or UTC-03)",
-        "found_one": "{{count}} time zone found.",
-        "found_other": "{{count}} time zones found.",
-        "list": "Time zones",
-        "chosen": "Selected: {{timezone}}",
-        "save": "Save time zone",
-        "saved": "Time zone saved."
-      },
-      "sessions": {
-        "title": "Sessions",
-        "sign_out": "Sign out",
-        "sign_out_help": "Ends the session on this device only.",
-        "sign_out_all": "Sign out of all devices",
-        "sign_out_all_help": "Ends the session on every device, this one included. Use it if you lost a device or signed in on a computer that is not yours.",
-        "signing_out": "Signing out…"
-      },
-      "delete": {
-        "title": "Delete account",
-        "intro": "Deletes the account and your data right away. First, the screen shows what goes away and offers a copy of your data.",
-        "start": "Delete my account…",
-        "steps": "Deletion steps",
-        "step": "{{number}}. {{name}}",
-        "step_warning": "What goes away",
-        "step_export": "Your data",
-        "step_request": "Code",
-        "step_code": "Confirmation",
-        "warning_title": "What goes away with the account",
-        "warning_intro": "Deletion is immediate and cannot be undone. Gone for good:",
-        "lose_owned": "the habits you own, with all their marks, including the ones made by guests. Guests lose access and get an email about it;",
-        "lose_memberships": "your participation in other people's habits;",
-        "lose_invites": "the pending invites you sent or received, and your alerts;",
-        "lose_account": "your email, preferences, sessions and the record of your sign-ins.",
-        "owned_count_one": "You own {{count}} habit (archived ones included).",
-        "owned_count_other": "You own {{count}} habits (archived ones included).",
-        "member_count_one": "You take part in {{count}} habit of someone else.",
-        "member_count_other": "You take part in {{count}} habits of other people.",
-        "keep": "What stays, without identifying you: the marks you made in other people's habits remain in those habits' history, as by “Removed user”.",
-        "backups": "Deleted data still stays a few days in the backups, until they expire (see the <privacy>privacy policy</privacy>, which opens in a new tab).",
-        "export_title": "Take a copy of your data",
-        "export_text": "Optional. After deletion, there is nothing left to download.",
-        "request_title": "Confirmation code",
-        "request_text": "We will send a 6-digit code to {{email}}. It is valid for 10 minutes.",
-        "send_code": "Send code",
-        "sending": "Sending…",
-        "have_code": "I already have a code",
-        "code_title": "Enter the code",
-        "code_sent": "We sent a 6-digit code to {{email}}. It is valid for 10 minutes. If it does not arrive, check your spam folder.",
-        "code": "6-digit code",
-        "final_title": "Final confirmation",
-        "final_confirm": "I understand the account and the data go away right away and this cannot be undone.",
-        "submit": "Delete my account",
-        "deleting": "Deleting…",
-        "resend": "Send another code",
-        "resend_in": "Send another code in {{seconds}} s",
-        "resent": "We sent a new code.",
-        "continue": "Continue",
-        "back": "Back",
-        "cancel": "Cancel"
-      }
     },
     "report": {
       "title": "Report"
@@ -141,12 +43,6 @@
       "title": "Page not found",
       "text": "This address does not exist or has changed.",
       "back_home": "Back to habits"
-    },
-    "terms": {
-      "title": "Terms of use"
-    },
-    "privacy": {
-      "title": "Privacy policy"
     },
     "help": {
       "title": "Help"
@@ -165,65 +61,39 @@
   "admin": {
     "navigation": "Admin panel",
     "nav": {
-      "accounts": "Accounts",
+      "accounts": "Users",
       "banners": "Banners"
     },
     "load_more": "Load more",
     "cancel": "Cancel",
     "accounts": {
-      "title": "Accounts",
-      "filters": "Account filters",
+      "title": "Who uses ethos",
+      "intro": "The people who have opened ethos, with the content of each one's habits. Blocking, changing the email and deleting accounts happens in the single account panel:",
+      "imago_admin": "manasomali.com accounts",
+      "filters": "User filters",
       "email": "Email contains",
-      "status": "Status",
-      "status_any": "All",
-      "status_active": "Active",
-      "status_blocked": "Blocked",
-      "created_from": "Signed up from",
-      "created_to": "Signed up until",
-      "last_login_from": "Last sign-in from",
-      "last_login_to": "Last sign-in until",
+      "first_seen_from": "First access from",
+      "first_seen_to": "First access until",
       "dates_hint": "Dates in your time zone ({{timezone}}), both days included.",
       "search": "Search",
       "clear": "Clear filters",
       "results": "Results",
-      "empty": "No accounts found.",
-      "admin_badge": "admin",
+      "empty": "Nobody found.",
       "you": "you",
-      "created": "Signed up",
-      "last_login": "Last sign-in",
-      "never": "Never signed in",
+      "first_seen": "First access",
       "habit_count": "Habits",
       "mark_count": "Marks",
       "actions": "Actions for {{email}}",
-      "view_habits": "View habits",
-      "block": "Block",
-      "unblock": "Unblock",
-      "change_email": "Change email",
-      "delete": "Delete",
-      "confirm_label": "To confirm, type the account email: {{email}}",
-      "new_email": "New email",
-      "block_title": "Block the account",
-      "block_warning": "The person is signed out everywhere and cannot get a code or sign in until unblocked. The data stays.",
-      "block_confirm": "Block the account",
-      "email_title": "Change the account's email",
-      "email_warning": "First, confirm the new email with a reply sent from it. The person is signed out everywhere, and both the old and the new email get a notice.",
-      "email_confirm": "Change the email",
-      "delete_title": "Delete the account",
-      "delete_warning": "Deletes the account, its sessions and the habits it owns, with all their marks (guests' marks included). This cannot be undone.",
-      "delete_confirm": "Delete the account",
-      "blocked_done": "Account {{email}} blocked.",
-      "unblocked_done": "Account {{email}} unblocked.",
-      "email_done": "Email changed from {{old}} to {{email}}.",
-      "deleted_done": "Account {{email}} deleted."
+      "view_habits": "View habits"
     },
     "user_habits": {
       "title": "Habit content",
-      "back": "Back to accounts",
+      "back": "Back to users",
       "audit_notice": "Every access to this content is recorded in the audit log, with your account and the time. Open it only when needed, such as for a support request or a case of abuse.",
       "reveal": "Show the content",
       "timezone": "Time zone",
       "habits": "Habits it owns",
-      "no_habits": "This account owns no habits.",
+      "no_habits": "This person owns no habits.",
       "goal": "Goal",
       "goal_min": "At least {{n}} per {{period}}",
       "goal_max": "At most {{n}} per {{period}}",
@@ -576,23 +446,9 @@
       }
     }
   },
-  "legal": {
-    "version": "Version {{version}}",
-    "contents": "Contents"
-  },
   "help": {
     "contents": "Contents",
     "link": "Help: {{topic}} (opens in a new tab)"
-  },
-  "terms_modal": {
-    "title": "New terms of use",
-    "text": "We updated the terms of use and the privacy policy. To keep using ethos, read and accept the new version.",
-    "links": "Texts (open in a new tab)",
-    "accept": "Accept and continue",
-    "accepting": "Saving…",
-    "outdated": "A newer version of the terms was published while this page was open. Reload the page to read it.",
-    "reload": "Reload page",
-    "sign_out": "Sign out"
   },
   "report": {
     "intro": "Choose the period, the habits and what to show. The report and the files are generated in your browser.",
@@ -817,7 +673,7 @@
   },
   "errors": {
     "bad_request": "The request could not be understood. Reload the page and try again.",
-    "unauthorized": "Your session has ended. Please sign in again.",
+    "unauthorized": "Access not authorized.",
     "forbidden": "You do not have permission to do this.",
     "not_found": "Not found. It may have been deleted or you lost access.",
     "method_not_allowed": "This action is not allowed.",
@@ -827,9 +683,6 @@
     "internal_error": "Something went wrong on our side. Try again in a moment.",
     "service_unavailable": "The service is unavailable right now. Please try again later.",
     "database_unavailable": "The service is unavailable right now. Please try again later.",
-    "invalid_code": "Invalid or expired code. Check the code or request a new one.",
-    "invalid_timezone": "Unknown time zone. Choose another one.",
-    "terms_not_accepted": "Accept the new version of the terms of use to continue.",
     "habit_limit_reached": "You have reached the limit of active and paused habits. Archive or delete a habit to create another.",
     "habit_archived": "This habit is archived and read-only. Unarchive it to make changes.",
     "mark_mode_mismatch": "This habit's settings have changed. Reload the page.",
@@ -837,11 +690,9 @@
     "invite_limit_reached": "You have reached the daily invite limit. Try again tomorrow.",
     "guest_limit_reached": "This habit has reached its guest limit.",
     "shared_habit_limit_reached": "You have reached the limit of habits shared with you. Leave one to accept this invite.",
-    "last_admin": "This is the last active administrator account and cannot be deleted. Create another administrator first.",
-    "email_in_use": "This email already belongs to an account. Choose another one.",
-    "cannot_block_self": "You cannot block your own account.",
     "network_error": "No connection to the server. Check your internet and try again.",
-    "unknown": "Something went wrong. Try again."
+    "unknown": "Something went wrong. Try again.",
+    "not_authenticated": "You are signed out. Sign in again to continue."
   },
   "new_habit": {
     "title": "New habit",

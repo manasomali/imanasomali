@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { FiDownload } from 'react-icons/fi';
-import { useMe } from '../../api/auth';
+import { useMe } from '../../api/me';
 import { EXPORT_ALL_FORMATS, exportAllFile } from '../../api/report';
 import { downloadBlob } from '../../lib/export/share';
 import ErrorMessage from '../ErrorMessage';

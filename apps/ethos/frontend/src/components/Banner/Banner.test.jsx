@@ -17,8 +17,8 @@ const BANNER = {
   ends_at: '2026-11-20T12:00:00Z',
 };
 
-// A tela de login é pública: nada ali busca a sessão, só o banner
-const PUBLIC_PAGE = '/entrar';
+// A ajuda é pública: nada ali busca o usuário, só o banner
+const PUBLIC_PAGE = '/ajuda';
 
 /** Espera a resposta do GET /banners/active chegar (com sucesso ou erro). */
 function bannerSettled(queryClient, status = 'success') {
@@ -69,7 +69,7 @@ describe('active banner', () => {
 
     first.unmount();
     const second = renderApp(PUBLIC_PAGE);
-    await screen.findByRole('heading', { level: 1, name: 'Sign in' });
+    await screen.findByRole('heading', { level: 1, name: 'Help' });
     await bannerSettled(second.queryClient);
     expect(screen.queryByRole('region', { name: 'Notice' })).toBeNull();
   });
@@ -112,7 +112,7 @@ describe('active banner', () => {
 
     await bannerSettled(queryClient, 'error');
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Sign in' })).toBeDefined();
+    expect(screen.getByRole('heading', { level: 1, name: 'Help' })).toBeDefined();
     expect(screen.queryByRole('region', { name: 'Notice' })).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
   });

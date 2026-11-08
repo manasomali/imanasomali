@@ -8,7 +8,7 @@ import pytest
 import time_machine
 from sqlalchemy import delete, select, text
 
-from app.audit import AUTH_EVENTS, AuditEvent
+from app.audit import AuditEvent
 from app.db import write_transaction
 from app.habits.access import MAX_ID
 from app.history.service import (
@@ -20,7 +20,7 @@ from app.history.service import (
     public_details,
 )
 from app.main import create_app
-from app.models import AuditLog, Habit, HabitMember, User
+from app.models import AppUser, AuditLog, Habit, HabitMember
 from tests.factories import new_habit, new_member, save
 from tests.habit_helpers import Account, created, invalid
 
@@ -36,8 +36,8 @@ def clock() -> Iterator[time_machine.Traveller]:
 
 
 @pytest.fixture
-def client(settings, database, make_client, outbox):
-    return make_client(create_app(settings, mail_backend=outbox))
+def client(settings, database, make_client, imago):
+    return make_client(create_app(settings, imago_transport=imago.transport))
 
 
 @pytest.fixture
@@ -58,6 +58,25 @@ def caio(make_account) -> Account:
 @pytest.fixture
 def dani(make_account) -> Account:
     return make_account("dani@example.com")
+
+
+# Eventos de login e de conta do login próprio, de antes do imago: não estão mais no AuditEvent
+LEGACY_EVENTS = (
+    "code_requested",
+    "login",
+    "login_failed",
+    "logout",
+    "logout_all",
+    "delete_code_requested",
+    "send_cap_reached",
+    "terms_accepted",
+    "profile_updated",
+    "account_deleted",
+    "admin_created",
+    "user_blocked",
+    "user_unblocked",
+    "email_changed",
+)
 
 
 def habit(db_session, owner: Account, **fields) -> Habit:
@@ -83,6 +102,7 @@ def log(
         habit_id=None if model is None else model.id,
         created_at=at,
         details=details or {},
+        # Coluna legada (o ethos não grava IP): só para conferir que nunca sai
         ip=ip,
     )
     save(db_session, entry)
@@ -123,7 +143,7 @@ def test_requires_session(client):
 
     assert (response.status_code, response.json()) == (
         401,
-        {"error": "unauthorized", "field": None},
+        {"error": "not_authenticated", "field": None},
     )
 
 
@@ -186,16 +206,12 @@ def test_archived_habit_history_is_visible(client, db_session, ana, bia):
 @pytest.mark.parametrize(
     "event",
     [
-        *sorted(AUTH_EVENTS),
-        AuditEvent.TERMS_ACCEPTED,
-        AuditEvent.PROFILE_UPDATED,
-        AuditEvent.ACCOUNT_DELETED,
+        # Do login próprio de antes do imago (a migração 0005 os apagou)
+        *LEGACY_EVENTS,
         AuditEvent.ALERT_UPDATED,
-        AuditEvent.ADMIN_CREATED,
         AuditEvent.ADMIN_VIEWED_HABITS,
-        AuditEvent.USER_BLOCKED,
-        AuditEvent.EMAIL_CHANGED,
         AuditEvent.BANNER_CREATED,
+        AuditEvent.BANNER_UPDATED,
     ],
 )
 def test_other_events_never_appear(client, db_session, ana, event):
@@ -311,7 +327,7 @@ def test_deleted_account_becomes_removed_user(client, db_session, ana, bia):
 
     # ON DELETE SET NULL: a autoria some com a conta (a exclusão de conta é da ETH-27)
     with write_transaction(db_session):
-        db_session.execute(delete(User).where(User.id == bia.user.id))
+        db_session.execute(delete(AppUser).where(AppUser.id == bia.user.id))
 
     body = ok(client, ana)
     assert [entry["author"] for entry in body["events"]] == [None, None]
@@ -371,7 +387,7 @@ def test_public_details(event, details, public):
 
 def test_every_history_event_is_an_audit_event_with_public_details():
     assert {str(event) for event in HistoryEvent} <= {str(event) for event in AuditEvent}
-    assert not {str(event) for event in HistoryEvent} & {str(event) for event in AUTH_EVENTS}
+    assert not {str(event) for event in HistoryEvent} & set(LEGACY_EVENTS)
     assert set(PUBLIC_DETAILS) == set(HistoryEvent)
     assert "habit_deleted" not in set(HistoryEvent)
     assert "alert_updated" not in set(HistoryEvent)

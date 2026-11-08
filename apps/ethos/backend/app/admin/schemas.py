@@ -1,7 +1,7 @@
 """Corpos e respostas da API do admin (ETH-28).
 
 Aqui só a validação de cada campo isolado; o que depende de mais de um campo ou do banco (janela
-do banner, email que já tem conta) fica em `accounts.py` e `banners.py`.
+do banner) fica em `accounts.py` e `banners.py`.
 
 - Texto do banner (`text_pt`, `text_en`): espaços nas pontas saem; de 1 a 280 caracteres; uma
   linha só (caracteres de controle, inclusive quebra de linha, e os que invertem a direção do
@@ -16,7 +16,6 @@ from typing import Annotated, Any
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, field_validator
 
-from app.auth.routes import Email
 from app.habits.schemas import HabitOut, check_controls
 from app.mail.language import Locale
 from app.marks.schemas import Instant, MarkOut
@@ -36,45 +35,35 @@ def _banner_text(value: str) -> str:
 BannerText = Annotated[str, AfterValidator(_banner_text)]
 
 
-# --- contas ---
+# --- quem usa o ethos ---
 
 
-class AccountOut(BaseModel):
+class AppUserOut(BaseModel):
+    # O id do usuário no imago
     id: int
     email: str
-    # false: bloqueada pelo admin
-    is_active: bool
-    is_admin: bool
-    timezone: str
     locale: Locale
-    created_at: datetime
-    # null: nunca entrou pelo código
-    last_login_at: datetime | None
+    timezone: str
+    # Primeiro request com login no ethos (ou o cadastro, nas contas de antes do imago)
+    first_seen_at: datetime
     # Hábitos de que é dona (qualquer status) e marcações que fez (em qualquer hábito)
     habit_count: int
     mark_count: int
 
 
-class AccountList(BaseModel):
-    users: list[AccountOut]
+class AppUserList(BaseModel):
+    users: list[AppUserOut]
     # Passe em `?cursor=` (com os mesmos filtros) para a próxima página; null na última
     next_cursor: str | None
 
 
-class AccountHabits(BaseModel):
-    user: AccountOut
-    # Os hábitos de que a conta é dona (`role` = owner, sem `score`)
+class AppUserHabits(BaseModel):
+    user: AppUserOut
+    # Os hábitos de que a pessoa é dona (`role` = owner, sem `score`)
     habits: list[HabitOut]
     # Uma página das marcações desses hábitos, das mais recentes para as mais antigas
     marks: list[MarkOut]
     next_cursor: str | None
-
-
-class EmailChangeIn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    # Normalizado (strip + lower) e validado como no login
-    new_email: Email
 
 
 # --- banners ---

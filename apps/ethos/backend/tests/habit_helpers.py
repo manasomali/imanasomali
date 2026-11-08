@@ -1,7 +1,7 @@
 """Atalhos dos testes da API de hábitos (ETH-20 em diante).
 
-- `Account(user, headers)`: usuário com sessão aberta; `headers` leva o cookie dela. A fixture
-  `make_account(email, **campos)` do `conftest.py` cria uma, já com os termos atuais aceitos;
+- `Account(user, headers)`: usuário de `app_users`; `headers` leva os `X-User-*` dele. A fixture
+  `make_account(email, admin=False, **campos)` do `conftest.py` cria uma;
 - `VALID`: corpo mínimo válido de `POST /habits`; `create(client, conta, **campos)` faz o POST e
   `created(...)` confere o 201 e devolve o JSON;
 - `stored(session, id)`: o hábito relido do banco (None se não existe);
@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.audit import AuditEvent
-from app.models import AuditLog, Habit, User
+from app.models import AppUser, AuditLog, Habit
 from tests.factories import new_member, save
 
 VALID = {
@@ -36,7 +36,7 @@ def invalid(field: str) -> dict:
 
 @dataclass
 class Account:
-    user: User
+    user: AppUser
     headers: dict[str, str]
 
 

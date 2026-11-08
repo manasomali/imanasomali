@@ -1,6 +1,7 @@
 """Fixtures compartilhadas pelos testes do backend.
 
-- `make_settings(**campos)`: Settings validada, com valores de teste e banco em arquivo temporário;
+- `make_settings(**campos)`: Settings validada, com valores de teste e banco em arquivo temporário
+  (o `INTERNAL_API_TOKEN` é o `INTERNAL_TOKEN` do imago falso);
 - `settings`: `make_settings()` sem alterações;
 - `migrated_template`: banco com todas as migrações aplicadas (`alembic upgrade head`), criado uma
   vez por sessão do pytest. Não escreva nele: os testes usam cópias;
@@ -8,28 +9,26 @@
   Todo teste que usa `engine`, `db_session`, `app` ou `client` já recebe o schema completo;
 - `engine`: engine desse banco, descartada no fim;
 - `db_session`: sessão desse banco, da mesma fábrica do app (escrita só em `write_transaction`);
-- `app`: app montado com `settings`, sobre o `database`;
+- `imago`: o imago falso (`tests/fake_imago.py`): contas do `lookup` (`imago.add_account`),
+  resposta do `/internal/mail` (`imago.mail_status`) e os emails aceitos (`imago.mails`);
+- `app`: app montado com `settings`, sobre o `database`, falando com o `imago`;
 - `make_alembic_config(path)`: Config do Alembic apontando para o banco em `path` (para
   `alembic.command.upgrade(config, "head")` etc.);
 - `make_client(app, *, origin=True, **kwargs)`: TestClient com o lifespan rodando e o root_path
   de produção, fechado no fim do teste (kwargs vão para o TestClient, ex.:
   raise_server_exceptions=False). Como um navegador na página do app, manda em todo request o
   header `Origin` igual ao `settings.app_origin` do app, que a checagem de CSRF exige nos métodos
-  de escrita (`app/auth/origin.py`). `origin="https://..."` manda esse valor (necessário quando
+  de escrita (`app/identity.py`). `origin="https://..."` manda esse valor (necessário quando
   `app` é um middleware em volta do app, sem `.state`); `origin=False` não manda. Um
   `headers={"Origin": ...}` no request troca o valor só nele;
 - `client`: `make_client(app)`;
-- `make_smtp_server(starttls=True)`: servidor SMTP falso (`tests/fake_smtp.py`) em 127.0.0.1,
-  com STARTTLS e login obrigatórios, parado no fim do teste. Guarda em `.received` cada email
-  recebido; `.backend()` devolve um `SmtpBackend` apontado para ele. Com `starttls=False`, o
-  servidor não oferece STARTTLS;
-- `smtp_server`: `make_smtp_server()`. Para o app enviar por ele:
-  `create_app(settings, mail_backend=smtp_server.backend())`;
-- `make_account(email, **campos)`: usuário salvo, com os termos atuais aceitos e uma sessão
-  aberta: `Account(user, headers)` (`tests/habit_helpers.py`), com o cookie em `headers`;
-- `outbox`: backend de email em memória (`tests/auth_helpers.py`), sem rede, para os testes que
-  só precisam ler o que o app mandou: `create_app(settings, mail_backend=outbox)`, e as mensagens
-  em `outbox.messages`. `auth_helpers.login(client, outbox, email)` faz o login inteiro;
+- `smtp_server`: servidor SMTP falso (`tests/fake_smtp.py`) em 127.0.0.1, com STARTTLS e login
+  obrigatórios, parado no fim do teste. Só o backend do E2E (`tests/e2e_stack.py`) o usa: o app
+  não fala com SMTP (os emails saem pelo imago);
+- `make_account(email, admin=False, **campos)`: usuário salvo em `app_users` e registrado no
+  imago falso (o `lookup` o encontra): `Account(user, headers)` (`tests/habit_helpers.py`), com os
+  headers `X-User-*` que o nginx põe a partir do imago (`tests/identity_helpers.py`), e
+  `X-User-Admin: 1` com `admin=True`;
 - `selects`: função que devolve quantos SELECT rodaram (em qualquer engine) desde a última
   chamada, para os testes de N+1.
 """
@@ -53,11 +52,11 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db import create_db_engine, create_session_factory
 from app.main import create_app
-from app.terms import TERMS_VERSION
-from tests.auth_helpers import Outbox, cookie, open_session
 from tests.factories import new_user, save
+from tests.fake_imago import INTERNAL_TOKEN, FakeImago
 from tests.fake_smtp import FakeSmtpServer, start_fake_smtp
 from tests.habit_helpers import Account
+from tests.identity_helpers import identity_headers
 
 # Mesmo prefixo que o uvicorn recebe em produção (--root-path /api/ethos)
 ROOT_PATH = "/api/ethos"
@@ -80,11 +79,8 @@ def make_settings(tmp_path) -> Callable[..., Settings]:
             "app_env": "dev",
             "app_url": "http://localhost:5174/ethos",
             "database_path": tmp_path / "app.db",
-            "email_backend": "console",
-            "mail_from": "ethos <no-reply@example.com>",
-            "support_email": "suporte@example.com",
-            "max_code_emails_per_hour": 50,
-            "max_code_emails_per_day": 200,
+            "imago_internal_url": "http://127.0.0.1:3003",
+            "internal_api_token": INTERNAL_TOKEN,
         }
         values.update(overrides)
         # model_validate (e não model_copy) para os overrides passarem pela validação
@@ -137,8 +133,13 @@ def db_session(engine) -> Iterator[Session]:
 
 
 @pytest.fixture
-def app(settings, database) -> FastAPI:
-    return create_app(settings)
+def imago() -> FakeImago:
+    return FakeImago()
+
+
+@pytest.fixture
+def app(settings, database, imago) -> FastAPI:
+    return create_app(settings, imago_transport=imago.transport)
 
 
 @pytest.fixture
@@ -168,33 +169,22 @@ def smtp_ca() -> trustme.CA:
 
 
 @pytest.fixture
-def make_smtp_server(smtp_ca) -> Iterator[Callable[..., FakeSmtpServer]]:
-    with ExitStack() as stack:
-
-        def build(*, starttls: bool = True) -> FakeSmtpServer:
-            server, stop = start_fake_smtp(smtp_ca, starttls=starttls)
-            stack.callback(stop)
-            return server
-
-        yield build
+def smtp_server(smtp_ca) -> Iterator[FakeSmtpServer]:
+    server, stop = start_fake_smtp(smtp_ca)
+    try:
+        yield server
+    finally:
+        stop()
 
 
 @pytest.fixture
-def smtp_server(make_smtp_server) -> FakeSmtpServer:
-    return make_smtp_server()
-
-
-@pytest.fixture
-def outbox() -> Outbox:
-    return Outbox()
-
-
-@pytest.fixture
-def make_account(db_session) -> Callable[..., Account]:
-    def build(email: str, **fields: Any) -> Account:
-        user = new_user(email, **({"terms_version": TERMS_VERSION} | fields))
+def make_account(db_session, imago) -> Callable[..., Account]:
+    def build(email: str, *, admin: bool = False, **fields: Any) -> Account:
+        user = new_user(email, **fields)
         save(db_session, user)
-        return Account(user, cookie(open_session(db_session, user)))
+        # A conta existe também no imago falso: o lookup dos convites a encontra
+        imago.add_account(user.id, user.email, user.locale)
+        return Account(user, identity_headers(user, admin=admin))
 
     return build
 

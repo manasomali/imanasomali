@@ -10,14 +10,16 @@ import re
 import threading
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from email.message import EmailMessage
+from functools import partial
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import httpx2
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from app import cli
@@ -25,10 +27,10 @@ from app.alerts import service
 from app.alerts.service import DEFAULT_HOUR, RunResult, is_due, run_alerts, scheduled_at
 from app.audit import AuditEvent
 from app.db import create_session_factory, write_transaction
+from app.imago_client import ImagoClient
 from app.mail.sender import Mailer
 from app.main import create_app
-from app.models import Alert, Habit, HabitStatus, User
-from tests.auth_helpers import Outbox
+from app.models import Alert, AppUser, Habit, HabitStatus
 from tests.factories import (
     count,
     new_alert,
@@ -39,6 +41,7 @@ from tests.factories import (
     new_user,
     save,
 )
+from tests.fake_imago import FakeImago
 from tests.habit_helpers import FORBIDDEN, NOT_FOUND, events, invalid
 from tests.test_cli import env_for
 
@@ -73,9 +76,53 @@ COST = {"cost_enabled": True, "cost_limit_cents": 10_000, "cost_limit_period": "
 # --- Montagem ---
 
 
+@dataclass(frozen=True)
+class Sent:
+    """Um email aceito pelo imago falso, com o email atual do destinatário (de `app_users`)."""
+
+    to: str | None
+    subject: str
+    text: str
+
+    def __getitem__(self, header: str) -> str | None:
+        return {"To": self.to, "Subject": self.subject}[header]
+
+
+class Outbox:
+    """Os emails que o imago falso aceitou (`imago.mails`), como os alertas os mandaram."""
+
+    def __init__(self, imago: FakeImago, engine: Engine) -> None:
+        self.imago = imago
+        self.engine = engine
+
+    @property
+    def messages(self) -> list[Sent]:
+        with self.engine.connect() as connection:
+            emails = dict(connection.execute(select(AppUser.id, AppUser.email)).all())
+        return [
+            Sent(emails.get(mail.user_id), mail.subject, mail.text) for mail in self.imago.mails
+        ]
+
+
 @pytest.fixture
-def outbox_mailer(settings, outbox) -> Mailer:
-    return Mailer(settings, outbox)
+def outbox(imago, engine) -> Outbox:
+    return Outbox(imago, engine)
+
+
+@pytest.fixture
+def imago_client(settings, imago) -> Iterator[ImagoClient]:
+    client = ImagoClient(
+        settings.imago_internal_url, settings.internal_api_token, transport=imago.transport
+    )
+    try:
+        yield client
+    finally:
+        client.close()
+
+
+@pytest.fixture
+def outbox_mailer(settings, imago_client) -> Mailer:
+    return Mailer(settings, imago_client)
 
 
 @pytest.fixture
@@ -90,7 +137,7 @@ def run(engine, outbox_mailer) -> Callable[..., RunResult]:
     return call
 
 
-def make_user(db_session: Session, email: str = "ana@example.com", **fields: Any) -> User:
+def make_user(db_session: Session, email: str = "ana@example.com", **fields: Any) -> AppUser:
     user = new_user(email, **fields)
     save(db_session, user)
     return user
@@ -98,7 +145,7 @@ def make_user(db_session: Session, email: str = "ana@example.com", **fields: Any
 
 def make_habit(
     db_session: Session,
-    owner: User,
+    owner: AppUser,
     *,
     alert: dict[str, Any] | None = None,
     marks: tuple[datetime, ...] = (),
@@ -116,13 +163,11 @@ def make_habit(
     return habit
 
 
-def text_of(message: EmailMessage) -> str:
-    part = message.get_body(preferencelist=("plain",))
-    assert part is not None
-    return part.get_content()
+def text_of(message: Sent) -> str:
+    return message.text
 
 
-def stored_alert(db_session: Session, habit: Habit, user: User) -> Alert | None:
+def stored_alert(db_session: Session, habit: Habit, user: AppUser) -> Alert | None:
     db_session.rollback()
     return db_session.get(Alert, (habit.id, user.id), populate_existing=True)
 
@@ -144,8 +189,8 @@ def clock() -> Iterator[time_machine.Traveller]:
 
 
 @pytest.fixture
-def client(settings, database, make_client, outbox, clock):
-    return make_client(create_app(settings, mail_backend=outbox))
+def client(settings, database, make_client, imago, clock):
+    return make_client(create_app(settings, imago_transport=imago.transport))
 
 
 @pytest.fixture
@@ -361,7 +406,7 @@ def test_demoted_editor_loses_the_alert_and_gets_no_email(
     assert demoted.status_code == 200
     assert stored_alert(db_session, habit, bia.user) is None
     # 09:00 do mesmo dia: o hábito está atrasado, mas a bia não tem mais alerta
-    assert run(WEDNESDAY_8 + HOUR) == RunResult(evaluated=0, sent=0, failed=0)
+    assert run(WEDNESDAY_8 + HOUR) == RunResult(evaluated=0, sent=0, refused=0, failed=0)
     assert outbox.messages == []
 
 
@@ -395,7 +440,7 @@ def test_min_goal_fires_when_behind_pace(db_session, outbox, run, now, marks, fi
 
     result = run(now)
 
-    assert result == RunResult(evaluated=1, sent=int(fires), failed=0)
+    assert result == RunResult(evaluated=1, sent=int(fires), refused=0, failed=0)
     if fires:
         text = assert_sent(outbox, "ana@example.com", "Meta atrasada: 0 de 3 nesta semana")
         assert f"{APP_URL}/habits/{habit.id}/alerts" in text
@@ -517,7 +562,7 @@ def test_goal_behind_and_cost_warning_together_in_one_email(db_session, outbox, 
     )
     saturday_8 = datetime(2026, 3, 28, 11, 0, tzinfo=UTC)
 
-    assert run(saturday_8) == RunResult(evaluated=1, sent=1, failed=0)
+    assert run(saturday_8) == RunResult(evaluated=1, sent=1, refused=0, failed=0)
 
     assert_sent(
         outbox,
@@ -532,7 +577,7 @@ def test_only_cost_switch_ignores_a_late_goal(db_session, outbox, run):
     habit = make_habit(db_session, ana, alert={"goal_enabled": False, "cost_enabled": True}, **COST)
 
     # Atrasado na meta (0 de 3), sem gasto
-    assert run() == RunResult(evaluated=1, sent=0, failed=0)
+    assert run() == RunResult(evaluated=1, sent=0, refused=0, failed=0)
 
     assert outbox.messages == []
     assert stored_alert(db_session, habit, ana).last_evaluated_at == WEDNESDAY_8
@@ -542,7 +587,7 @@ def test_switches_off_are_not_evaluated(db_session, outbox, run):
     ana = make_user(db_session)
     habit = make_habit(db_session, ana, alert={"goal_enabled": False})
 
-    assert run() == RunResult(evaluated=0, sent=0, failed=0)
+    assert run() == RunResult(evaluated=0, sent=0, refused=0, failed=0)
     assert stored_alert(db_session, habit, ana).last_evaluated_at is None
 
 
@@ -554,10 +599,10 @@ def test_nothing_fires_in_the_creation_period(db_session, outbox, run):
         habit = db_session.scalars(select(Habit)).one()
         db_session.add(new_mark(habit, MONDAY + 2 * HOUR, cost_cents=50_000))
 
-    assert run() == RunResult(evaluated=1, sent=0, failed=0)
+    assert run() == RunResult(evaluated=1, sent=0, refused=0, failed=0)
     # Na semana seguinte, sim
     next_wednesday = WEDNESDAY_8 + 7 * DAY
-    assert run(next_wednesday) == RunResult(evaluated=1, sent=1, failed=0)
+    assert run(next_wednesday) == RunResult(evaluated=1, sent=1, refused=0, failed=0)
     assert_sent(outbox, "ana@example.com", "Meta atrasada: 0 de 3 nesta semana")
 
 
@@ -567,7 +612,7 @@ def test_paused_and_archived_habits_do_not_fire(db_session, outbox, run, status)
     habit = make_habit(db_session, ana, alert={})
     set_status(db_session, habit, status)
 
-    assert run() == RunResult(evaluated=0, sent=0, failed=0)
+    assert run() == RunResult(evaluated=0, sent=0, refused=0, failed=0)
     assert outbox.messages == []
 
 
@@ -577,15 +622,21 @@ def test_pause_earlier_in_the_period_blocks_the_alert(db_session, outbox, run):
     habit = make_habit(db_session, ana, alert={})
     save(db_session, new_pause(habit, MONDAY, MONDAY + DAY))
 
-    assert run() == RunResult(evaluated=1, sent=0, failed=0)
+    assert run() == RunResult(evaluated=1, sent=0, refused=0, failed=0)
     assert outbox.messages == []
 
 
-def test_blocked_account_gets_no_alert(db_session, outbox, run):
-    ana = make_user(db_session, is_active=False)
-    make_habit(db_session, ana, alert={})
+def test_inactive_account_in_the_imago_is_evaluated_once(db_session, imago, outbox, run):
+    # Conta bloqueada ou em exclusão: o imago responde 204, nada sai e nada é tentado de novo
+    ana = make_user(db_session)
+    habit = make_habit(db_session, ana, alert={})
+    imago.mail_status = 204
 
-    assert run() == RunResult(evaluated=0, sent=0, failed=0)
+    assert run() == RunResult(evaluated=1, sent=0, refused=0, failed=0)
+    assert outbox.messages == []
+    alert = stored_alert(db_session, habit, ana)
+    assert (alert.last_sent_at, alert.last_evaluated_at) == (WEDNESDAY_8, WEDNESDAY_8)
+    assert run(WEDNESDAY_8 + HOUR) == RunResult(evaluated=0, sent=0, refused=0, failed=0)
 
 
 def test_editor_gets_the_alert_in_their_own_locale(db_session, outbox, run):
@@ -595,7 +646,7 @@ def test_editor_gets_the_alert_in_their_own_locale(db_session, outbox, run):
     # 11:00 UTC é a hora da bia
     save(db_session, new_member(habit, bia, "editor"), new_alert(habit, bia, hour=11))
 
-    assert run() == RunResult(evaluated=1, sent=1, failed=0)
+    assert run() == RunResult(evaluated=1, sent=1, refused=0, failed=0)
 
     [message] = outbox.messages
     assert (message["To"], message["Subject"]) == ("bia@example.com", "Habit alert from ethos")
@@ -609,7 +660,7 @@ def test_leftover_alert_of_a_viewer_is_not_sent(db_session, outbox, run):
     habit = make_habit(db_session, ana)
     save(db_session, new_member(habit, bia, "viewer"), new_alert(habit, bia))
 
-    assert run() == RunResult(evaluated=0, sent=0, failed=0)
+    assert run() == RunResult(evaluated=0, sent=0, refused=0, failed=0)
     assert outbox.messages == []
 
 
@@ -645,9 +696,9 @@ def test_evaluated_without_email_is_not_reevaluated_later_that_day(db_session, o
     habit = make_habit(db_session, ana, alert={"hour": 7})
 
     # 07:00: ainda no ritmo (esperado 0)
-    assert run(WEDNESDAY_8 - HOUR) == RunResult(evaluated=1, sent=0, failed=0)
+    assert run(WEDNESDAY_8 - HOUR) == RunResult(evaluated=1, sent=0, refused=0, failed=0)
     # 08:00: já estaria atrasado, mas o alerta das 07:00 já foi avaliado hoje
-    assert run() == RunResult(evaluated=0, sent=0, failed=0)
+    assert run() == RunResult(evaluated=0, sent=0, refused=0, failed=0)
     assert outbox.messages == []
     assert stored_alert(db_session, habit, ana).last_evaluated_at == WEDNESDAY_8 - HOUR
 
@@ -768,33 +819,24 @@ def test_run_refuses_a_naive_now(engine, outbox_mailer):
 # --- Falhas ---
 
 
-class Refusing:
-    """Backend que recusa um destinatário e entrega o resto por outro backend."""
-
-    def __init__(self, refused: str, deliver: Any) -> None:
-        self.refused = refused
-        self.deliver = deliver
-
-    def send(self, message: EmailMessage) -> None:
-        if message["To"] == self.refused:
-            raise ConnectionError(f"recusado: {self.refused}")
-        self.deliver.send(message)
-
-
-def test_smtp_error_in_one_alert_does_not_stop_the_others(
-    db_session, settings, smtp_server, run, caplog
+@pytest.mark.parametrize(("status", "refused", "failed"), [(429, 1, 0), (500, 0, 1)])
+def test_imago_error_in_one_alert_does_not_stop_the_others(
+    db_session, imago, outbox, run, caplog, status, refused, failed
 ):
     users = [make_user(db_session, f"{name}@example.com") for name in ("ana", "bia", "caio")]
     habits = [make_habit(db_session, user, alert={}) for user in users]
-    mailer = Mailer(settings, Refusing("bia@example.com", smtp_server.backend()))
+    # O imago recusa (429: teto de envio) ou falha (500) só o email da bia
+    imago.mail_status = lambda body: status if body["user_id"] == users[1].id else 202
 
     with caplog.at_level(logging.INFO, logger="app"):
-        result = run(mailer=mailer)
+        result = run()
 
-    assert result == RunResult(evaluated=2, sent=2, failed=1)
-    received = sorted(rcpt for email in smtp_server.received for rcpt in email.rcpt_tos)
-    assert received == ["ana@example.com", "caio@example.com"]
-    # O envio que falhou é desfeito e tentado de novo na próxima execução
+    assert result == RunResult(evaluated=2, sent=2, refused=refused, failed=failed)
+    assert sorted(message["To"] for message in outbox.messages) == [
+        "ana@example.com",
+        "caio@example.com",
+    ]
+    # O envio que não saiu é desfeito (sem last_sent_at) e tentado de novo na hora seguinte
     assert stored_alert(db_session, habits[1], users[1]).last_sent_at is None
     assert stored_alert(db_session, habits[1], users[1]).last_evaluated_at is None
     lines = [record.getMessage() for record in caplog.records]
@@ -804,30 +846,45 @@ def test_smtp_error_in_one_alert_does_not_stop_the_others(
     ) in lines
     assert all("bia@" not in line and "Exercício" not in line for line in lines)
 
-    assert run(WEDNESDAY_8 + HOUR, mailer=Mailer(settings, smtp_server.backend())).sent == 1
-    assert len(smtp_server.received) == 3
+    imago.mail_status = 202
+    assert run(WEDNESDAY_8 + HOUR) == RunResult(evaluated=1, sent=1, refused=0, failed=0)
+    assert len(outbox.messages) == 3
+    assert stored_alert(db_session, habits[1], users[1]).last_sent_at == WEDNESDAY_8 + HOUR
 
 
-def test_release_keeps_a_config_saved_during_the_send(db_session, settings, engine, outbox, run):
+@pytest.mark.parametrize("error", [httpx2.ConnectError, httpx2.ReadTimeout])
+def test_imago_unreachable_is_a_failure_retried_later(db_session, imago, run, error):
+    ana = make_user(db_session)
+    habit = make_habit(db_session, ana, alert={})
+    imago.error = error
+
+    assert run() == RunResult(evaluated=0, sent=0, refused=0, failed=1)
+    assert stored_alert(db_session, habit, ana).last_sent_at is None
+
+    imago.error = None
+    assert run(WEDNESDAY_8 + HOUR).sent == 1
+
+
+def test_release_keeps_a_config_saved_during_the_send(db_session, imago, engine, outbox, run):
     ana = make_user(db_session)
     habit = make_habit(db_session, ana, alert={})
     saved_at = WEDNESDAY_8 + timedelta(seconds=30)
 
-    class SaveWhileSending:
-        def send(self, message: EmailMessage) -> None:
-            # O usuário salva a configuração enquanto o email sai, e o envio falha
-            with create_session_factory(engine)() as other:
-                service.save_alert(
-                    other,
-                    user_id=ana.id,
-                    habit_id=habit.id,
-                    values=CONFIG | {"hour": 10},
-                    ip=None,
-                    now=saved_at,
-                )
-            raise ConnectionError
+    def save_while_sending(_body: dict[str, Any]) -> int:
+        # O usuário salva a configuração enquanto o email sai, e o envio falha
+        with create_session_factory(engine)() as other:
+            service.save_alert(
+                other,
+                user_id=ana.id,
+                habit_id=habit.id,
+                values=CONFIG | {"hour": 10},
+                now=saved_at,
+            )
+        return 500
 
-    assert run(mailer=Mailer(settings, SaveWhileSending())).failed == 1
+    imago.mail_status = save_while_sending
+    assert run().failed == 1
+    imago.mail_status = 202
 
     alert = stored_alert(db_session, habit, ana)
     # O envio volta a "não enviado"; a âncora do salvar fica
@@ -838,23 +895,23 @@ def test_release_keeps_a_config_saved_during_the_send(db_session, settings, engi
 
 
 @pytest.mark.parametrize("recreate", [False, True])
-def test_release_after_the_alert_was_deleted(db_session, settings, engine, run, recreate):
+def test_release_after_the_alert_was_deleted(db_session, imago, engine, run, recreate):
     ana = make_user(db_session)
     habit = make_habit(db_session, ana, alert={})
 
-    class DeleteWhileSending:
-        def send(self, message: EmailMessage) -> None:
-            # O alerta sai (ex.: o membro saiu do hábito) e, talvez, é salvo de novo
-            with create_session_factory(engine)() as other:
-                with write_transaction(other):
-                    other.delete(other.get(Alert, (habit.id, ana.id)))
-                if recreate:
-                    service.save_alert(
-                        other, user_id=ana.id, habit_id=habit.id, values=CONFIG, ip=None, now=MONDAY
-                    )
-            raise ConnectionError
+    def delete_while_sending(_body: dict[str, Any]) -> int:
+        # O alerta sai (ex.: o membro saiu do hábito) e, talvez, é salvo de novo
+        with create_session_factory(engine)() as other:
+            with write_transaction(other):
+                other.delete(other.get(Alert, (habit.id, ana.id)))
+            if recreate:
+                service.save_alert(
+                    other, user_id=ana.id, habit_id=habit.id, values=CONFIG, now=MONDAY
+                )
+        return 500
 
-    assert run(mailer=Mailer(settings, DeleteWhileSending())).failed == 1
+    imago.mail_status = delete_while_sending
+    assert run().failed == 1
 
     alert = stored_alert(db_session, habit, ana)
     if recreate:
@@ -872,7 +929,7 @@ def test_unexpected_error_in_one_alert_is_logged_and_skipped(db_session, outbox,
     with caplog.at_level(logging.ERROR, logger="app"):
         result = run()
 
-    assert result == RunResult(evaluated=1, sent=1, failed=1)
+    assert result == RunResult(evaluated=1, sent=1, refused=0, failed=1)
     assert [message["To"] for message in outbox.messages] == ["bia@example.com"]
     [line] = [record.getMessage() for record in caplog.records]
     assert re.fullmatch(rf"alerta do hábito {broken.id} \(usuário {ana.id}\) falhou \(\w+\)", line)
@@ -892,7 +949,7 @@ def test_concurrent_run_sees_the_claim(db_session, outbox, run, engine):
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(service, "_candidates", candidates_then_claim)
-        assert run() == RunResult(evaluated=0, sent=0, failed=0)
+        assert run() == RunResult(evaluated=0, sent=0, refused=0, failed=0)
     assert outbox.messages == []
 
 
@@ -933,41 +990,61 @@ def test_alert_deleted_between_reads_is_skipped(db_session, outbox, run, engine)
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(service, "_candidates", candidates_then_delete)
-        assert run() == RunResult(evaluated=0, sent=0, failed=0)
+        assert run() == RunResult(evaluated=0, sent=0, refused=0, failed=0)
 
 
 # --- CLI ---
 
 
+@pytest.fixture
+def cli_imago(imago, monkeypatch) -> FakeImago:
+    """O CLI fala com o imago falso (o ImagoClient dele ganha o transporte do falso)."""
+    monkeypatch.setattr(cli, "ImagoClient", partial(ImagoClient, transport=imago.transport))
+    return imago
+
+
 def test_cli_run_alerts_exits_0_and_prints_the_counts(
-    db_session, settings, database, outbox, monkeypatch, capsys
+    db_session, settings, database, cli_imago, outbox, capsys
 ):
     ana = make_user(db_session)
     make_habit(db_session, ana, alert={})
-    monkeypatch.setattr(cli, "build_backend", lambda _settings: outbox)
 
     with time_machine.travel(WEDNESDAY_8, tick=False):
         assert cli.main(["run-alerts"], env_for(settings)) == 0
         assert cli.main(["run-alerts"], env_for(settings)) == 0
 
     assert capsys.readouterr().out == (
-        "run-alerts: 1 alertas avaliados, 1 emails enviados, 0 falhas\n"
-        "run-alerts: 0 alertas avaliados, 0 emails enviados, 0 falhas\n"
+        "run-alerts: 1 alertas avaliados, 1 emails enviados, 0 recusados pelo teto de envio, "
+        "0 falhas\n"
+        "run-alerts: 0 alertas avaliados, 0 emails enviados, 0 recusados pelo teto de envio, "
+        "0 falhas\n"
     )
-    assert len(outbox.messages) == 1
+    assert [message["To"] for message in outbox.messages] == ["ana@example.com"]
+    # O CLI chamou o imago com o token do ethos
+    [request] = cli_imago.requests
+    assert request.headers["authorization"] == (
+        f"Bearer {settings.internal_api_token.get_secret_value()}"
+    )
 
 
+@pytest.mark.parametrize(
+    ("status", "counts"),
+    [
+        (429, "1 recusados pelo teto de envio, 0 falhas"),
+        (500, "0 recusados pelo teto de envio, 1 falhas"),
+    ],
+)
 def test_cli_run_alerts_exits_0_when_one_alert_fails(
-    db_session, settings, database, monkeypatch, capsys
+    db_session, settings, database, cli_imago, capsys, status, counts
 ):
     ana = make_user(db_session)
     make_habit(db_session, ana, alert={})
-    monkeypatch.setattr(cli, "build_backend", lambda _settings: Refusing("ana@example.com", None))
+    cli_imago.mail_status = status
 
     with time_machine.travel(WEDNESDAY_8, tick=False):
         assert cli.main(["run-alerts"], env_for(settings)) == 0
 
-    assert capsys.readouterr().out.endswith("0 emails enviados, 1 falhas\n")
+    assert capsys.readouterr().out.endswith(f"0 emails enviados, {counts}\n")
 
 
 def test_cli_run_alerts_exits_1_on_a_general_error(settings, database, tmp_path, capsys):

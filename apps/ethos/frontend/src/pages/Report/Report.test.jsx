@@ -49,7 +49,7 @@ function progressItems() {
 
 /** Sessão, hábitos, marcações e progresso. Devolve as queries do progresso e as requests. */
 function setup() {
-  server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture())));
+  server.use(http.get(api('/me'), () => HttpResponse.json(meFixture())));
   const { requests } = mockHabitsApi({
     habits: [running, reading],
     archived: [old],

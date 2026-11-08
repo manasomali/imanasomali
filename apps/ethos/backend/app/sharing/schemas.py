@@ -1,7 +1,9 @@
 """Corpos e respostas da API de compartilhamento.
 
-- Email: o mesmo tratamento do login (`app/auth/routes.Email`: strip + lower, forma simples de
-  endereço, até 254 caracteres); inválido, 422 com `field: "email"`, sem o valor.
+- Email: como o imago guarda (`normalize_email`: strip + lower, só ASCII, forma simples de
+  endereço, até 254 caracteres); inválido, 422 com `field: "email"`, sem o valor. Só ASCII porque
+  a conta do imago é ASCII (domínio internacional em punycode): um email com acento nunca teria
+  conta.
 - Papel do convidado: `editor` ou `viewer` (o dono não é um papel que se dá).
 - Campo desconhecido é recusado (422).
 
@@ -9,13 +11,24 @@ O convite pendente que o dono vê não traz `invited_user_id`: diria a ele se o 
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import AfterValidator, BaseModel, ConfigDict
 
-from app.auth.routes import Email
 from app.habits.access import HabitRole
+from app.identity import is_identity_email
 from app.models import MemberRole
+
+
+def normalize_email(value: str) -> str:
+    """Email com strip + lower, como o imago guarda; ValueError (422, sem o valor) se inválido."""
+    email = value.strip().lower()
+    if not is_identity_email(email):
+        raise ValueError("email inválido")
+    return email
+
+
+Email = Annotated[str, AfterValidator(normalize_email)]
 
 
 class InviteCreate(BaseModel):

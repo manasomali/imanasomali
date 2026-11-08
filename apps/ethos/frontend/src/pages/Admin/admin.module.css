@@ -229,15 +229,6 @@ textarea.input {
   margin: 0;
 }
 
-.confirm {
-  display: grid;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: var(--surface);
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
-}
-
 .swatch {
   display: inline-block;
   width: 0.9rem;

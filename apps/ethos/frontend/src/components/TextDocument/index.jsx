@@ -3,12 +3,12 @@ import { Link, useLocation } from 'react-router';
 import PageTitle from '../PageTitle';
 import styles from './styles.module.css';
 
-// Documento de texto puro com seções (termos, privacidade e ajuda): título, uma nota opcional
-// embaixo dele (`note`, ex.: a versão dos termos), o sumário e as seções. Tudo vai como texto (o
-// React escapa tudo), nunca como HTML. Cada seção tem o `id` do JSON, que serve de âncora
-// (/termos#account); cada item de `paragraphs` é um parágrafo (texto), uma lista (array de
-// textos) ou um link externo ({href, label}, num parágrafo próprio). `language` é o idioma do texto que veio (pode ser o de reserva), para o `lang`.
-export default function TextDocument({ language, title, note = null, sections, contentsLabel }) {
+// Documento de texto puro com seções (a ajuda): título, o sumário e as seções. Tudo vai como
+// texto (o React escapa tudo), nunca como HTML. Cada seção tem o `id` do JSON, que serve de âncora
+// (/ajuda#alerts); cada item de `paragraphs` é um parágrafo (texto), uma lista (array de textos)
+// ou um link externo ({href, label}, num parágrafo próprio). `language` é o idioma do texto que
+// veio (pode ser o de reserva), para o `lang`.
+export default function TextDocument({ language, title, sections, contentsLabel }) {
   const { hash } = useLocation();
 
   // Link direto para uma seção: o navegador procura a âncora antes de o texto chegar, e este
@@ -22,7 +22,6 @@ export default function TextDocument({ language, title, note = null, sections, c
     <article lang={language} className={styles.article}>
       <PageTitle title={title} />
       <h1 className={styles.title}>{title}</h1>
-      {note && <p className={styles.note}>{note}</p>}
 
       <nav aria-label={contentsLabel} className={styles.contents}>
         <ol>

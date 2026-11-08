@@ -28,7 +28,6 @@ from tests.habit_helpers import (
     stored,
 )
 
-IP = "203.0.113.7"
 # Quarta-feira
 NOW = datetime(2026, 3, 25, 12, 0, tzinfo=UTC)
 # Segunda-feira: a semana da criação (2 a 8 de fevereiro) é a primeira da pontuação
@@ -51,8 +50,8 @@ def clock() -> Iterator[time_machine.Traveller]:
 
 
 @pytest.fixture
-def client(settings, database, make_client, outbox):
-    return make_client(create_app(settings, mail_backend=outbox), client=(IP, 50000))
+def client(settings, database, make_client, imago):
+    return make_client(create_app(settings, imago_transport=imago.transport))
 
 
 @pytest.fixture
@@ -126,7 +125,7 @@ def test_pause_and_resume(client, ana, db_session, clock):
     assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
         ana.user.id,
         habit["id"],
-        IP,
+        None,
         {},
     )
 
@@ -137,7 +136,7 @@ def test_pause_and_resume(client, ana, db_session, clock):
     assert resumed["updated_at"] == "2026-03-27T12:00:00Z"
     assert pauses(db_session, habit["id"]) == [(NOW, NOW + timedelta(days=2))]
     [entry] = events(db_session, AuditEvent.HABIT_RESUMED)
-    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], IP)
+    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], None)
 
 
 def test_pause_twice_keeps_one_open_interval(client, ana, db_session, clock):
@@ -210,7 +209,7 @@ def test_parallel_pauses_open_one_interval(engine, db_session, ana):
     def task(_index):
         with factory() as session:
             barrier.wait()
-            access = service.pause_habit(session, user_id=ana.user.id, habit_id=habit.id, ip=None)
+            access = service.pause_habit(session, user_id=ana.user.id, habit_id=habit.id)
             return access.habit.status
 
     with ThreadPoolExecutor(max_workers=calls) as executor:
@@ -262,7 +261,7 @@ def test_archive_and_unarchive(client, ana, db_session, clock):
     assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
         ana.user.id,
         habit["id"],
-        IP,
+        None,
         {},
     )
 
@@ -273,7 +272,7 @@ def test_archive_and_unarchive(client, ana, db_session, clock):
     # O tempo arquivado (sem poder marcar) vira pausa: não conta como meta não cumprida
     assert pauses(db_session, habit["id"]) == [(NOW, NOW + timedelta(days=10))]
     [entry] = events(db_session, AuditEvent.HABIT_UNARCHIVED)
-    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], IP)
+    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], None)
 
 
 def test_unarchive_in_the_same_instant_records_no_pause(client, ana, db_session):
@@ -415,9 +414,7 @@ def test_parallel_unarchive_never_passes_the_limit(engine, db_session, settings,
         with factory() as session:
             barrier.wait()
             try:
-                service.unarchive_habit(
-                    session, settings, user_id=ana.user.id, habit_id=habit_id, ip=None
-                )
+                service.unarchive_habit(session, settings, user_id=ana.user.id, habit_id=habit_id)
             except ApiError as error:
                 return error.code.value
             return "unarchived"
@@ -550,7 +547,7 @@ def test_requires_session(client, action):
     response = client.post(f"/habits/1/{action}")
     assert (response.status_code, response.json()) == (
         401,
-        {"error": "unauthorized", "field": None},
+        {"error": "not_authenticated", "field": None},
     )
 
 

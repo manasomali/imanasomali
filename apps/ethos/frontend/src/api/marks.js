@@ -15,7 +15,7 @@
 
 import { useCallback } from 'react';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
-import { meQueryKey } from './auth';
+import { meQueryKey } from './me';
 import { habitKeys } from './habits';
 import { historyKeys } from './history';
 import { reportKeys } from './progress';

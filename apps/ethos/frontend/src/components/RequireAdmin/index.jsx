@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from 'react-router';
-import { useMe } from '../../api/auth';
+import { useMe } from '../../api/me';
 import { PATHS } from '../../paths';
 
 // Rotas do painel de admin, filhas de RequireSession (o usuário já está carregado). Quem não é

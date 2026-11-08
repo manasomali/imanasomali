@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db import write_transaction
 from app.models import (
     Alert,
+    AppUser,
     AuditLog,
     Banner,
     Habit,
@@ -19,7 +20,6 @@ from app.models import (
     HabitPause,
     LoginCode,
     Mark,
-    User,
     UserSession,
 )
 from tests.factories import count, new_habit, new_user, save
@@ -29,14 +29,14 @@ HASH = "a" * 64
 
 
 @pytest.fixture
-def ana(db_session) -> User:
+def ana(db_session) -> AppUser:
     user = new_user()
     save(db_session, user)
     return user
 
 
 @pytest.fixture
-def bia(db_session) -> User:
+def bia(db_session) -> AppUser:
     user = new_user("bia@example.com")
     save(db_session, user)
     return user
@@ -74,10 +74,10 @@ def test_deleting_user_cascades_to_everything_that_is_theirs(db_session, ana, bi
     )
 
     with write_transaction(db_session):
-        db_session.execute(delete(User).where(User.id == ana.id))
+        db_session.execute(delete(AppUser).where(AppUser.id == ana.id))
 
     for model in (
-        User,
+        AppUser,
         UserSession,
         LoginCode,
         Habit,
@@ -88,9 +88,9 @@ def test_deleting_user_cascades_to_everything_that_is_theirs(db_session, ana, bi
         Alert,
         AuditLog,
     ):
-        assert count(db_session, model) == (1 if model is User else 0), model
+        assert count(db_session, model) == (1 if model is AppUser else 0), model
     # Bia continua, só perdeu o acesso ao hábito apagado
-    assert db_session.scalar(select(User.email)) == "bia@example.com"
+    assert db_session.scalar(select(AppUser.email)) == "bia@example.com"
 
 
 def test_deleting_user_anonymizes_authorship_in_other_peoples_data(db_session, ana, bia):
@@ -116,17 +116,19 @@ def test_deleting_user_anonymizes_authorship_in_other_peoples_data(db_session, a
     )
 
     with write_transaction(db_session):
-        db_session.execute(delete(User).where(User.id == ana.id))
+        db_session.execute(delete(AppUser).where(AppUser.id == ana.id))
 
     # O dado fica, sem autor ("usuário removido")
     assert db_session.scalar(select(Mark.user_id).where(Mark.id == mark.id)) is None
     assert db_session.scalar(select(AuditLog.user_id).where(AuditLog.id == event.id)) is None
     assert db_session.scalar(select(Banner.created_by).where(Banner.id == banner.id)) is None
     assert count(db_session, Habit, Habit.id == habit.id) == 1
-    # A participação, os alertas e os convites dela no hábito alheio saem
+    # A participação e os alertas dela no hábito alheio saem
     assert count(db_session, HabitMember) == 0
     assert count(db_session, Alert) == 0
-    assert count(db_session, HabitInvite) == 0
+    # O convite recebido não tem chave estrangeira (o convidado pode nunca ter aberto o ethos):
+    # quem o apaga é a exclusão dos dados da pessoa (app/internal/service.py)
+    assert count(db_session, HabitInvite) == 1
 
 
 def test_deleting_habit_cascades_to_its_data_and_audit(db_session, ana, bia):
@@ -138,7 +140,7 @@ def test_deleting_habit_cascades_to_its_data_and_audit(db_session, ana, bia):
         Mark(habit_id=habit.id, user_id=ana.id, marked_at=NOW),
         AuditLog(user_id=ana.id, habit_id=habit.id, event="mark_created"),
         AuditLog(user_id=ana.id, habit_id=other.id, event="mark_created"),
-        AuditLog(user_id=ana.id, event="login"),
+        AuditLog(user_id=ana.id, event="habit_deleted"),
         HabitMember(habit_id=habit.id, user_id=bia.id, role="viewer"),
     )
 
@@ -151,19 +153,33 @@ def test_deleting_habit_cascades_to_its_data_and_audit(db_session, ana, bia):
         other.id,
         None,
     ]
-    assert count(db_session, User) == 2
+    assert count(db_session, AppUser) == 2
 
 
 def test_foreign_key_to_missing_row_is_refused(db_session):
     with pytest.raises(IntegrityError, match="FOREIGN KEY constraint failed"):
+        save(db_session, new_habit(new_user(id=999)))
+    with pytest.raises(IntegrityError, match="FOREIGN KEY constraint failed"):
         save(db_session, UserSession(token_hash=HASH, user_id=999, expires_at=NOW))
+
+
+def test_invite_to_a_user_unknown_to_ethos_is_accepted(db_session, ana):
+    habit = new_habit(ana)
+    save(db_session, habit)
+    save(
+        db_session,
+        HabitInvite(
+            habit_id=habit.id, email="nova@example.com", invited_user_id=999, role="viewer"
+        ),
+    )
+    assert count(db_session, HabitInvite) == 1
 
 
 # --- CHECK nos enums --------------------------------------------------------------------------
 
 
 ENUM_CASES = [
-    ("ck_users_locale", "users", "locale", "es"),
+    ("ck_app_users_locale", "app_users", "locale", "es"),
     ("ck_habits_color", "habits", "color", "magenta"),
     ("ck_habits_goal_type", "habits", "goal_type", "at_least"),
     ("ck_habits_goal_period", "habits", "goal_period", "day"),
@@ -183,7 +199,7 @@ def full_rows(db_session, ana, bia) -> dict[str, Any]:
     habit = new_habit(ana, cost_limit_cents=1000, cost_limit_period="month")
     save(db_session, habit)
     return {
-        "users": new_user("caio@example.com"),
+        "app_users": new_user("caio@example.com"),
         "habits": new_habit(ana, cost_limit_cents=1000, cost_limit_period="month"),
         "habit_members": HabitMember(habit_id=habit.id, user_id=bia.id, role="viewer"),
         "habit_invites": HabitInvite(habit_id=habit.id, email="caio@example.com", role="viewer"),
@@ -324,23 +340,33 @@ def test_banner_must_end_after_it_starts(db_session):
     )
 
 
-def test_users_email_is_unique(db_session, ana):
-    with pytest.raises(IntegrityError, match=r"UNIQUE constraint failed: users[.]email"):
-        save(db_session, new_user(ana.email))
+def test_app_users_email_is_not_unique(db_session, ana):
+    # A cópia de uma conta pode estar velha quando outra conta passa a usar o email dela
+    save(db_session, new_user(ana.email))
+    assert count(db_session, AppUser, AppUser.email == ana.email) == 2
+
+
+def test_app_users_id_is_the_imago_id(db_session):
+    big = new_user(id=2**53 - 1)
+    save(db_session, big)
+    assert db_session.get(AppUser, 2**53 - 1) is not None
+    db_session.expunge_all()
+    with pytest.raises(IntegrityError, match=r"UNIQUE constraint failed: app_users\.user_id"):
+        save(db_session, new_user("outro@example.com", id=2**53 - 1))
 
 
 @pytest.mark.parametrize("email", ["Ana@example.com", " ana@example.com", "ana@example.com "])
-def test_users_email_must_be_normalized(db_session, email):
-    assert_check_fails(db_session, "ck_users_email_normalized", new_user(email))
+def test_app_users_email_must_be_normalized(db_session, email):
+    assert_check_fails(db_session, "ck_app_users_email_normalized", new_user(email))
 
 
-def test_users_email_length(db_session):
+def test_app_users_email_length(db_session):
     local = "a" * 64
     accepted = f"{local}@{'b' * (254 - len(local) - 5)}.com"
     assert len(accepted) == 254
     save(db_session, new_user(accepted))
 
-    assert_check_fails(db_session, "ck_users_email_length", new_user("b" + accepted))
+    assert_check_fails(db_session, "ck_app_users_email_length", new_user("b" + accepted))
 
 
 def test_invite_email_is_unique_per_habit_and_normalized(db_session, ana):
@@ -423,13 +449,13 @@ def test_orm_defaults(db_session):
     save(db_session, ana)
     habit = new_habit(ana)
     code = LoginCode(email=ana.email, purpose="login", code_hash=HASH, expires_at=NOW)
-    event = AuditLog(event="login")
+    event = AuditLog(event="habit_created")
     save(db_session, habit, code, event)
     alert = Alert(habit_id=habit.id, user_id=ana.id, hour=8, frequency="daily")
     save(db_session, alert)
 
-    assert (ana.is_active, ana.is_admin) == (True, False)
-    assert (ana.created_at, ana.updated_at, ana.last_login_at) == (NOW, NOW, None)
+    assert (ana.first_seen_at, ana.updated_at) == (NOW, NOW)
+    assert event.ip is None
     assert habit.score_threshold == 70
     assert habit.status == "active"
     assert habit.cost_level == "habit"
@@ -496,13 +522,15 @@ def test_updated_at_changes_on_update(db_session, ana):
     assert (mark.created_at, mark.updated_at, mark.marked_at) == (NOW, later, NOW)
 
 
-def test_deleted_ids_are_never_reused(db_session, ana, bia):
+def test_deleted_ids_are_never_reused(db_session, ana):
+    habits = [new_habit(ana), new_habit(ana)]
+    save(db_session, *habits)
     with write_transaction(db_session):
-        db_session.execute(delete(User).where(User.id == bia.id))
-    caio = new_user("caio@example.com")
-    save(db_session, caio)
+        db_session.execute(delete(Habit).where(Habit.id == habits[1].id))
+    third = new_habit(ana)
+    save(db_session, third)
 
-    assert caio.id > bia.id
+    assert third.id > habits[1].id
 
 
 # --- Datas em UTC -----------------------------------------------------------------------------
@@ -512,11 +540,11 @@ def test_datetimes_are_stored_in_utc_and_returned_aware(db_session, engine, ana)
     sao_paulo = timezone(timedelta(hours=-3))
     local = datetime(2026, 1, 15, 9, 0, tzinfo=sao_paulo)
     with write_transaction(db_session):
-        db_session.execute(update(User).where(User.id == ana.id).values(last_login_at=local))
+        db_session.execute(update(AppUser).where(AppUser.id == ana.id).values(first_seen_at=local))
 
     with engine.connect() as connection:
-        stored = connection.execute(text("SELECT last_login_at FROM users")).scalar_one()
-    loaded = db_session.scalar(select(User.last_login_at))
+        stored = connection.execute(text("SELECT first_seen_at FROM app_users")).scalar_one()
+    loaded = db_session.scalar(select(AppUser.first_seen_at))
 
     # Mesmo instante, gravado em UTC, em texto de largura fixa
     assert stored == "2026-01-15 12:00:00.000000"

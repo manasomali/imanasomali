@@ -2,7 +2,7 @@ import { HttpResponse, http } from 'msw';
 import { setupServer } from 'msw/node';
 import { API_BASE } from '../lib/api';
 
-/** URL absoluta de um endpoint da API (ex.: api('/auth/me')), para os handlers do MSW. */
+/** URL absoluta de um endpoint da API (ex.: api('/me')), para os handlers do MSW. */
 export function api(path) {
   return `${window.location.origin}${API_BASE}${path}`;
 }

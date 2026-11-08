@@ -3,7 +3,6 @@ import { configure, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { HELP_SECTIONS, loadHelp } from '../../lib/help';
-import { SUPPORT_EMAIL } from '../../lib/legal';
 import { BASENAME, PATHS } from '../../paths';
 import { mockAlertsApi } from '../../test/alerts';
 import { axe } from '../../test/axe';
@@ -25,7 +24,7 @@ afterEach(() => {
 });
 
 function signedIn() {
-  server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture())));
+  server.use(http.get(api('/me'), () => HttpResponse.json(meFixture())));
 }
 
 describe('help page', () => {
@@ -70,8 +69,9 @@ describe('help page', () => {
         [...ul.querySelectorAll('li')].map((li) => li.textContent),
       )).toEqual(lists);
     }
-    expect(article.textContent).toContain(SUPPORT_EMAIL);
-    expect(article.textContent).not.toContain('{{supportEmail}}');
+    // A conta, o suporte e a exclusão ficam na conta única do imago
+    expect(article.textContent).toContain('manasomali.com/imago/');
+    expect(article.textContent).not.toContain('{{');
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -101,8 +101,9 @@ describe('help page', () => {
 
   it('is linked from the main menu, with or without a session', async () => {
     const user = userEvent.setup();
-    renderApp(PATHS.terms);
-    await screen.findByRole('heading', { level: 1, name: 'Terms of use' });
+    // Tela pública, sem buscar o usuário
+    renderApp('/nada-aqui');
+    await screen.findByRole('heading', { level: 1, name: 'Page not found' });
 
     // Ícone ao lado do idioma e do tema, no cabeçalho
     const menu = screen.getByRole('banner');
@@ -165,15 +166,6 @@ describe('help icons on the screens', () => {
     await screen.findByText('ana@example.com');
 
     expect(helpLink('Sharing')).toBe(`${BASENAME}${PATHS.help}#sharing`);
-    expect(await axe(container)).toHaveNoViolations();
-  });
-
-  it('the account points to the account', async () => {
-    signedIn();
-    const { container } = renderApp(PATHS.account);
-    await screen.findByRole('heading', { level: 1, name: 'Account' });
-
-    expect(helpLink('Account')).toBe(`${BASENAME}${PATHS.help}#account`);
     expect(await axe(container)).toHaveNoViolations();
   });
 

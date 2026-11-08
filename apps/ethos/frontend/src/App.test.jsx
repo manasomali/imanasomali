@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
+import { page } from './lib/page';
 import { browserTimezone } from './lib/time';
-import { BASENAME, PATHS } from './paths';
+import { BASENAME, IMAGO_PATHS, LEGACY_REDIRECTS } from './paths';
 import { axe } from './test/axe';
 import { createTestI18n } from './test/i18n';
 import { meFixture, renderApp } from './test/render';
@@ -12,13 +13,13 @@ import { activeBanner, api, receivedInvites, server } from './test/server';
 const OTHER_TIMEZONE = browserTimezone() === 'Asia/Tokyo' ? 'Europe/Lisbon' : 'Asia/Tokyo';
 
 /**
- * GET /auth/me devolvendo o usuário dado, sem hábitos, e registrando qualquer outra chamada que
- * chegar na API.
+ * GET /me devolvendo o usuário dado, sem hábitos, e registrando qualquer outra chamada que chegar
+ * na API.
  */
 function signedIn(overrides = {}) {
   const writes = [];
   server.use(
-    http.get(api('/auth/me'), () => HttpResponse.json(meFixture(overrides))),
+    http.get(api('/me'), () => HttpResponse.json(meFixture(overrides))),
     activeBanner(),
     receivedInvites(),
     http.get(api('/habits'), () => HttpResponse.json({ habits: [] })),
@@ -51,9 +52,21 @@ describe('app shell', () => {
 
     expect(links.length).toBeGreaterThan(0);
     for (const link of links) expect(link.getAttribute('href')).toBe('/');
-    expect(screen.getByRole('link', { name: 'Account' }).getAttribute('href')).toBe(
-      `${BASENAME}${PATHS.account}`,
+  });
+
+  it('links to the account, the terms and the privacy of the imago, outside the basename', async () => {
+    signedIn({ timezone: browserTimezone() });
+    renderApp('/');
+    await screen.findByRole('heading', { level: 1 });
+
+    expect(screen.getByRole('link', { name: 'Account' }).getAttribute('href')).toBe('/imago/');
+    const footer = screen.getByRole('navigation', { name: 'Legal texts' });
+    expect(within(footer).getByRole('link', { name: 'Terms of use' }).getAttribute('href')).toBe('/imago/termos');
+    expect(within(footer).getByRole('link', { name: 'Privacy policy' }).getAttribute('href')).toBe(
+      '/imago/privacidade',
     );
+    // Sem "Sair" no ethos: sair fica na conta do imago
+    expect(screen.queryByRole('button', { name: /Sign out/ })).toBeNull();
   });
 
   it('opens and closes the menu on small screens', async () => {
@@ -114,23 +127,27 @@ describe('theme and language', () => {
 });
 
 describe('API errors', () => {
-  it('sends a 401 to the login screen, remembering the page', async () => {
+  it('sends a 401 to the imago login, with the page in next', async () => {
     server.use(
-      http.get(api('/auth/me'), () =>
-        HttpResponse.json({ error: 'unauthorized', field: null }, { status: 401 }),
+      http.get(api('/me'), () =>
+        HttpResponse.json({ error: 'not_authenticated', field: null }, { status: 401 }),
       ),
     );
-    const { router, container } = renderApp('/conta?aba=fuso');
+    const { container } = renderApp('/relatorio?from=2026-01-01#fim');
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Sign in' })).toBeDefined();
-    expect(router.state.location.pathname).toBe(`${BASENAME}${PATHS.login}`);
-    expect(router.state.location.state).toEqual({ from: '/conta?aba=fuso' });
+    await waitFor(() => {
+      expect(page.assign).toHaveBeenCalledExactlyOnceWith(
+        `/imago/entrar?next=${encodeURIComponent('/ethos/relatorio?from=2026-01-01#fim')}`,
+      );
+    });
+    // Nada da tela aparece (nem um erro)
+    expect(screen.queryByRole('alert')).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });
 
   it('shows "try again later" on 429', async () => {
     server.use(
-      http.get(api('/auth/me'), () =>
+      http.get(api('/me'), () =>
         HttpResponse.html('<html>429 Too Many Requests</html>', { status: 429 }),
       ),
     );
@@ -145,7 +162,7 @@ describe('API errors', () => {
   it('translates 403 by its code and shows a generic message for an unknown code', async () => {
     let code = 'forbidden';
     server.use(
-      http.get(api('/auth/me'), () => HttpResponse.json({ error: code, field: null }, { status: 403 })),
+      http.get(api('/me'), () => HttpResponse.json({ error: code, field: null }, { status: 403 })),
     );
     const user = userEvent.setup();
     renderApp('/');
@@ -166,7 +183,7 @@ describe('API errors', () => {
     window.localStorage.setItem('i18nextLng', 'pt');
     createTestI18n();
     server.use(
-      http.get(api('/auth/me'), () =>
+      http.get(api('/me'), () =>
         HttpResponse.json({ error: 'rate_limited', field: null }, { status: 429 }),
       ),
     );
@@ -179,7 +196,6 @@ describe('API errors', () => {
 describe('time zone notice', () => {
   it('suggests changing the account time zone when the browser is elsewhere', async () => {
     const writes = signedIn({ timezone: OTHER_TIMEZONE });
-    const user = userEvent.setup();
     const { router, container } = renderApp('/');
 
     const notice = await screen.findByRole('region', { name: 'Time zone notice' });
@@ -188,12 +204,11 @@ describe('time zone notice', () => {
     expect(notice.textContent).toContain(browserTimezone());
     expect(await axe(container)).toHaveNoViolations();
 
-    await user.click(within(notice).getByRole('link', { name: 'Change in account' }));
-
-    expect(await screen.findByRole('heading', { level: 1, name: 'Account' })).toBeDefined();
-    expect(router.state.location.state).toEqual({ suggestedTimezone: browserTimezone() });
-    // Na tela de conta o aviso some
-    expect(screen.queryByRole('region', { name: 'Time zone notice' })).toBeNull();
+    // A troca é na conta do imago: link comum, fora do app
+    expect(within(notice).getByRole('link', { name: 'Change in account' }).getAttribute('href')).toBe(
+      IMAGO_PATHS.account,
+    );
+    expect(router.state.location.pathname).toBe(`${BASENAME}/`);
     // Só sugere: o fuso da conta não muda sozinho
     expect(writes).toEqual([]);
   });
@@ -219,5 +234,25 @@ describe('time zone notice', () => {
     expect(window.localStorage.getItem('ethos:timezone-notice-dismissed')).toBe(
       `${OTHER_TIMEZONE}|${browserTimezone()}`,
     );
+  });
+});
+
+describe('routes of the login of before the imago', () => {
+  it.each(Object.entries(LEGACY_REDIRECTS))('sends %s to %s in the imago', async (path, to) => {
+    const { container } = renderApp(path);
+
+    expect((await screen.findByRole('link', { name: 'Going to your manasomali.com account…' })).getAttribute('href')).toBe(to);
+    await waitFor(() => expect(page.replace).toHaveBeenCalledExactlyOnceWith(to));
+    expect(page.assign).not.toHaveBeenCalled();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('covers the old login, terms, privacy and account', () => {
+    expect(LEGACY_REDIRECTS).toEqual({
+      '/entrar': '/imago/entrar',
+      '/termos': '/imago/termos',
+      '/privacidade': '/imago/privacidade',
+      '/conta': '/imago/',
+    });
   });
 });

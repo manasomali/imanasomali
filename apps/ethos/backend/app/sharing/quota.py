@@ -4,7 +4,7 @@ O convite pendente é uma linha de `habit_invites` que sai ao ser aceito, recusa
 (ETH-12): contar essas linhas deixaria o dono convidar de novo a cada recusa ou cancelamento. Por
 isso o limite conta os eventos `invite_created` do dono, somando todos os hábitos, nas últimas
 24 h (`INVITE_WINDOW`, janela móvel: não depende do fuso de ninguém nem libera 20 convites de uma
-vez à meia-noite). A retenção (`app/retention.py`) só apaga eventos de auth, então esses ficam.
+vez à meia-noite). Nada apaga esses eventos enquanto o hábito existe.
 
 O `ON DELETE CASCADE` de `audit_log.habit_id` apaga esses eventos junto com o hábito. Para que
 criar, convidar e apagar hábitos em sequência não fure o limite, o `habit_deleted` (que sobrevive

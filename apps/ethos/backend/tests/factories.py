@@ -1,6 +1,8 @@
 """Fábricas e atalhos de banco compartilhados pelos testes.
 
-- `new_user(email, **campos)` / `new_habit(dono, **campos)`: objetos válidos, ainda não salvos;
+- `new_user(email, **campos)` / `new_habit(dono, **campos)`: objetos válidos, ainda não salvos. O
+  usuário (`app_users`) ganha um id novo de `USER_IDS` (o id do imago não é automático) e, sem
+  `first_seen_at`, a hora atual;
 - `new_member(hábito, usuário, papel)`, `new_invite(hábito, email, **campos)`,
   `new_mark(hábito, marked_at, **campos)`, `new_pause(hábito, started_at, ended_at=None)` e
   `new_alert(hábito, usuário, **campos)`: idem, para compartilhamento, marcações, pausas e alertas
@@ -9,30 +11,32 @@
 - `count(session, Modelo, *where)`: quantas linhas batem.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
+from itertools import count as counter
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import write_transaction
-from app.models import Alert, Habit, HabitInvite, HabitMember, HabitPause, Mark, User
+from app.models import Alert, AppUser, Habit, HabitInvite, HabitMember, HabitPause, Mark
 
-TERMS_ACCEPTED_AT = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
+# Ids dos usuários dos testes, como os do imago (sem AUTOINCREMENT): longe dos ids fixos do seed
+# (101 a 103), e cada um usado uma vez por execução do pytest
+USER_IDS = counter(1001)
 
 
-def new_user(email: str = "ana@example.com", **fields: Any) -> User:
+def new_user(email: str = "ana@example.com", **fields: Any) -> AppUser:
     values: dict[str, Any] = {
+        "id": next(USER_IDS),
         "email": email,
         "timezone": "America/Sao_Paulo",
         "locale": "pt",
-        "terms_version": "2026-01",
-        "terms_accepted_at": TERMS_ACCEPTED_AT,
     }
-    return User(**(values | fields))
+    return AppUser(**(values | fields))
 
 
-def new_habit(owner: User, **fields: Any) -> Habit:
+def new_habit(owner: AppUser, **fields: Any) -> Habit:
     values: dict[str, Any] = {
         "owner_id": owner.id,
         "name": "Exercício",
@@ -44,7 +48,7 @@ def new_habit(owner: User, **fields: Any) -> Habit:
     return Habit(**(values | fields))
 
 
-def new_member(habit: Habit, user: User, role: str = "editor", **fields: Any) -> HabitMember:
+def new_member(habit: Habit, user: AppUser, role: str = "editor", **fields: Any) -> HabitMember:
     return HabitMember(**({"habit_id": habit.id, "user_id": user.id, "role": role} | fields))
 
 
@@ -53,7 +57,7 @@ def new_invite(habit: Habit, email: str, **fields: Any) -> HabitInvite:
     return HabitInvite(**(values | fields))
 
 
-def new_alert(habit: Habit, user: User, **fields: Any) -> Alert:
+def new_alert(habit: Habit, user: AppUser, **fields: Any) -> Alert:
     values: dict[str, Any] = {
         "habit_id": habit.id,
         "user_id": user.id,

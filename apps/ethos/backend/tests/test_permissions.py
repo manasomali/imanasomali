@@ -21,7 +21,7 @@ from tests.habit_helpers import FORBIDDEN, NOT_FOUND, Account, stored
 # 12:00 em São Paulo
 NOW = datetime(2026, 3, 25, 15, 0, tzinfo=UTC)
 DAY_START = datetime(2026, 3, 25, 3, 0, tzinfo=UTC)
-UNAUTHORIZED = {"error": "unauthorized", "field": None}
+UNAUTHORIZED = {"error": "not_authenticated", "field": None}
 ROLES = ("owner", "editor", "viewer", "stranger", "anonymous")
 MULTI = {"multi_mark": True, "goal_count": 10}
 
@@ -99,8 +99,8 @@ def clock() -> Iterator[time_machine.Traveller]:
 
 
 @pytest.fixture
-def client(settings, database, make_client, outbox):
-    return make_client(create_app(settings, mail_backend=outbox))
+def client(settings, database, make_client, imago):
+    return make_client(create_app(settings, imago_transport=imago.transport))
 
 
 @dataclass(frozen=True)

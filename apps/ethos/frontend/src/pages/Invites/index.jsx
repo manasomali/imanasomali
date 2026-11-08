@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useMe } from '../../api/auth';
+import { useMe } from '../../api/me';
 import { habitKeys } from '../../api/habits';
 import { acceptInvite, declineInvite, sharingKeys, useReceivedInvites } from '../../api/sharing';
 import ErrorMessage from '../../components/ErrorMessage';

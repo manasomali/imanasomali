@@ -2,8 +2,8 @@ import { useId, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { FiEye } from 'react-icons/fi';
-import { useAccountHabits } from '../../api/admin';
-import { useMe } from '../../api/auth';
+import { useUserHabits } from '../../api/admin';
+import { useMe } from '../../api/me';
 import ErrorMessage from '../../components/ErrorMessage';
 import HabitSwatch from '../../components/HabitSwatch';
 import PageTitle from '../../components/PageTitle';
@@ -85,7 +85,7 @@ function Content({ userId, timeZone }) {
   const { t, i18n } = useTranslation();
   const id = useId();
   const [habitId, setHabitId] = useState(null);
-  const content = useAccountHabits(userId, habitId);
+  const content = useUserHabits(userId, habitId);
 
   if (content.isPending) return <p role="status">{t('common.loading')}</p>;
   if (content.isError && !content.data) {
@@ -107,14 +107,8 @@ function Content({ userId, timeZone }) {
           {user.email}
         </h2>
         <dl className={styles.details}>
-          <Detail label={t('admin.accounts.status')}>
-            {user.is_active ? t('admin.accounts.status_active') : t('admin.accounts.status_blocked')}
-          </Detail>
           <Detail label={t('admin.user_habits.timezone')}>{user.timezone}</Detail>
-          <Detail label={t('admin.accounts.created')}>{date(user.created_at)}</Detail>
-          <Detail label={t('admin.accounts.last_login')}>
-            {user.last_login_at ? date(user.last_login_at) : t('admin.accounts.never')}
-          </Detail>
+          <Detail label={t('admin.accounts.first_seen')}>{date(user.first_seen_at)}</Detail>
         </dl>
       </section>
 

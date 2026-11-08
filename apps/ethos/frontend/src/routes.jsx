@@ -1,8 +1,8 @@
+import ExternalRedirect from './components/ExternalRedirect';
 import Layout from './components/Layout';
 import RequireAdmin from './components/RequireAdmin';
 import RequireSession from './components/RequireSession';
-import Account from './pages/Account';
-import AdminAccounts from './pages/Admin/Accounts';
+import AdminUsers from './pages/Admin/Accounts';
 import AdminBanners from './pages/Admin/Banners';
 import AdminUserHabits from './pages/Admin/UserHabits';
 import HabitLayout from './pages/Habit';
@@ -14,29 +14,28 @@ import Help from './pages/Help';
 import History from './pages/History';
 import Home from './pages/Home';
 import Invites from './pages/Invites';
-import Legal from './pages/Legal';
-import Login from './pages/Login';
 import NewHabit from './pages/NewHabit';
 import NotFound from './pages/NotFound';
 import Report from './pages/Report/LazyReport';
-import { HABIT_SECTION, PATHS } from './paths';
+import { HABIT_SECTION, LEGACY_REDIRECTS, PATHS } from './paths';
 
-// Todas as rotas, relativas ao basename /ethos. Tela que exige sessão entra como filha de
-// RequireSession; telas públicas (login, termos, privacidade, ajuda) ficam fora dele. O painel de admin
-// fica dentro de RequireAdmin (quem não é admin volta para a tela inicial)
+// Todas as rotas, relativas ao basename /ethos. Tela que exige login é filha de RequireSession; a
+// ajuda é pública. Login, conta, termos e privacidade são do imago (/imago/...): as rotas antigas
+// do ethos levam para lá (LEGACY_REDIRECTS). O painel de admin fica dentro de RequireAdmin (quem
+// não é admin volta para a tela inicial)
 export const routes = [
   {
     element: <Layout />,
     children: [
-      { path: PATHS.login, element: <Login /> },
-      { path: PATHS.terms, element: <Legal key="terms" name="terms" /> },
-      { path: PATHS.privacy, element: <Legal key="privacy" name="privacy" /> },
+      ...Object.entries(LEGACY_REDIRECTS).map(([path, to]) => ({
+        path,
+        element: <ExternalRedirect to={to} />,
+      })),
       { path: PATHS.help, element: <Help /> },
       {
         element: <RequireSession />,
         children: [
           { path: PATHS.home, element: <Home /> },
-          { path: PATHS.account, element: <Account /> },
           { path: PATHS.report, element: <Report /> },
           { path: PATHS.newHabit, element: <NewHabit /> },
           { path: PATHS.invites, element: <Invites /> },
@@ -44,7 +43,7 @@ export const routes = [
           {
             element: <RequireAdmin />,
             children: [
-              { path: PATHS.admin, element: <AdminAccounts /> },
+              { path: PATHS.admin, element: <AdminUsers /> },
               { path: PATHS.adminUser, element: <AdminUserHabits /> },
               { path: PATHS.adminBanners, element: <AdminBanners /> },
             ],

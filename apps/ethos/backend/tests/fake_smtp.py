@@ -1,11 +1,13 @@
-"""Servidor SMTP falso para os testes (aiosmtpd), com STARTTLS e login obrigatórios.
+"""Servidor SMTP falso (aiosmtpd), com STARTTLS e login obrigatórios, do backend do E2E.
 
 Funciona como o provedor: só aceita AUTH depois do STARTTLS, e o certificado vem de uma CA de
-teste (`trustme`). O `SmtpBackend` devolvido por `FakeSmtpServer.backend()` confia nessa CA e
-segue exatamente o caminho de produção (STARTTLS com verificação do certificado, login, envio).
-As fixtures ficam em `conftest.py` (`make_smtp_server`, `smtp_server`).
+teste (`trustme`). O app não fala com SMTP (os emails saem pelo imago): o servidor fica para o
+`tests/e2e_stack.py`. `FakeSmtpServer.send(mensagem)` manda por ele com o caminho completo
+(STARTTLS com o certificado verificado, login, envio). A fixture fica em `conftest.py`
+(`smtp_server`).
 """
 
+import smtplib
 import socket
 import ssl
 from collections.abc import Callable
@@ -17,9 +19,6 @@ from typing import Any
 import trustme
 from aiosmtpd.controller import Controller
 from aiosmtpd.smtp import AuthResult, Envelope, LoginPassword, Session
-from pydantic import SecretStr
-
-from app.mail.backends import SmtpBackend
 
 SMTP_HOST = "127.0.0.1"
 SMTP_USER = "ethos-test@smtp.example.com"
@@ -49,18 +48,13 @@ class FakeSmtpServer:
     client_context: ssl.SSLContext
     received: list[ReceivedEmail] = field(default_factory=list)
 
-    def backend(self, **overrides: Any) -> SmtpBackend:
-        """SmtpBackend apontado para este servidor; `overrides` troca qualquer parâmetro."""
-        values: dict[str, Any] = {
-            "host": SMTP_HOST,
-            "port": self.port,
-            "user": SMTP_USER,
-            "password": SecretStr(SMTP_PASSWORD),
-            "ssl_context": self.client_context,
-            "timeout": 5.0,
-        }
-        values.update(overrides)
-        return SmtpBackend(**values)
+    def send(self, message: EmailMessage, *, context: ssl.SSLContext | None = None) -> None:
+        """Manda `message` por este servidor: STARTTLS (com `context`, por padrão um que confia na
+        CA de teste), login e envio."""
+        with smtplib.SMTP(SMTP_HOST, self.port, timeout=5.0) as smtp:
+            smtp.starttls(context=context or self.client_context)
+            smtp.login(SMTP_USER, SMTP_PASSWORD)
+            smtp.send_message(message)
 
 
 class _Handler:
@@ -100,18 +94,13 @@ def free_port() -> int:
         return sock.getsockname()[1]
 
 
-def start_fake_smtp(
-    ca: trustme.CA, *, starttls: bool = True
-) -> tuple[FakeSmtpServer, Callable[[], None]]:
+def start_fake_smtp(ca: trustme.CA) -> tuple[FakeSmtpServer, Callable[[], None]]:
     """Sobe o servidor numa thread. Devolve o servidor e a função que o para."""
     client_context = ssl.create_default_context()
     ca.configure_trust(client_context)
     server = FakeSmtpServer(port=free_port(), client_context=client_context)
-    tls: dict[str, Any] = {}
-    if starttls:
-        server_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        ca.issue_cert(SMTP_HOST).configure_cert(server_context)
-        tls = {"tls_context": server_context, "require_starttls": True}
+    server_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ca.issue_cert(SMTP_HOST).configure_cert(server_context)
     controller = Controller(
         _Handler(server),
         hostname=SMTP_HOST,
@@ -119,7 +108,8 @@ def start_fake_smtp(
         authenticator=_authenticate,
         auth_required=True,
         auth_require_tls=True,
-        **tls,
+        tls_context=server_context,
+        require_starttls=True,
     )
     controller.start()
     return server, controller.stop

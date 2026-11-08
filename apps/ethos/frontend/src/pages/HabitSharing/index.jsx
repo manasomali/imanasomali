@@ -2,7 +2,7 @@ import { useCallback, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useMe } from '../../api/auth';
+import { useMe } from '../../api/me';
 import { forgetHabit } from '../../api/habits';
 import { markKeys } from '../../api/marks';
 import {

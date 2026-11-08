@@ -25,20 +25,14 @@ export default defineConfig({
     target: buildTargets(browserslist(undefined, { path: frontendRoot })),
   },
   server: {
-    // O site usa a 5173
+    // O site usa a 5173. Sem proxy da API: o backend só sabe quem é o usuário pelos headers X-User-*
+    // que o nginx põe depois de perguntar ao imago. Em dev, o app abre pelo nginx de dev
+    // (http://localhost:8080/ethos/, `apps/imago/dev/nginx.sh up --vite`), que serve este dev server
     port: 5174,
     strictPort: true,
     fs: {
       // Definir allow substitui o padrão do Vite: mantém a raiz do front e libera packages/
       allow: [searchForWorkspaceRoot(frontendRoot), packagesDir],
-    },
-    proxy: {
-      // Como o nginx em produção: tira o prefixo /api/ethos antes de repassar
-      // para o backend local (uvicorn --root-path /api/ethos)
-      '/api/ethos/': {
-        target: 'http://127.0.0.1:8000',
-        rewrite: (path) => path.replace(/^\/api\/ethos/, ''),
-      },
     },
   },
   test: {

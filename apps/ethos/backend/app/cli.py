@@ -2,10 +2,8 @@
 
 Cada comando lê a mesma configuração do servidor (variáveis de ambiente, `load_settings`) e abre o
 banco de `DATABASE_PATH`, que precisa já existir (migrado com `alembic upgrade head`). Em produção
-roda como `app-ethos`: o `run-alerts` e o `cleanup` pelo timer de hora em hora, os outros à mão.
-O `create-admin` é o único jeito de ligar o `is_admin`: não existe endpoint para isso. O
-`export-users` é da passagem do login para o imago (ETH-64): a saída dele vai, por um pipe, para o
-`import-users -` do imago.
+roda como `app-ethos`: o `run-alerts` pelo timer de hora em hora, os outros à mão. As contas (admin,
+bloqueio, exclusão) são do imago: o ethos não tem comando de conta.
 
 Para acrescentar um comando:
 
@@ -15,36 +13,30 @@ Para acrescentar um comando:
    `.set_defaults(handler=_nome)`.
 
 Saída e erros: o resultado vai para o stdout (journald, quando roda pelo systemd). Um erro esperado
-(ex.: conta inexistente) é `raise CommandError("mensagem")`: sai no stderr como "erro: mensagem",
+(ex.: entrada ilegível) é `raise CommandError("mensagem")`: sai no stderr como "erro: mensagem",
 com código 1. Qualquer outra exceção sai com código 1 e só com o tipo e o lugar do erro, sem a
 mensagem nem o stack trace, que podem trazer dados. Uso errado (comando ou argumento inválido) sai
 com código 2, pelo argparse. Nunca escreva código, token, cookie nem IP na saída.
 """
 
 import argparse
-import json
 import sys
 import traceback
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from app import audit
 from app.alerts.service import run_alerts
-from app.audit import AuditEvent
-from app.auth.reapply import InputError, read_account_ids, reapply_deletions
-from app.auth.service import normalize_email
 from app.config import ConfigError, Settings, load_settings
 from app.db import create_db_engine, create_session_factory, write_transaction
+from app.imago_client import ImagoClient
+from app.internal.reapply import InputError, read_account_ids, reapply_deletions
 from app.logs import configure_logging
-from app.mail.sender import Mailer, build_backend
-from app.models import User, utcnow
-from app.retention import run_cleanup
+from app.mail.sender import Mailer
+from app.models import utcnow
 from app.seed import seed
 
 EXIT_OK = 0
@@ -66,77 +58,33 @@ class CommandContext:
 Handler = Callable[[CommandContext, argparse.Namespace], int]
 
 
-def _cleanup(context: CommandContext, _args: argparse.Namespace) -> int:
-    with context.session_factory() as session, write_transaction(session):
-        result = run_cleanup(session, utcnow())
-    print(
-        "cleanup: "
-        f"{result.auth_events_deleted} eventos de auth apagados, "
-        f"{result.audit_ips_cleared} IPs apagados na auditoria, "
-        f"{result.sessions_deleted} sessões vencidas apagadas, "
-        f"{result.session_ips_cleared} IPs apagados nas sessões, "
-        f"{result.login_codes_deleted} códigos vencidos apagados"
-    )
-    return EXIT_OK
-
-
 def _run_alerts(context: CommandContext, _args: argparse.Namespace) -> int:
-    """Avalia os alertas na hora e manda os emails (`app/alerts/service.py`).
+    """Avalia os alertas na hora e manda os emails pelo imago (`app/alerts/service.py`).
 
-    Sai com 0 mesmo que algum alerta falhe (SMTP, por exemplo): a falha vira uma linha de log
-    com os ids, não para os outros e é tentada de novo na próxima execução. Só erro geral (config,
-    banco inacessível) sai com 1, e aí o `OnFailure=` do timer registra.
+    Sai com 0 mesmo que algum alerta falhe (imago fora do ar, teto de envio): a falha vira uma
+    linha de log com os ids, não para os outros e é tentada de novo na próxima execução. Só erro
+    geral (config, banco inacessível) sai com 1, e aí o `OnFailure=` do timer registra.
     """
-    mailer = Mailer(context.settings, build_backend(context.settings))
-    result = run_alerts(context.session_factory, mailer, now=utcnow())
+    settings = context.settings
+    imago = ImagoClient(settings.imago_internal_url, settings.internal_api_token)
+    try:
+        result = run_alerts(context.session_factory, Mailer(settings, imago), now=utcnow())
+    finally:
+        imago.close()
     print(
         f"run-alerts: {result.evaluated} alertas avaliados, {result.sent} emails enviados, "
-        f"{result.failed} falhas"
+        f"{result.refused} recusados pelo teto de envio, {result.failed} falhas"
     )
-    return EXIT_OK
-
-
-def _create_admin(context: CommandContext, args: argparse.Namespace) -> int:
-    """Liga o `is_admin` de uma conta que já existe e grava `admin_created` no `audit_log`.
-
-    O email é normalizado como no login (strip + lower). A saída identifica a conta pelo id, nunca
-    pelo email. Conta bloqueada (`is_active=false`) é recusada: promover quem não pode entrar não
-    serve para nada e deixaria um admin pronto para quem desbloquear a conta. Rodar de novo numa
-    conta que já é admin não grava nada.
-    """
-    # Mesma normalização e validação do login: o email é salvo em `users` com strip + lower
-    email = normalize_email(args.email)
-    if email is None:
-        raise CommandError("email inválido")
-    # A leitura vai dentro da transação de escrita: duas execuções ao mesmo tempo não gravam dois
-    # eventos, porque a segunda só lê depois do commit da primeira (BEGIN IMMEDIATE)
-    with context.session_factory() as session, write_transaction(session):
-        user = session.scalar(select(User).where(User.email == email))
-        if user is None:
-            raise CommandError(
-                "nenhuma conta com esse email. A pessoa precisa entrar no app uma vez antes"
-            )
-        if not user.is_active:
-            raise CommandError(f"a conta {user.id} está bloqueada (is_active=false); nada mudou")
-        user_id, already_admin = user.id, user.is_admin
-        if not already_admin:
-            user.is_admin = True
-            audit.record(session, AuditEvent.ADMIN_CREATED, user_id=user_id, details={"via": "cli"})
-    if already_admin:
-        print(f"create-admin: a conta {user_id} já é admin; nada mudou")
-    else:
-        print(f"create-admin: a conta {user_id} agora é admin")
     return EXIT_OK
 
 
 def _reapply_deletions(context: CommandContext, args: argparse.Namespace) -> int:
     """Apaga de novo, depois de restaurar um backup, as contas que o journald diz ter apagado.
 
-    Lê as linhas do `journalctl -u app-ethos -o cat` (ou ids soltos, um por linha) do arquivo
-    ou do stdin (`-`, o padrão) e chama `app/auth/reapply.py`. Sem email, sem `account_deleted`
-    repetido. Conta que não existe é ignorada; o último admin ativo é pulado com um aviso (sai
-    com 0 assim mesmo). Entrada ilegível, vazia ou com uma linha de exclusão fora do formato: erro,
-    antes de mexer no banco.
+    Só as exclusões de antes do imago (as de depois são do `reapply-deletions` do imago). Lê as
+    linhas do `journalctl -u app-ethos -o cat` (ou ids soltos, um por linha) do arquivo ou do
+    stdin (`-`, o padrão) e chama `app/internal/reapply.py`. Sem email. Entrada ilegível, vazia ou
+    com uma linha de exclusão fora do formato: erro, antes de mexer no banco.
     """
     try:
         if args.file == "-":
@@ -163,16 +111,9 @@ def _reapply_deletions(context: CommandContext, args: argparse.Namespace) -> int
 
     with context.session_factory() as session:
         result = reapply_deletions(session, parsed.ids)
-    for account_id in result.last_admin:
-        print(
-            f"aviso: a conta {account_id} é o último admin ativo e não foi apagada. Torne outra "
-            "conta admin (create-admin) e rode o reapply-deletions de novo",
-            file=sys.stderr,
-        )
     print(
         f"reapply-deletions: {len(result.deleted)} contas apagadas, "
-        f"{len(result.missing)} ignoradas (não existem no banco), "
-        f"{len(result.last_admin)} puladas (último admin)"
+        f"{len(result.missing)} sem linha em app_users (só convites recebidos, se sobravam)"
     )
     return EXIT_OK
 
@@ -183,77 +124,11 @@ def _decoded_lines(stream: Iterable[bytes]) -> Iterator[str]:
         yield raw.decode("utf-8", errors="replace")
 
 
-def _export_users(context: CommandContext, _args: argparse.Namespace) -> int:
-    """Escreve no stdout uma linha JSON por conta, para o `import-users -` do imago (ETH-64).
-
-    Campos: `id`, `email`, `is_active`, `is_admin`, `timezone`, `locale`, `created_at` e
-    `last_login_at` (datas ISO 8601 em UTC, com `Z`; `null` para quem nunca entrou), em ordem de
-    id. Depois da última conta, uma linha final com o total, `{"end": true, "count": N}`, só com
-    esses dois campos (nenhum deles existe numa conta). Ela só sai quando todas as contas saíram:
-    se o export morre no meio (falta de memória, erro no banco), o pipe fecha sem ela, e o import
-    recusa a entrada em vez de gravar só parte das contas.
-
-    Só lê o banco (uma consulta, sem transação de escrita) e só escreve no stdout: nada em disco,
-    nada no log. Sessões, códigos e o aceite dos termos não passam (todo mundo entra de novo uma
-    vez no imago e aceita os termos novos).
-
-    Recusa um terminal no stdout: a saída tem os emails de todas as contas e é feita para o pipe
-    (`... export-users | ... import-users -`, roteiro no README do imago), não para a tela.
-    """
-    if sys.stdout.isatty():
-        raise CommandError(
-            "a saída tem os emails de todas as contas: mande-a por um pipe para o "
-            "import-users - do imago"
-        )
-    query = select(
-        User.id,
-        User.email,
-        User.is_active,
-        User.is_admin,
-        User.timezone,
-        User.locale,
-        User.created_at,
-        User.last_login_at,
-    ).order_by(User.id)
-    total = 0
-    with context.session_factory() as session:
-        for row in session.execute(query):
-            _print_json_line(
-                {
-                    "id": row.id,
-                    "email": row.email,
-                    "is_active": row.is_active,
-                    "is_admin": row.is_admin,
-                    "timezone": row.timezone,
-                    "locale": row.locale,
-                    "created_at": _utc_iso(row.created_at),
-                    "last_login_at": (
-                        None if row.last_login_at is None else _utc_iso(row.last_login_at)
-                    ),
-                }
-            )
-            total += 1
-    # Só depois da consulta inteira: uma exceção no meio sai antes daqui, sem a linha final
-    _print_json_line({"end": True, "count": total})
-    sys.stdout.flush()
-    return EXIT_OK
-
-
-def _print_json_line(data: dict[str, object]) -> None:
-    # ensure_ascii: a linha é ASCII puro, qualquer que seja o encoding do stdout
-    print(json.dumps(data, ensure_ascii=True, separators=(",", ":")))
-
-
-def _utc_iso(value: datetime) -> str:
-    # Formato fixo (sempre com microssegundos), como o banco guarda: 2026-01-31T12:00:00.000000Z
-    return value.astimezone(UTC).isoformat(timespec="microseconds").removesuffix("+00:00") + "Z"
-
-
 def _seed(context: CommandContext, _args: argparse.Namespace) -> int:
     """Cria os dados de exemplo de `app/seed.py`. Só com `APP_ENV=dev`.
 
     Fora de dev, recusa antes de abrir qualquer transação: nada é gravado. Se as contas de
-    exemplo já existem, avisa e não grava nada (sai com 0).
+    exemplo já existem em `app_users`, avisa e não grava nada (sai com 0).
     """
     if not context.settings.is_dev:
         raise CommandError("seed só roda com APP_ENV=dev; nada foi gravado")
@@ -266,8 +141,8 @@ def _seed(context: CommandContext, _args: argparse.Namespace) -> int:
         )
     else:
         print(
-            f"seed: {result.users} contas, {result.habits} hábitos e "
-            f"{result.marks} marcações criados"
+            f"seed: {result.users} usuários, {result.habits} hábitos e "
+            f"{result.marks} marcações criados (entre com as contas do seed do imago)"
         )
     return EXIT_OK
 
@@ -280,16 +155,6 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(title="comandos", dest="command", required=True)
 
     commands.add_parser(
-        "cleanup",
-        help="aplica a retenção de dados (auditoria de auth, IPs, sessões e códigos vencidos)",
-        description=(
-            "Apaga eventos de auth com mais de 90 dias, apaga os IPs com mais de 90 dias da "
-            "auditoria e das sessões e apaga sessões e códigos de login vencidos. Não toca na "
-            "auditoria de hábitos e marcações. Pode rodar quantas vezes quiser."
-        ),
-    ).set_defaults(handler=_cleanup)
-
-    commands.add_parser(
         "run-alerts",
         help="avalia os alertas que estão na hora e manda os emails",
         description=(
@@ -300,28 +165,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     ).set_defaults(handler=_run_alerts)
 
-    create_admin = commands.add_parser(
-        "create-admin",
-        help="torna admin uma conta que já existe (único jeito de criar admin)",
-        description=(
-            "Liga o is_admin da conta com esse email e grava admin_created na auditoria. A conta "
-            "precisa existir (a pessoa entra no app uma vez antes) e não pode estar bloqueada. "
-            "Rodar de novo numa conta que já é admin não muda nada."
-        ),
-    )
-    create_admin.add_argument("email", help="email da conta (maiúsculas e espaços não importam)")
-    create_admin.set_defaults(handler=_create_admin)
-
     reapply = commands.add_parser(
         "reapply-deletions",
-        help="depois de restaurar um backup, apaga de novo as contas excluídas que o log lista",
+        help="depois de restaurar um backup, apaga de novo as contas excluídas antes do imago",
         description=(
-            "Lê as linhas do journalctl -u app-ethos -o cat (as de 'conta <id> excluída'; as "
-            "outras são ignoradas) ou ids soltos, um por linha, e apaga de novo as contas que "
-            "ainda existem, sem mandar email. Conta que não existe é ignorada e id repetido "
-            "conta uma vez; o último admin ativo é pulado com um aviso. Antes, avança o contador "
-            "de ids das contas até o maior id lido, para nenhuma conta nova herdar um id apagado. "
-            "Pode rodar quantas vezes quiser: a segunda seguida não muda nada."
+            "Lê as linhas do journalctl -u app-ethos -o cat (as de 'conta <id> excluída', do "
+            "login próprio de antes do imago; as outras são ignoradas) ou ids soltos, um por "
+            "linha, e apaga de novo os dados dessas contas no ethos, sem mandar email. Id "
+            "repetido conta uma vez. Pode rodar quantas vezes quiser: a segunda seguida não muda "
+            "nada. As exclusões de depois do imago são do reapply-deletions do imago."
         ),
     )
     reapply.add_argument(
@@ -333,24 +185,13 @@ def build_parser() -> argparse.ArgumentParser:
     reapply.set_defaults(handler=_reapply_deletions)
 
     commands.add_parser(
-        "export-users",
-        help="escreve as contas no stdout, uma linha JSON por conta, para o import-users do imago",
-        description=(
-            "Passagem do login para o imago: uma linha JSON por conta (id, email, is_active, "
-            "is_admin, timezone, locale, created_at, last_login_at), em ordem de id, e no fim a "
-            'linha {"end": true, "count": <total>}, para o import-users - do imago por um pipe. '
-            "Só lê o banco e só escreve no stdout (nada em disco nem no log). Recusa um terminal "
-            "no stdout."
-        ),
-    ).set_defaults(handler=_export_users)
-
-    commands.add_parser(
         "seed",
-        help="cria contas, hábitos e marcações de exemplo (só com APP_ENV=dev)",
+        help="cria usuários, hábitos e marcações de exemplo (só com APP_ENV=dev)",
         description=(
-            "Cria as contas ana@, bia@ e caio@example.com, hábitos de vários tipos e marcações "
-            "dos últimos 60 dias, numa transação só. Recusa rodar fora de APP_ENV=dev. Se as "
-            "contas de exemplo já existem, não muda nada."
+            "Cria em app_users as contas do seed do imago (ids 101, 102 e 103: ana@, bia@ e "
+            "caio@example.com), hábitos de vários tipos e marcações dos últimos 60 dias, numa "
+            "transação só. Recusa rodar fora de APP_ENV=dev. Se as contas de exemplo já existem, "
+            "não muda nada."
         ),
     ).set_defaults(handler=_seed)
 

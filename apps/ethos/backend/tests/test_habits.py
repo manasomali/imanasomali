@@ -33,7 +33,6 @@ from tests.habit_helpers import (
     stored,
 )
 
-IP = "203.0.113.7"
 # Quarta-feira
 NOW = datetime(2026, 3, 25, 12, 0, tzinfo=UTC)
 
@@ -45,8 +44,8 @@ def clock() -> Iterator[time_machine.Traveller]:
 
 
 @pytest.fixture
-def client(settings, database, make_client, outbox):
-    return make_client(create_app(settings, mail_backend=outbox), client=(IP, 50000))
+def client(settings, database, make_client, imago):
+    return make_client(create_app(settings, imago_transport=imago.transport))
 
 
 @pytest.fixture
@@ -107,7 +106,7 @@ def test_create_with_defaults(client, ana, db_session):
     assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
         ana.user.id,
         body["id"],
-        IP,
+        None,
         {},
     )
 
@@ -533,14 +532,7 @@ def test_largest_habit_id_is_404(client, ana):
 def test_requires_session(client, method, path):
     response = client.request(method, path, json=VALID)
     assert response.status_code == 401
-    assert response.json() == {"error": "unauthorized", "field": None}
-
-
-def test_requires_current_terms(client, make_account):
-    old_terms = make_account("dani@example.com", terms_version="2026-01")
-    response = client.get("/habits", headers=old_terms.headers)
-    assert response.status_code == 403
-    assert response.json() == {"error": "terms_not_accepted", "field": None}
+    assert response.json() == {"error": "not_authenticated", "field": None}
 
 
 # --- editar ---
@@ -569,7 +561,7 @@ def test_owner_updates_and_audit_records_changes(client, ana, db_session, clock)
     assert body["updated_at"] == "2026-03-25T13:00:00Z"
     assert body["created_at"] == habit["created_at"]
     [entry] = events(db_session, AuditEvent.HABIT_UPDATED)
-    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], IP)
+    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], None)
     # goal_count não mudou (3 -> 3): não aparece
     assert entry.details == {
         "changes": [
@@ -826,7 +818,7 @@ def test_update_validates_body_before_access(client, ana, bia):
 # --- apagar ---
 
 
-def test_owner_deletes_habit_with_everything(client, ana, bia, caio, outbox, db_session):
+def test_owner_deletes_habit_with_everything(client, ana, bia, caio, imago, db_session):
     habit = created(client, ana, score_enabled=True, reward="Pizza")
     keep = created(client, ana, name="Fica")
     patch(client, ana, habit["id"], name="Corrida")
@@ -839,7 +831,6 @@ def test_owner_deletes_habit_with_everything(client, ana, bia, caio, outbox, db_
         new_mark(row, NOW - timedelta(days=1), user_id=bia.user.id),
         new_pause(row, NOW - timedelta(days=3), NOW - timedelta(days=2)),
     )
-    outbox.messages.clear()
 
     response = client.delete(f"/habits/{habit['id']}", headers=ana.headers)
 
@@ -856,44 +847,39 @@ def test_owner_deletes_habit_with_everything(client, ana, bia, caio, outbox, db_
     assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
         ana.user.id,
         None,
-        IP,
+        None,
         {"habit_id": habit["id"]},
     )
-    # Um email para cada membro, no idioma dele; nenhum para a dona
-    assert sorted(message["To"] for message in outbox.messages) == [
-        "bia@example.com",
-        "caio@example.com",
-    ]
-    [to_bia] = outbox.to("bia@example.com")
-    [to_caio] = outbox.to("caio@example.com")
-    assert to_bia["Subject"] == "A shared habit was deleted"
-    assert to_caio["Subject"] == "Um hábito compartilhado foi apagado"
-    assert "Corrida" in to_bia.get_body(preferencelist=("plain",)).get_content()
+    # Um email para cada membro (pelo id, no imago), no idioma dele; nenhum para a dona
+    assert sorted(mail.user_id for mail in imago.mails) == sorted([bia.user.id, caio.user.id])
+    [to_bia] = imago.mails_to(bia.user.id)
+    [to_caio] = imago.mails_to(caio.user.id)
+    assert to_bia.subject == "A shared habit was deleted"
+    assert to_caio.subject == "Um hábito compartilhado foi apagado"
+    assert "Corrida" in to_bia.text
     assert client.get(f"/habits/{habit['id']}", headers=bia.headers).status_code == 404
 
 
-def test_delete_without_members_sends_no_email(client, ana, outbox, db_session):
+def test_delete_without_members_sends_no_email(client, ana, imago, db_session):
     habit = created(client, ana)
-    outbox.messages.clear()
 
     assert client.delete(f"/habits/{habit['id']}", headers=ana.headers).status_code == 204
 
-    assert outbox.messages == []
+    assert imago.requests == []
     assert count(db_session, Habit) == 0
 
 
 @pytest.mark.parametrize("role", ["editor", "viewer"])
-def test_member_cannot_delete(client, ana, bia, outbox, db_session, role):
+def test_member_cannot_delete(client, ana, bia, imago, db_session, role):
     habit = created(client, ana)
     share(db_session, habit["id"], bia, role)
-    outbox.messages.clear()
 
     response = client.delete(f"/habits/{habit['id']}", headers=bia.headers)
 
     assert response.status_code == 403
     assert response.json() == FORBIDDEN
     assert stored(db_session, habit["id"]) is not None
-    assert outbox.messages == []
+    assert imago.requests == []
     assert events(db_session, AuditEvent.HABIT_DELETED) == []
 
 
@@ -1176,9 +1162,7 @@ def test_parallel_creation_never_passes_the_limit(engine, db_session, settings, 
         with factory() as session:
             barrier.wait()
             try:
-                service.create_habit(
-                    session, settings, owner_id=ana.user.id, values=values, ip=None
-                )
+                service.create_habit(session, settings, owner_id=ana.user.id, values=values)
             except ApiError as error:
                 return error.code.value
             return "created"

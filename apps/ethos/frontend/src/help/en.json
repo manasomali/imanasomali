@@ -101,7 +101,7 @@
           "viewing: only views."
         ],
         "All members see the marks, the notes, the cost, the reward, the punishment and the history of the habit.",
-        "You can only invite an email that already has an ethos account. So as not to reveal who has an account, the answer is always “invite sent”. An invite to an email with no account is never delivered, not even if the account is created later.",
+        "You can only invite an email that already has a manasomali.com account. So as not to reveal who has an account, the answer is always “invite sent”. An invite to an email with no account is never delivered, not even if the account is created later.",
         "The guest gets an email and accepts or declines it in “Invites”, in the menu. Invites do not expire, and the owner can cancel a pending one.",
         "Guests can leave on their own, and the owner can remove them. Either way, their marks stay in the habit, and their alerts on that habit are deleted. Moving someone from editing to viewing also deletes their alerts on that habit.",
         "Limits: up to 5 guests per habit (members and pending invites), up to 20 invites per day across all your habits and up to 20 habits of other people per account. A shared habit counts only towards the owner’s habit limit."
@@ -111,7 +111,7 @@
       "id": "time-zone",
       "title": "Time zone",
       "paragraphs": [
-        "Everything is stored in UTC and shown in the time zone saved in your account: the calendar, the score and the time of the alerts. The time zone starts as the browser’s on your first visit and only changes on the account screen. When the browser’s time zone differs from the saved one (on a trip, for instance), the app suggests switching.",
+        "Everything is stored in UTC and shown in the time zone saved in your account: the calendar, the score and the time of the alerts. The time zone starts as the browser’s on your first visit and only changes on your account screen (manasomali.com/imago/). When the browser’s time zone differs from the saved one (on a trip, for instance), the app suggests switching.",
         "In a shared habit, each member sees the calendar and the score in their own time zone. Between distant time zones, a mark can land on the next or previous day for someone else: made at 22:00 in São Paulo, it shows on the next day for someone in Lisbon. That is why two members can see slightly different scores.",
         "Marking a past day saves 12:00 of that day, far from midnight, which lessens this effect."
       ]
@@ -179,17 +179,15 @@
       "id": "account",
       "title": "Account",
       "paragraphs": [
-        "There is no password. To sign in, you type your email and get a 6-digit code, valid for 10 minutes and only once. The account is created when you confirm the first code. The session lasts 60 days and renews while you use the app.",
-        "On the account screen you choose the language of the emails (which also becomes the screen’s) and the time zone, sign out of this device or of all of them (useful if you lose a device) and delete the account.",
-        "The email does not change on the screen: ask {{supportEmail}} for the change, writing from the current email of the account. Support confirms the new email before the change, and then you sign in again on every device.",
-        "Deleting the account asks for a code sent by email and is immediate. Gone are the account, the habits you own, with all their marks (the guests’ ones too, and they get an email), your membership in other people’s habits, your invites and your alerts. Your marks on other people’s habits stay, as by a “removed user”. The data leaves the backups within 8 days. Before deleting, you can export everything."
+        "The account is your manasomali.com account, the same for every app on the site. There is no password: to sign in, you type your email and get a code. Signing in and out, the language of the emails, the time zone, changing the email and deleting the account happen on your account screen, at manasomali.com/imago/ (the “Account” link in the menu).",
+        "Deleting the account removes, from ethos, the habits you own, with all their marks (the guests’ ones too, and they get an email), your membership in other people’s habits, your invites and your alerts. Your marks on other people’s habits stay, as by a “removed user”. The data leaves the backups within 8 days. Before deleting, you can export everything in the report."
       ]
     },
     {
       "id": "contact",
       "title": "Questions",
       "paragraphs": [
-        "Questions, problems or suggestions: write to {{supportEmail}}."
+        "Questions, problems or suggestions: the support email is on your account screen, at manasomali.com/imago/."
       ]
     }
   ]

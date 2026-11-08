@@ -8,13 +8,18 @@ saem como `ApiError` e desfazem a transação.
 
 Convidar (só o dono; hábito arquivado, que é só leitura, dá 409 `habit_archived`):
 
+- Quem tem conta é o imago: a rota confere o acesso e os limites (`check_invite`, só leitura),
+  pergunta ao imago pelo email (`POST /internal/users/lookup`, fora de qualquer transação) e
+  passa a resposta (`invitee`: id e idioma, ou None) para `invite`, que confere tudo de novo
+  dentro do BEGIN IMMEDIATE.
 - A resposta é sempre a mesma ("convite enviado"), com ou sem conta para o email, a si mesmo, a
   quem já é membro ou a quem já tem convite pendente. Os ramos de email com e sem conta fazem as
   mesmas consultas e as mesmas escritas (o convite e o `invite_created`); o email ao convidado
-  sai depois da resposta (`BackgroundTasks`), então não pesa no tempo dela.
-- Email sem conta: o convite fica pendente para sempre, com `invited_user_id` vazio, e nunca é
-  entregue. O convite só aparece para quem tinha a conta no momento do convite: a conta criada
-  depois com o mesmo email não o vê nem o aceita.
+  sai pelo imago depois da resposta (`BackgroundTasks`), então não pesa no tempo dela.
+- Email sem conta ativa no imago (inexistente, bloqueada ou em exclusão): o convite fica pendente
+  para sempre, com `invited_user_id` vazio, e nunca é entregue. O convite só aparece para quem
+  tinha a conta no momento do convite: a conta criada (ou desbloqueada) depois com o mesmo email
+  não o vê nem o aceita.
 - A si mesmo, a quem já é membro e a quem já tem convite pendente no hábito: nada muda (nem
   evento, nem email, nem conta no limite). Para mudar o papel de um convite pendente, o dono o
   cancela e convida de novo.
@@ -22,7 +27,6 @@ Convidar (só o dono; hábito arquivado, que é só leitura, dá 409 `habit_arch
   `MAX_INVITES_PER_DAY` por dono, somando todos os hábitos, nas últimas 24 h (409
   `invite_limit_reached`; contagem em `app/sharing/quota.py`) e `MAX_GUESTS_PER_HABIT`, membros +
   convites pendentes do hábito (409 `guest_limit_reached`).
-- Conta bloqueada (`is_active` falso) recebe o convite pendente, mas não o email.
 
 Aceitar e recusar: só o convidado (`invited_user_id`); convite de outra pessoa, sem conta ou que
 não existe dá 404 `not_found` (igual nos três, sem revelar nada). Aceitar respeita
@@ -70,8 +74,9 @@ from app.habits.access import (
     require_writable,
     role_of,
 )
-from app.mail.language import Locale, pick_locale
-from app.models import Alert, Habit, HabitInvite, HabitMember, MemberRole, User, utcnow
+from app.imago_client import ImagoUser
+from app.mail.language import Locale
+from app.models import Alert, AppUser, Habit, HabitInvite, HabitMember, MemberRole, utcnow
 from app.sharing.quota import count_recent_invites
 
 
@@ -81,9 +86,9 @@ def _not_found() -> ApiError:
 
 @dataclass(frozen=True, slots=True)
 class InviteDelivery:
-    """Email de convite a mandar depois do commit (só para quem tem conta ativa)."""
+    """Email de convite a mandar pelo imago depois do commit (só para quem tem conta ativa)."""
 
-    to: str
+    user_id: int
     locale: Locale
     habit_name: str
     role: MemberRole
@@ -135,6 +140,27 @@ def _delete_alerts(session: Session, habit_id: int, user_id: int) -> None:
     )
 
 
+def _check_invite(
+    session: Session, settings: Settings, *, owner_id: int, habit_id: int, now: datetime
+) -> Habit:
+    access = get_habit_access(session, habit_id, owner_id)
+    require_owner(access)
+    habit = require_writable(access)
+    if count_recent_invites(session, owner_id, now=now) >= settings.max_invites_per_day:
+        raise ApiError(409, ErrorCode.INVITE_LIMIT_REACHED)
+    if count_guests(session, habit_id) >= settings.max_guests_per_habit:
+        raise ApiError(409, ErrorCode.GUEST_LIMIT_REACHED)
+    return habit
+
+
+def check_invite(session: Session, settings: Settings, *, owner_id: int, habit_id: int) -> None:
+    """Confere, só lendo, se o dono pode convidar agora (antes de perguntar ao imago).
+
+    Levanta os mesmos erros de `invite`; quem decide de verdade é `invite`, dentro da escrita.
+    """
+    _check_invite(session, settings, owner_id=owner_id, habit_id=habit_id, now=utcnow())
+
+
 def invite(
     session: Session,
     settings: Settings,
@@ -143,37 +169,29 @@ def invite(
     habit_id: int,
     email: str,
     role: MemberRole,
-    ip: str | None,
+    invitee: ImagoUser | None,
 ) -> InviteDelivery | None:
     """Convida `email` (já normalizado) para o hábito com `role`.
 
-    Devolve o email a mandar depois do commit, ou None (sem conta, conta bloqueada ou nada
-    mudou). Levanta 404, 403, 409 `habit_archived`, `invite_limit_reached` ou
-    `guest_limit_reached`.
+    `invitee`: a conta ativa do imago com esse email (`lookup`), ou None. Devolve o email a mandar
+    depois do commit, ou None (sem conta ativa ou nada mudou). Levanta 404, 403, 409
+    `habit_archived`, `invite_limit_reached` ou `guest_limit_reached`.
     """
     with write_transaction(session):
-        access = get_habit_access(session, habit_id, owner_id)
-        require_owner(access)
-        habit = require_writable(access)
         now = utcnow()
-        if count_recent_invites(session, owner_id, now=now) >= settings.max_invites_per_day:
-            raise ApiError(409, ErrorCode.INVITE_LIMIT_REACHED)
-        if count_guests(session, habit_id) >= settings.max_guests_per_habit:
-            raise ApiError(409, ErrorCode.GUEST_LIMIT_REACHED)
-        # As mesmas três consultas, com o mesmo SQL, com e sem conta para o email
-        invitee = session.execute(
-            select(User.id, User.locale, User.is_active).where(User.email == email)
-        ).one_or_none()
+        habit = _check_invite(session, settings, owner_id=owner_id, habit_id=habit_id, now=now)
         invitee_id = None if invitee is None else invitee.id
+        # As mesmas duas consultas, com o mesmo SQL, com e sem conta para o email (0 não é id de
+        # ninguém: os ids do imago começam em 1)
         pending = session.scalar(
             select(HabitInvite.id).where(
                 HabitInvite.habit_id == habit_id, HabitInvite.email == email
             )
         )
         member = session.scalar(
-            select(HabitMember.user_id)
-            .join(User, User.id == HabitMember.user_id)
-            .where(HabitMember.habit_id == habit_id, User.email == email)
+            select(HabitMember.user_id).where(
+                HabitMember.habit_id == habit_id, HabitMember.user_id == (invitee_id or 0)
+            )
         )
         if pending is not None or member is not None or invitee_id == habit.owner_id:
             return None
@@ -190,15 +208,14 @@ def invite(
             session,
             AuditEvent.INVITE_CREATED,
             user_id=owner_id,
-            ip=ip,
             habit_id=habit_id,
             details={"invite_id": row.id, "role": role.value},
         )
         habit_name = habit.name
-    if invitee is None or not invitee.is_active:
+    if invitee is None:
         return None
     return InviteDelivery(
-        to=email, locale=pick_locale(invitee.locale), habit_name=habit_name, role=role
+        user_id=invitee.id, locale=invitee.locale, habit_name=habit_name, role=role
     )
 
 
@@ -213,9 +230,7 @@ def _habit_invite(session: Session, habit_id: int, invite_id: int) -> HabitInvit
     return row
 
 
-def cancel_invite(
-    session: Session, *, owner_id: int, habit_id: int, invite_id: int, ip: str | None
-) -> None:
+def cancel_invite(session: Session, *, owner_id: int, habit_id: int, invite_id: int) -> None:
     """Cancela o convite pendente do hábito. Levanta 404 (hábito ou convite) ou 403."""
     with write_transaction(session):
         require_owner(get_habit_access(session, habit_id, owner_id))
@@ -226,7 +241,6 @@ def cancel_invite(
             session,
             AuditEvent.INVITE_CANCELED,
             user_id=owner_id,
-            ip=ip,
             habit_id=habit_id,
             details={"invite_id": invite_id, "role": role},
         )
@@ -248,9 +262,9 @@ def list_habit_invites(session: Session, *, user_id: int, habit_id: int) -> list
 def list_received_invites(session: Session, user_id: int) -> list[ReceivedInvite]:
     """Convites pendentes endereçados ao usuário (`invited_user_id`), em ordem de criação."""
     rows = session.execute(
-        select(HabitInvite, Habit.name, Habit.color, User.id, User.email)
+        select(HabitInvite, Habit.name, Habit.color, AppUser.id, AppUser.email)
         .join(Habit, Habit.id == HabitInvite.habit_id)
-        .join(User, User.id == Habit.owner_id)
+        .join(AppUser, AppUser.id == Habit.owner_id)
         .where(HabitInvite.invited_user_id == user_id)
         .order_by(HabitInvite.id)
         .execution_options(populate_existing=True)
@@ -271,7 +285,7 @@ def _received_invite(session: Session, user_id: int, invite_id: int) -> HabitInv
 
 
 def accept_invite(
-    session: Session, settings: Settings, *, user_id: int, invite_id: int, ip: str | None
+    session: Session, settings: Settings, *, user_id: int, invite_id: int
 ) -> HabitAccess:
     """Aceita o convite e devolve o hábito com o papel novo.
 
@@ -303,14 +317,13 @@ def accept_invite(
             session,
             AuditEvent.INVITE_ACCEPTED,
             user_id=user_id,
-            ip=ip,
             habit_id=habit_id,
             details={"invite_id": invite_id, "role": role},
         )
     return HabitAccess(habit, HabitRole(role))
 
 
-def decline_invite(session: Session, *, user_id: int, invite_id: int, ip: str | None) -> None:
+def decline_invite(session: Session, *, user_id: int, invite_id: int) -> None:
     """Recusa o convite. Levanta 404 (convite que não é do usuário)."""
     with write_transaction(session):
         row = _received_invite(session, user_id, invite_id)
@@ -320,7 +333,6 @@ def decline_invite(session: Session, *, user_id: int, invite_id: int, ip: str | 
             session,
             AuditEvent.INVITE_DECLINED,
             user_id=user_id,
-            ip=ip,
             habit_id=habit_id,
             details={"invite_id": invite_id, "role": role},
         )
@@ -329,10 +341,10 @@ def decline_invite(session: Session, *, user_id: int, invite_id: int, ip: str | 
 def list_members(session: Session, *, user_id: int, habit_id: int) -> list[MemberEntry]:
     """O dono e os membros do hábito, nessa ordem (membros por entrada). Todo papel vê; 404."""
     habit = get_habit_access(session, habit_id, user_id).habit
-    owner_email = session.scalar(select(User.email).where(User.id == habit.owner_id))
+    owner_email = session.scalar(select(AppUser.email).where(AppUser.id == habit.owner_id))
     rows = session.execute(
-        select(HabitMember.user_id, User.email, HabitMember.role, HabitMember.joined_at)
-        .join(User, User.id == HabitMember.user_id)
+        select(HabitMember.user_id, AppUser.email, HabitMember.role, HabitMember.joined_at)
+        .join(AppUser, AppUser.id == HabitMember.user_id)
         .where(HabitMember.habit_id == habit_id)
         .order_by(HabitMember.joined_at, HabitMember.user_id)
     ).all()
@@ -354,7 +366,7 @@ def _member(session: Session, habit_id: int, member_id: int) -> HabitMember:
     return row
 
 
-def leave_habit(session: Session, *, user_id: int, habit_id: int, ip: str | None) -> None:
+def leave_habit(session: Session, *, user_id: int, habit_id: int) -> None:
     """O membro sai do hábito; marcações ficam, alertas dele no hábito saem. 404 ou 403 (dono)."""
     with write_transaction(session):
         access = get_habit_access(session, habit_id, user_id)
@@ -371,15 +383,12 @@ def leave_habit(session: Session, *, user_id: int, habit_id: int, ip: str | None
             session,
             AuditEvent.MEMBER_LEFT,
             user_id=user_id,
-            ip=ip,
             habit_id=habit_id,
             details={"role": access.role.value},
         )
 
 
-def remove_member(
-    session: Session, *, owner_id: int, habit_id: int, member_id: int, ip: str | None
-) -> None:
+def remove_member(session: Session, *, owner_id: int, habit_id: int, member_id: int) -> None:
     """O dono remove o membro; marcações ficam, alertas dele no hábito saem. 404 ou 403."""
     with write_transaction(session):
         require_owner(get_habit_access(session, habit_id, owner_id))
@@ -391,7 +400,6 @@ def remove_member(
             session,
             AuditEvent.MEMBER_REMOVED,
             user_id=owner_id,
-            ip=ip,
             habit_id=habit_id,
             details={"member_id": member_id, "role": role},
         )
@@ -404,7 +412,6 @@ def change_role(
     habit_id: int,
     member_id: int,
     role: MemberRole,
-    ip: str | None,
 ) -> MemberEntry:
     """Troca o papel do membro (o mesmo papel: nada muda). Levanta 404 ou 403.
 
@@ -422,13 +429,12 @@ def change_role(
                 session,
                 AuditEvent.MEMBER_ROLE_CHANGED,
                 user_id=owner_id,
-                ip=ip,
                 habit_id=habit_id,
                 details={
                     "member_id": member_id,
                     "changes": [{"field": "role", "old": old, "new": role.value}],
                 },
             )
-        email = session.scalar(select(User.email).where(User.id == member_id))
+        email = session.scalar(select(AppUser.email).where(AppUser.id == member_id))
         entry = MemberEntry(member_id, email, HabitRole(row.role), row.joined_at)
     return entry

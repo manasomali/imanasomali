@@ -26,10 +26,9 @@ from functools import partial
 from typing import Annotated, Protocol
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, BackgroundTasks, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 
-from app.auth.deps import CurrentUser
 from app.config import SettingsDep
 from app.db import SessionDep
 from app.habits import service
@@ -43,10 +42,10 @@ from app.habits.schemas import (
     HabitUpdate,
 )
 from app.habits.scoring import evaluate_habits
+from app.identity import CurrentUser, Identity
 from app.mail.catalog import HabitDeleted
 from app.mail.sender import MailerDep, schedule_email
-from app.models import User, utcnow
-from app.request_info import client_ip
+from app.models import utcnow
 
 router = APIRouter(prefix="/habits", tags=["habits"])
 
@@ -94,21 +93,17 @@ def list_habits(
 def create_habit(
     body: HabitCreate,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
     settings: SettingsDep,
 ) -> HabitOut:
-    # O write_transaction expira o usuário: os valores dele são lidos antes
-    user_id, timezone = user.id, user.timezone
     habit = service.create_habit(
         session,
         settings,
-        owner_id=user_id,
+        owner_id=user.id,
         values=body.model_dump(mode="json"),
-        ip=client_ip(request),
     )
     access = HabitAccess(habit, HabitRole.OWNER)
-    [out] = present(session, [access], timezone)
+    [out] = present(session, [access], user.timezone)
     return out
 
 
@@ -124,20 +119,17 @@ def update_habit(
     habit_id: HabitId,
     body: HabitUpdate,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
     settings: SettingsDep,
 ) -> HabitOut:
-    user_id, timezone = user.id, user.timezone
     access = service.update_habit(
         session,
         settings,
-        user_id=user_id,
+        user_id=user.id,
         habit_id=habit_id,
         values=body.model_dump(mode="json", exclude_unset=True),
-        ip=client_ip(request),
     )
-    [out] = present(session, [access], timezone)
+    [out] = present(session, [access], user.timezone)
     return out
 
 
@@ -145,20 +137,17 @@ def update_habit(
 def delete_habit(
     habit_id: HabitId,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
     mailer: MailerDep,
     background_tasks: BackgroundTasks,
 ) -> None:
-    deleted = service.delete_habit(
-        session, user_id=user.id, habit_id=habit_id, ip=client_ip(request)
-    )
+    deleted = service.delete_habit(session, user_id=user.id, habit_id=habit_id)
     # A transação já fechou: os emails saem depois da resposta
     for member in deleted.members:
         schedule_email(
             background_tasks,
             mailer,
-            member.email,
+            member.user_id,
             member.locale,
             HabitDeleted(habit_name=deleted.name),
         )
@@ -167,49 +156,38 @@ def delete_habit(
 class StatusAction(Protocol):
     """Regra do `service` que muda o status: pausar, retomar, arquivar ou desarquivar."""
 
-    def __call__(
-        self, session: Session, *, user_id: int, habit_id: int, ip: str | None
-    ) -> HabitAccess: ...
+    def __call__(self, session: Session, *, user_id: int, habit_id: int) -> HabitAccess: ...
 
 
 def _change_status(
-    action: StatusAction, habit_id: int, user: User, request: Request, session: Session
+    action: StatusAction, habit_id: int, user: Identity, session: Session
 ) -> HabitOut:
-    # O write_transaction expira o usuário: os valores dele são lidos antes
-    user_id, timezone = user.id, user.timezone
-    access = action(session, user_id=user_id, habit_id=habit_id, ip=client_ip(request))
-    [out] = present(session, [access], timezone)
+    access = action(session, user_id=user.id, habit_id=habit_id)
+    [out] = present(session, [access], user.timezone)
     return out
 
 
 @router.post("/{habit_id}/pause")
-def pause_habit(
-    habit_id: HabitId, user: CurrentUser, request: Request, session: SessionDep
-) -> HabitOut:
-    return _change_status(service.pause_habit, habit_id, user, request, session)
+def pause_habit(habit_id: HabitId, user: CurrentUser, session: SessionDep) -> HabitOut:
+    return _change_status(service.pause_habit, habit_id, user, session)
 
 
 @router.post("/{habit_id}/resume")
-def resume_habit(
-    habit_id: HabitId, user: CurrentUser, request: Request, session: SessionDep
-) -> HabitOut:
-    return _change_status(service.resume_habit, habit_id, user, request, session)
+def resume_habit(habit_id: HabitId, user: CurrentUser, session: SessionDep) -> HabitOut:
+    return _change_status(service.resume_habit, habit_id, user, session)
 
 
 @router.post("/{habit_id}/archive")
-def archive_habit(
-    habit_id: HabitId, user: CurrentUser, request: Request, session: SessionDep
-) -> HabitOut:
-    return _change_status(service.archive_habit, habit_id, user, request, session)
+def archive_habit(habit_id: HabitId, user: CurrentUser, session: SessionDep) -> HabitOut:
+    return _change_status(service.archive_habit, habit_id, user, session)
 
 
 @router.post("/{habit_id}/unarchive")
 def unarchive_habit(
     habit_id: HabitId,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
     settings: SettingsDep,
 ) -> HabitOut:
     action = partial(service.unarchive_habit, settings=settings)
-    return _change_status(action, habit_id, user, request, session)
+    return _change_status(action, habit_id, user, session)

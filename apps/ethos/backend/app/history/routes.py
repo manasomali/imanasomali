@@ -15,7 +15,7 @@ Paginação: `limit` de 1 a 200 (padrão 50); com `next_cursor` não nulo, repit
 `&cursor=<next_cursor>` e os mesmos filtros.
 
 Resposta: `{"events": [{id, event, created_at, habit: {id, label}, author: {id, email} | null,
-details}], "next_cursor"}`. `author: null` é "usuário removido". O IP nunca sai.
+details}], "next_cursor"}`. `author: null` é "usuário removido".
 """
 
 from typing import Annotated
@@ -23,7 +23,6 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Query
 
-from app.auth.deps import CurrentUser
 from app.db import SessionDep
 from app.habits.access import MAX_ID
 from app.history import service
@@ -35,6 +34,7 @@ from app.history.service import (
     HistoryEvent,
     HistoryFilters,
 )
+from app.identity import CurrentUser
 from app.marks.schemas import Author
 from app.progress.schemas import Day
 

@@ -14,7 +14,7 @@ vi.setConfig({ testTimeout: 15_000 });
 configure({ asyncUtilTimeout: 5_000 });
 
 function signedIn() {
-  server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture())));
+  server.use(http.get(api('/me'), () => HttpResponse.json(meFixture())));
 }
 
 /** Configuração do hábito 1 com a API falsa (leituras e escritas sobre o mesmo array). */

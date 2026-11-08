@@ -6,10 +6,8 @@ import threading
 from email.message import EmailMessage
 
 import pytest
-from pydantic import SecretStr
 
-from app.config import EmailBackend, load_settings
-from app.mail.backends import SmtpBackend
+from app.config import load_settings
 from tests.e2e_stack import (
     MARKER,
     StackError,
@@ -17,7 +15,6 @@ from tests.e2e_stack import (
     prepare_data_dir,
     stack_environment,
 )
-from tests.fake_smtp import SMTP_HOST, SMTP_PASSWORD, SMTP_USER
 
 
 def _message(to: str, subject: str = "Seu código") -> EmailMessage:
@@ -66,34 +63,18 @@ def test_prepare_data_dir_never_deletes_a_foreign_dir(tmp_path):
     assert keep.read_text() == "não apagar"
 
 
-def test_stack_environment_is_a_valid_smtp_config(tmp_path):
-    environment = stack_environment(
-        app_url="http://127.0.0.1:47830/ethos",
-        data_dir=tmp_path,
-        smtp_port=2525,
-        ca_file=tmp_path / "ca.pem",
-    )
+def test_stack_environment_is_a_valid_config(tmp_path):
+    environment = stack_environment(app_url="http://127.0.0.1:47830/ethos", data_dir=tmp_path)
 
     settings = load_settings(environment)
 
-    assert settings.email_backend is EmailBackend.SMTP
     assert settings.app_origin == "http://127.0.0.1:47830"
     assert settings.database_path == tmp_path / "app.db"
-    assert environment["SSL_CERT_FILE"] == str(tmp_path / "ca.pem")
+    assert settings.imago_internal_url == "http://127.0.0.1:3003"
 
 
-def test_default_context_trusts_the_ca_from_ssl_cert_file(
-    smtp_server, smtp_ca, tmp_path, monkeypatch
-):
-    # O caminho de produção (SmtpBackend sem ssl_context) confia na CA de teste pelo SSL_CERT_FILE
-    ca_file = tmp_path / "ca.pem"
-    smtp_ca.cert_pem.write_to_path(str(ca_file))
-    monkeypatch.setenv("SSL_CERT_FILE", str(ca_file))
-    backend = SmtpBackend(
-        host=SMTP_HOST, port=smtp_server.port, user=SMTP_USER, password=SecretStr(SMTP_PASSWORD)
-    )
-
-    backend.send(_message("ana@example.com"))
+def test_fake_smtp_requires_starttls_and_login(smtp_server):
+    smtp_server.send(_message("ana@example.com"))
 
     [received] = smtp_server.received
     assert received.tls
@@ -101,10 +82,9 @@ def test_default_context_trusts_the_ca_from_ssl_cert_file(
 
 
 def test_mailbox_lists_the_emails_of_an_address(smtp_server):
-    backend = smtp_server.backend()
-    backend.send(_message("Ana@Example.com", "primeiro"))
-    backend.send(_message("bia@example.com", "outro"))
-    backend.send(_message("ana@example.com", "segundo"))
+    smtp_server.send(_message("Ana@Example.com", "primeiro"))
+    smtp_server.send(_message("bia@example.com", "outro"))
+    smtp_server.send(_message("ana@example.com", "segundo"))
     mailbox = mailbox_server(smtp_server, 0)
     port = mailbox.server_address[1]
     thread = threading.Thread(target=mailbox.serve_forever, daemon=True)

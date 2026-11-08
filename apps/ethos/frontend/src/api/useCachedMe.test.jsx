@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import { meQueryKey, useCachedMe } from './auth';
+import { meQueryKey, useCachedMe } from './me';
 
 // Como o menu: lê o usuário do cache e, quando ele chega, liga a consulta dos convites
 function useMenuLikeState() {

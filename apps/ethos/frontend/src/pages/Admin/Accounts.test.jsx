@@ -3,26 +3,22 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { BASENAME, PATHS } from '../../paths';
-import { ADMIN, accountFixture, adminRequests, signedIn, trackRequests } from '../../test/admin';
+import { ADMIN, adminRequests, appUserFixture, signedIn, trackRequests } from '../../test/admin';
 import { axe } from '../../test/axe';
 import { meFixture, renderApp } from '../../test/render';
 import { api, server } from '../../test/server';
 
-const BIA = accountFixture();
-const CAIO = accountFixture({
+const BIA = appUserFixture();
+const CAIO = appUserFixture({
   id: 3,
   email: 'caio@example.com',
-  is_active: false,
-  last_login_at: null,
+  first_seen_at: '2026-10-20T15:30:00Z',
   habit_count: 0,
   mark_count: 0,
 });
-const SELF = accountFixture({ id: ADMIN.id, email: ADMIN.email, is_admin: true });
+const SELF = appUserFixture({ id: ADMIN.id, email: ADMIN.email });
 
-/**
- * GET /admin/users devolvendo `users` (lista mutável: as ações mudam o que a próxima busca vê),
- * filtrados pelo trecho do email como na API.
- */
+/** GET /admin/users devolvendo `users`, filtrados pelo trecho do email como na API. */
 function listing(users) {
   server.use(
     http.get(api('/admin/users'), ({ request }) => {
@@ -39,7 +35,7 @@ function card(email) {
   return screen.getByRole('heading', { level: 3, name: new RegExp(email) }).closest('li');
 }
 
-async function openAccounts(users = [BIA, CAIO, SELF]) {
+async function openUsers(users = [BIA, CAIO, SELF]) {
   signedIn();
   listing(users);
   const requests = trackRequests();
@@ -75,7 +71,7 @@ describe('access', () => {
 
     await user.click(link);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Accounts' })).toBeDefined();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Who uses ethos' })).toBeDefined();
   });
 
   it('shows the 403 when the backend refuses', async () => {
@@ -89,55 +85,51 @@ describe('access', () => {
   });
 });
 
-describe('account list', () => {
-  it('shows email, status, dates in the admin time zone and counts', async () => {
-    const { container } = await openAccounts();
+describe('list of users', () => {
+  it('shows email, first access in the admin time zone and counts, without account actions', async () => {
+    const { container } = await openUsers();
 
     const bia = card(BIA.email);
-    expect(bia.textContent).toContain('Active');
-    // 12:00 UTC e 15:30 UTC em São Paulo (UTC-3)
+    // 12:00 UTC em São Paulo (UTC-3)
+    expect(bia.textContent).toContain('First access');
     expect(bia.textContent).toContain('9:00');
-    expect(bia.textContent).toContain('12:30');
     expect(within(bia).getByText('3')).toBeDefined();
     expect(within(bia).getByText('42')).toBeDefined();
     expect(within(bia).getByRole('link', { name: 'View habits' }).getAttribute('href')).toBe(
       `${BASENAME}/admin/contas/2`,
     );
-
-    const caio = card(CAIO.email);
-    expect(caio.textContent).toContain('Blocked');
-    expect(caio.textContent).toContain('Never signed in');
-    expect(within(caio).getByRole('button', { name: 'Unblock' })).toBeDefined();
+    // Bloquear, trocar o email e excluir são do imago
+    expect(within(bia).getAllByRole('link')).toHaveLength(1);
+    expect(within(bia).queryAllByRole('button')).toEqual([]);
+    expect(card(CAIO.email).textContent).toContain('12:30');
+    expect(card(SELF.email).textContent).toContain('you');
 
     expect(screen.getByText(/Dates in your time zone \(America\/Sao_Paulo\)/)).toBeDefined();
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('does not offer blocking the own account', async () => {
-    await openAccounts();
+  it('links to the accounts panel of the imago', async () => {
+    await openUsers();
 
-    const self = card(SELF.email);
-    expect(self.textContent).toContain('you');
-    expect(within(self).queryByRole('button', { name: 'Block' })).toBeNull();
-    expect(within(card(BIA.email)).getByRole('button', { name: 'Block' })).toBeDefined();
+    expect(screen.getByRole('link', { name: 'manasomali.com accounts' }).getAttribute('href')).toBe(
+      '/imago/admin',
+    );
   });
 
   it('sends the filters and clears them', async () => {
     const user = userEvent.setup();
-    const { requests } = await openAccounts();
+    const { requests } = await openUsers();
 
     await user.type(screen.getByLabelText('Email contains'), '  bia@ ');
-    await user.selectOptions(screen.getByLabelText('Status'), 'Blocked');
-    fireEvent.change(screen.getByLabelText('Signed up from'), { target: { value: '2026-01-01' } });
-    fireEvent.change(screen.getByLabelText('Last sign-in until'), { target: { value: '2026-02-28' } });
+    fireEvent.change(screen.getByLabelText('First access from'), { target: { value: '2026-01-01' } });
+    fireEvent.change(screen.getByLabelText('First access until'), { target: { value: '2026-02-28' } });
     await user.click(screen.getByRole('button', { name: 'Search' }));
 
     await waitFor(() => {
       expect(adminRequests(requests).at(-1).query).toEqual({
         email: 'bia@',
-        status: 'blocked',
-        created_from: '2026-01-01',
-        last_login_to: '2026-02-28',
+        first_seen_from: '2026-01-01',
+        first_seen_to: '2026-02-28',
       });
     });
     await waitFor(() => expect(screen.queryByRole('heading', { level: 3, name: /caio@/ })).toBeNull());
@@ -145,8 +137,16 @@ describe('account list', () => {
     await user.click(screen.getByRole('button', { name: 'Clear filters' }));
 
     expect(screen.getByLabelText('Email contains').value).toBe('');
-    expect(screen.getByLabelText('Status').value).toBe('');
+    expect(screen.getByLabelText('First access from').value).toBe('');
     expect(await screen.findByRole('heading', { level: 3, name: /caio@/ })).toBeDefined();
+  });
+
+  it('shows the empty list', async () => {
+    signedIn();
+    listing([]);
+    renderApp(PATHS.admin);
+
+    expect(await screen.findByText('Nobody found.')).toBeDefined();
   });
 
   it('loads the next page with the cursor', async () => {
@@ -167,175 +167,5 @@ describe('account list', () => {
 
     expect(await screen.findByRole('heading', { level: 3, name: new RegExp(CAIO.email) })).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
-  });
-});
-
-describe('account actions', () => {
-  it('blocks only after the account email is typed', async () => {
-    const users = [{ ...BIA }];
-    let blocked = 0;
-    server.use(
-      http.post(api('/admin/users/2/block'), () => {
-        blocked += 1;
-        users[0] = { ...BIA, is_active: false };
-        return HttpResponse.json(users[0]);
-      }),
-    );
-    const user = userEvent.setup();
-    const { container } = await openAccounts(users);
-    const bia = card(BIA.email);
-
-    await user.click(within(bia).getByRole('button', { name: 'Block' }));
-
-    const form = within(bia).getByRole('form', { name: 'Block the account' });
-    const confirm = within(form).getByRole('button', { name: 'Block the account' });
-    const input = within(form).getByLabelText(`To confirm, type the account email: ${BIA.email}`);
-    expect(document.activeElement).toBe(input);
-    expect(confirm.disabled).toBe(true);
-    expect(await axe(container)).toHaveNoViolations();
-
-    await user.type(input, 'bia@example');
-    expect(confirm.disabled).toBe(true);
-    await user.type(input, '{Enter}');
-    expect(blocked).toBe(0);
-
-    await user.clear(input);
-    await user.type(input, ' BIA@example.com ');
-    expect(confirm.disabled).toBe(false);
-    await user.click(confirm);
-
-    const status = await screen.findByText('Account bia@example.com blocked.');
-    expect(status.getAttribute('role')).toBe('status');
-    expect(document.activeElement).toBe(status);
-    expect(blocked).toBe(1);
-    // A lista busca de novo e mostra a conta bloqueada
-    expect(await within(card(BIA.email)).findByRole('button', { name: 'Unblock' })).toBeDefined();
-  });
-
-  it('cancels without calling the API and gives the focus back', async () => {
-    const user = userEvent.setup();
-    const { requests } = await openAccounts();
-    const bia = card(BIA.email);
-    const open = within(bia).getByRole('button', { name: 'Delete' });
-
-    await user.click(open);
-    expect(open.getAttribute('aria-expanded')).toBe('true');
-    await user.click(within(bia).getByRole('button', { name: 'Cancel' }));
-
-    expect(within(bia).queryByRole('form')).toBeNull();
-    expect(document.activeElement).toBe(open);
-    expect(adminRequests(requests).filter((request) => request.method !== 'GET')).toEqual([]);
-  });
-
-  it('shows the 409 when the new email already has an account', async () => {
-    let body;
-    server.use(
-      http.patch(api('/admin/users/2/email'), async ({ request }) => {
-        body = await request.json();
-        return HttpResponse.json({ error: 'email_in_use', field: 'new_email' }, { status: 409 });
-      }),
-    );
-    const user = userEvent.setup();
-    const { container } = await openAccounts();
-    const bia = card(BIA.email);
-
-    await user.click(within(bia).getByRole('button', { name: 'Change email' }));
-    const form = within(bia).getByRole('form', { name: "Change the account's email" });
-    const newEmail = within(form).getByLabelText('New email');
-    expect(document.activeElement).toBe(newEmail);
-
-    await user.type(newEmail, ' caio@example.com ');
-    await user.type(within(form).getByLabelText(/To confirm, type the account email/), BIA.email);
-    await user.click(within(form).getByRole('button', { name: 'Change the email' }));
-
-    const alert = await within(form).findByRole('alert');
-    expect(alert.textContent).toContain('This email already belongs to an account. Choose another one.');
-    expect(newEmail.getAttribute('aria-invalid')).toBe('true');
-    expect(body).toEqual({ new_email: 'caio@example.com' });
-    expect(await axe(container)).toHaveNoViolations();
-  });
-
-  it('changes the email', async () => {
-    const users = [{ ...BIA }];
-    server.use(
-      http.patch(api('/admin/users/2/email'), async ({ request }) => {
-        const { new_email: email } = await request.json();
-        users[0] = { ...BIA, email };
-        return HttpResponse.json(users[0]);
-      }),
-    );
-    const user = userEvent.setup();
-    await openAccounts(users);
-    const bia = card(BIA.email);
-
-    await user.click(within(bia).getByRole('button', { name: 'Change email' }));
-    await user.type(within(bia).getByLabelText('New email'), 'bia@new.example.com');
-    await user.type(within(bia).getByLabelText(/To confirm/), BIA.email);
-    await user.click(within(bia).getByRole('button', { name: 'Change the email' }));
-
-    expect(await screen.findByText('Email changed from bia@example.com to bia@new.example.com.')).toBeDefined();
-    expect(await screen.findByRole('heading', { level: 3, name: /bia@new\.example\.com/ })).toBeDefined();
-  });
-
-  it('shows the 409 for the last admin and deletes another account', async () => {
-    const users = [{ ...BIA }, SELF];
-    server.use(
-      http.delete(api('/admin/users/1'), () =>
-        HttpResponse.json({ error: 'last_admin', field: null }, { status: 409 }),
-      ),
-      http.delete(api('/admin/users/2'), () => {
-        users.splice(0, 1);
-        return new HttpResponse(null, { status: 204 });
-      }),
-    );
-    const user = userEvent.setup();
-    await openAccounts(users);
-
-    const self = card(SELF.email);
-    await user.click(within(self).getByRole('button', { name: 'Delete' }));
-    await user.type(within(self).getByLabelText(/To confirm/), SELF.email);
-    await user.click(within(self).getByRole('button', { name: 'Delete the account' }));
-    expect((await within(self).findByRole('alert')).textContent).toContain(
-      'This is the last active administrator account and cannot be deleted.',
-    );
-
-    const bia = card(BIA.email);
-    await user.click(within(bia).getByRole('button', { name: 'Delete' }));
-    await user.type(within(bia).getByLabelText(/To confirm/), BIA.email);
-    await user.click(within(bia).getByRole('button', { name: 'Delete the account' }));
-
-    expect(await screen.findByText('Account bia@example.com deleted.')).toBeDefined();
-    await waitFor(() => expect(screen.queryByRole('heading', { level: 3, name: /bia@example\.com/ })).toBeNull());
-  });
-
-  it('unblocks without confirmation', async () => {
-    const users = [{ ...CAIO }];
-    server.use(
-      http.post(api('/admin/users/3/unblock'), () => {
-        users[0] = { ...CAIO, is_active: true };
-        return HttpResponse.json(users[0]);
-      }),
-    );
-    const user = userEvent.setup();
-    await openAccounts(users);
-
-    await user.click(within(card(CAIO.email)).getByRole('button', { name: 'Unblock' }));
-
-    expect(await screen.findByText('Account caio@example.com unblocked.')).toBeDefined();
-    expect(await within(card(CAIO.email)).findByRole('button', { name: 'Block' })).toBeDefined();
-  });
-
-  it('shows the error of an unblock that fails', async () => {
-    server.use(
-      http.post(api('/admin/users/3/unblock'), () =>
-        HttpResponse.json({ error: 'not_found', field: null }, { status: 404 }),
-      ),
-    );
-    const user = userEvent.setup();
-    await openAccounts([CAIO]);
-
-    await user.click(within(card(CAIO.email)).getByRole('button', { name: 'Unblock' }));
-
-    expect((await screen.findByRole('alert')).textContent).toContain('Not found.');
   });
 });

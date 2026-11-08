@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { useMe } from '../../api/auth';
+import { useMe } from '../../api/me';
 import { useHabits } from '../../api/habits';
 import { seenHistoryAuthors, useHistory } from '../../api/history';
 import { useMembers } from '../../api/sharing';

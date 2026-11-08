@@ -1,18 +1,18 @@
 """Backend do E2E (Playwright, `apps/ethos/frontend/e2e/`): banco novo, SMTP falso e a API.
 
+PENDENTE (ETH-64): o login passou para o imago, e o E2E precisa do imago e do nginx de dev
+(`apps/imago/dev/`) na frente desta API; o ethos não fala mais com SMTP. Até o E2E ser refeito,
+este script só sobe as peças que já existiam, com a config nova do ethos.
+
 Sobe, num processo só:
 
 1. um banco SQLite novo em `--data-dir`, migrado pelo Alembic (`upgrade head`), como o deploy;
 2. o servidor SMTP falso dos testes (`tests/fake_smtp.py`), com STARTTLS e login obrigatórios,
-   como o provedor. O certificado dele vem de uma CA de teste (`trustme`) gravada em
-   `--data-dir`, e o processo confia nela por `SSL_CERT_FILE` (variável do OpenSSL, lida pelo
-   `ssl.create_default_context()` do `SmtpBackend`). O app usa o caminho de produção inteiro
-   (`EMAIL_BACKEND=smtp`, STARTTLS com o certificado verificado, login, envio), sem nenhum ajuste
-   no código do app;
+   como o provedor, com o certificado de uma CA de teste (`trustme`);
 3. a caixa de entrada do SMTP falso por HTTP, só em 127.0.0.1: `GET /emails?to=<endereço>` devolve
-   `[{"to": [...], "subject": "...", "text": "..."}]`, na ordem de chegada. É por ela que o E2E lê
-   o código de login e o de exclusão de conta;
-4. a API pelo uvicorn, com `--root-path /api/ethos` como em produção.
+   `[{"to": [...], "subject": "...", "text": "..."}]`, na ordem de chegada;
+4. a API pelo uvicorn, com `--root-path /api/ethos` como em produção, chamando o imago em
+   `IMAGO_INTERNAL_URL` com o `INTERNAL_API_TOKEN` de dev.
 
 Uso, na pasta do backend (o `playwright.config.js` do front faz isso):
 
@@ -39,14 +39,7 @@ import uvicorn
 from alembic import command
 from alembic.config import Config
 
-from tests.fake_smtp import (
-    SMTP_HOST,
-    SMTP_PASSWORD,
-    SMTP_USER,
-    FakeSmtpServer,
-    ReceivedEmail,
-    start_fake_smtp,
-)
+from tests.fake_smtp import FakeSmtpServer, ReceivedEmail, start_fake_smtp
 
 HOST = "127.0.0.1"
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -54,9 +47,9 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 ROOT_PATH = "/api/ethos"
 # Marca a pasta como criada por este script: só ela pode ser apagada na subida seguinte
 MARKER = ".ethos-e2e"
-# Teto global de códigos bem acima do que uma execução da suíte pede (cada teste usa emails
-# próprios, então os limites por email continuam valendo como em produção)
-MAX_CODE_EMAILS = 10_000
+# O imago de dev (apps/imago/dev/) e o token do ethos nele (o mesmo IMAGO_APP_TOKENS do imago)
+IMAGO_INTERNAL_URL = "http://127.0.0.1:3003"
+INTERNAL_API_TOKEN = "dev-only-ethos-token-not-a-secret-0000"  # noqa: S105 (só dev)
 
 
 class StackError(RuntimeError):
@@ -121,24 +114,14 @@ def prepare_data_dir(path: Path) -> Path:
     return path
 
 
-def stack_environment(
-    *, app_url: str, data_dir: Path, smtp_port: int, ca_file: Path
-) -> dict[str, str]:
-    """As variáveis do app (as mesmas de produção) e o `SSL_CERT_FILE` com a CA de teste."""
+def stack_environment(*, app_url: str, data_dir: Path) -> dict[str, str]:
+    """As variáveis do app (as mesmas de produção)."""
     return {
         "APP_ENV": "dev",
         "APP_URL": app_url,
         "DATABASE_PATH": str(data_dir / "app.db"),
-        "EMAIL_BACKEND": "smtp",
-        "MAIL_FROM": "ethos <no-reply@example.com>",
-        "SUPPORT_EMAIL": "suporte@example.com",
-        "SMTP_HOST": SMTP_HOST,
-        "SMTP_PORT": str(smtp_port),
-        "SMTP_USER": SMTP_USER,
-        "SMTP_PASSWORD": SMTP_PASSWORD,
-        "MAX_CODE_EMAILS_PER_HOUR": str(MAX_CODE_EMAILS),
-        "MAX_CODE_EMAILS_PER_DAY": str(MAX_CODE_EMAILS),
-        "SSL_CERT_FILE": str(ca_file),
+        "IMAGO_INTERNAL_URL": IMAGO_INTERNAL_URL,
+        "INTERNAL_API_TOKEN": INTERNAL_API_TOKEN,
     }
 
 
@@ -161,16 +144,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     data_dir = prepare_data_dir(args.data_dir)
-    ca = trustme.CA()
-    ca_file = data_dir / "smtp-ca.pem"
-    ca.cert_pem.write_to_path(str(ca_file))
-    smtp, stop_smtp = start_fake_smtp(ca)
+    smtp, stop_smtp = start_fake_smtp(trustme.CA())
     try:
-        os.environ.update(
-            stack_environment(
-                app_url=args.app_url, data_dir=data_dir, smtp_port=smtp.port, ca_file=ca_file
-            )
-        )
+        os.environ.update(stack_environment(app_url=args.app_url, data_dir=data_dir))
         migrate(data_dir / "app.db")
         mailbox = mailbox_server(smtp, args.mail_port)
         thread = threading.Thread(target=mailbox.serve_forever, daemon=True)
