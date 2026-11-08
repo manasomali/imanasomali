@@ -3,7 +3,9 @@
 Cada comando lê a mesma configuração do servidor (variáveis de ambiente, `load_settings`) e abre o
 banco de `DATABASE_PATH`, que precisa já existir (migrado com `alembic upgrade head`). Em produção
 roda como `app-ethos`: o `run-alerts` e o `cleanup` pelo timer de hora em hora, os outros à mão.
-O `create-admin` é o único jeito de ligar o `is_admin`: não existe endpoint para isso.
+O `create-admin` é o único jeito de ligar o `is_admin`: não existe endpoint para isso. O
+`export-users` é da passagem do login para o imago (ETH-64): a saída dele vai, por um pipe, para o
+`import-users -` do imago.
 
 Para acrescentar um comando:
 
@@ -20,10 +22,12 @@ com código 2, pelo argparse. Nunca escreva código, token, cookie nem IP na sa�
 """
 
 import argparse
+import json
 import sys
 import traceback
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
@@ -179,6 +183,56 @@ def _decoded_lines(stream: Iterable[bytes]) -> Iterator[str]:
         yield raw.decode("utf-8", errors="replace")
 
 
+def _export_users(context: CommandContext, _args: argparse.Namespace) -> int:
+    """Escreve no stdout uma linha JSON por conta, para o `import-users -` do imago (ETH-64).
+
+    Campos: `id`, `email`, `is_active`, `is_admin`, `timezone`, `locale`, `created_at` e
+    `last_login_at` (datas ISO 8601 em UTC, com `Z`; `null` para quem nunca entrou), em ordem de
+    id. Só lê o banco (uma consulta, sem transação de escrita) e só escreve no stdout: nada em
+    disco, nada no log, nem a contagem, que é do import. Sessões, códigos e o aceite dos termos
+    não passam (todo mundo entra de novo uma vez no imago e aceita os termos novos).
+
+    Recusa um terminal no stdout: a saída tem os emails de todas as contas e é feita para o pipe
+    (`... export-users | ... import-users -`, roteiro no README do imago), não para a tela.
+    """
+    if sys.stdout.isatty():
+        raise CommandError(
+            "a saída tem os emails de todas as contas: mande-a por um pipe para o "
+            "import-users - do imago"
+        )
+    query = select(
+        User.id,
+        User.email,
+        User.is_active,
+        User.is_admin,
+        User.timezone,
+        User.locale,
+        User.created_at,
+        User.last_login_at,
+    ).order_by(User.id)
+    with context.session_factory() as session:
+        for row in session.execute(query):
+            record = {
+                "id": row.id,
+                "email": row.email,
+                "is_active": row.is_active,
+                "is_admin": row.is_admin,
+                "timezone": row.timezone,
+                "locale": row.locale,
+                "created_at": _utc_iso(row.created_at),
+                "last_login_at": None if row.last_login_at is None else _utc_iso(row.last_login_at),
+            }
+            # ensure_ascii: a linha é ASCII puro, qualquer que seja o encoding do stdout
+            print(json.dumps(record, ensure_ascii=True, separators=(",", ":")))
+    sys.stdout.flush()
+    return EXIT_OK
+
+
+def _utc_iso(value: datetime) -> str:
+    # Formato fixo (sempre com microssegundos), como o banco guarda: 2026-01-31T12:00:00.000000Z
+    return value.astimezone(UTC).isoformat(timespec="microseconds").removesuffix("+00:00") + "Z"
+
+
 def _seed(context: CommandContext, _args: argparse.Namespace) -> int:
     """Cria os dados de exemplo de `app/seed.py`. Só com `APP_ENV=dev`.
 
@@ -261,6 +315,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="arquivo com as linhas; sem ele (ou com -), lê do stdin",
     )
     reapply.set_defaults(handler=_reapply_deletions)
+
+    commands.add_parser(
+        "export-users",
+        help="escreve as contas no stdout, uma linha JSON por conta, para o import-users do imago",
+        description=(
+            "Passagem do login para o imago: uma linha JSON por conta (id, email, is_active, "
+            "is_admin, timezone, locale, created_at, last_login_at), em ordem de id, para o "
+            "import-users - do imago por um pipe. Só lê o banco e só escreve no stdout (nada em "
+            "disco nem no log). Recusa um terminal no stdout."
+        ),
+    ).set_defaults(handler=_export_users)
 
     commands.add_parser(
         "seed",
