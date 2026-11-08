@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
@@ -32,7 +32,14 @@ export default function Login() {
   // para o `next`, que responderia 401 de novo
   const me = useMe({ staleTime: 0, refetchOnMount: 'always' });
   const checked = me.isFetchedAfterMount;
-  const signedOut = me.isError && me.error.status === 401;
+  // Sem sessão, o /me nunca teve dados, e o TanStack Query põe toda busca nova dele (a depois do
+  // código, a de quando a aba volta ao foco) em `pending`, sem o erro da anterior. Até ela
+  // terminar, vale a última resposta: o formulário não desmonta (o passo do código, o que foi
+  // digitado e o botão ocupado continuam) e nenhum erro pisca na tela
+  const settledSignedOut = me.isError && me.error.status === 401;
+  const [lastSignedOut, setLastSignedOut] = useState(settledSignedOut);
+  if (!me.isPending && lastSignedOut !== settledSignedOut) setLastSignedOut(settledSignedOut);
+  const signedOut = me.isPending ? lastSignedOut : settledSignedOut;
   const user = signedOut ? undefined : me.data;
   const proceed = checked && user !== undefined && !user.terms_pending;
 
@@ -58,7 +65,8 @@ export default function Login() {
   const title = accepting ? t('pages.terms_acceptance.title') : t('pages.login.title');
 
   let content;
-  if (!checked) {
+  // Também a nova busca depois de um erro que não é 401 (o "tentar de novo")
+  if (!checked || (me.isPending && !signedOut)) {
     content = <p role="status">{t('common.loading')}</p>;
   } else if (signedOut) {
     content = (

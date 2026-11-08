@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { focusManager } from '@tanstack/react-query';
 import { act, configure, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
@@ -84,8 +85,41 @@ async function signInWithCode(user, code = '123456') {
   await user.click(screen.getByRole('button', { name: 'Sign in' }));
 }
 
+const gates = [];
+
+/**
+ * GET /me sempre 401, mas as chamadas em que `hold()` é verdadeiro só respondem depois de
+ * `release()`. `waiting` conta as chamadas seguradas.
+ */
+function gatedMe(hold) {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  gates.push(release);
+  const state = { waiting: 0, release };
+  server.use(
+    http.get(api('/me'), async () => {
+      if (hold()) {
+        state.waiting += 1;
+        await gate;
+      }
+      return apiError(401, 'unauthorized');
+    }),
+  );
+  return state;
+}
+
+/** Deixa o TanStack Query e o React aplicarem o que mudou (o notifyManager usa setTimeout). */
+function settle() {
+  return act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+}
+
 afterEach(() => {
   vi.useRealTimers();
+  // Nenhuma resposta segurada fica pendurada depois do teste
+  gates.splice(0).forEach((release) => release());
+  focusManager.setFocused(undefined);
 });
 
 describe('sign in with a code', () => {
@@ -318,13 +352,23 @@ describe('sign in with a code', () => {
 
   it('says so when the browser does not keep the session after the code', async () => {
     const calls = loginApi();
-    // O verify dá certo, mas o /me continua sem sessão (cookie não guardado)
-    server.use(http.get(api('/me'), () => apiError(401, 'unauthorized')));
+    // O verify dá certo, mas o /me continua sem sessão (cookie não guardado). O /me de depois do
+    // código só responde quando o teste soltar, para ver a tela enquanto ele não volta
+    const meAfterCode = gatedMe(() => calls.verify.length > 0);
     const leave = mockLeave();
     const user = userEvent.setup();
     const { container } = loginAt(NEXT);
 
     await signInWithCode(user);
+
+    // Enquanto o /me não volta: o passo do código fica, com o botão ocupado e sem erro
+    await waitFor(() => expect(meAfterCode.waiting).toBe(1));
+    await settle();
+    expect(screen.getByLabelText('6-digit code').value).toBe('123456');
+    expect(screen.getByRole('button', { name: 'Signing in…' }).disabled).toBe(true);
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    meAfterCode.release();
 
     expect((await screen.findByRole('alert')).textContent).toContain('this browser did not keep the session');
     expect(screen.getByLabelText('6-digit code').getAttribute('aria-invalid')).toBe('false');
@@ -332,6 +376,33 @@ describe('sign in with a code', () => {
     expect(calls.verify).toHaveLength(1);
     expect(leave).not.toHaveBeenCalled();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('keeps the code step when the tab gets the focus back', async () => {
+    loginApi();
+    let focused = false;
+    // O /me da abertura responde na hora; o da volta ao foco, só quando o teste soltar
+    const meOnFocus = gatedMe(() => focused);
+    const user = userEvent.setup();
+    loginAt(NEXT);
+
+    await askForCode(user);
+    await user.type(screen.getByLabelText('6-digit code'), '123');
+    focused = true;
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+
+    await waitFor(() => expect(meOnFocus.waiting).toBe(1));
+    await settle();
+    expect(screen.getByLabelText('6-digit code').value).toBe('123');
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    meOnFocus.release();
+    await settle();
+    expect(screen.getByLabelText('6-digit code').value).toBe('123');
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('does not send an incomplete code', async () => {
@@ -347,10 +418,7 @@ describe('sign in with a code', () => {
   });
 
   it('shows an error with a retry when the session check fails', async () => {
-    let fail = true;
-    server.use(
-      http.get(api('/me'), () => (fail ? HttpResponse.error() : apiError(401, 'unauthorized'))),
-    );
+    server.use(http.get(api('/me'), () => HttpResponse.error()));
     const user = userEvent.setup();
     const { container } = loginAt();
 
@@ -359,8 +427,18 @@ describe('sign in with a code', () => {
     );
     expect(await axe(container)).toHaveNoViolations();
 
-    fail = false;
+    // A nova busca responde 401, mas só quando o teste soltar
+    const retry = gatedMe(() => true);
     await user.click(screen.getByRole('button', { name: 'Try again' }));
+
+    // Enquanto ela não volta: carregando, sem o erro anterior e sem o formulário
+    await waitFor(() => expect(retry.waiting).toBe(1));
+    await settle();
+    expect(screen.getByRole('status').textContent).toBe('Loading…');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByLabelText('Email')).toBeNull();
+
+    retry.release();
 
     expect(await screen.findByLabelText('Email')).toBeDefined();
   });
