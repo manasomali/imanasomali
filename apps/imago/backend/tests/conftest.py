@@ -11,7 +11,11 @@
 - `db_session`: sessão desse banco, da mesma fábrica do app (escrita só em `write_transaction`);
 - `outbox`: backend de email em memória (`tests/mail_helpers.py`), sem rede: o que o app mandou
   fica em `outbox.messages`;
-- `app`: app montado com `settings` e o `outbox`, sobre o `database`;
+- `apps`: as aplicações falsas (`tests/apps_helpers.py`), que recebem as tarefas `delete` e
+  `refresh` do imago. Nenhum teste chama a rede: uma chamada que escape delas falha o teste;
+- `task_context`: o `TaskContext` das tarefas (banco do teste e `apps`), para chamar
+  `app/internal/tasks.py` e `app/deletion.py` direto;
+- `app`: app montado com `settings`, o `outbox` e as `apps`, sobre o `database`;
 - `make_alembic_config(path)`: Config do Alembic apontando para o banco em `path`;
 - `make_client(app, *, origin=True, **kwargs)`: TestClient com o lifespan rodando e o root_path
   de produção, fechado no fim do teste (kwargs vão para o TestClient). Como um navegador na página
@@ -33,6 +37,7 @@ from contextlib import ExitStack, closing
 from pathlib import Path
 from typing import Any
 
+import httpx2
 import pytest
 import trustme
 from alembic import command
@@ -44,8 +49,10 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.db import create_db_engine, create_session_factory
+from app.internal.tasks import TaskContext
 from app.main import create_app
 from app.terms import TERMS_VERSION
+from tests.apps_helpers import FakeApps
 from tests.auth_helpers import Account, cookie, open_session
 from tests.factories import new_user, save
 from tests.fake_smtp import FakeSmtpServer, start_fake_smtp
@@ -134,9 +141,29 @@ def outbox() -> Outbox:
     return Outbox()
 
 
+@pytest.fixture(autouse=True)
+def _no_network_calls_to_apps(monkeypatch) -> None:
+    # As tarefas das aplicações só chegam às aplicações falsas (fixture `apps`): um app montado
+    # sem elas tentaria a rede de verdade (e acharia, em dev, o ethos rodando na porta 3001)
+    def refuse(_transport: Any, request: httpx2.Request) -> httpx2.Response:
+        pytest.fail(f"chamada de rede fora das aplicações falsas: {request.url}")
+
+    monkeypatch.setattr(httpx2.HTTPTransport, "handle_request", refuse)
+
+
 @pytest.fixture
-def app(settings, database, outbox) -> FastAPI:
-    return create_app(settings, mail_backend=outbox)
+def apps() -> FakeApps:
+    return FakeApps()
+
+
+@pytest.fixture
+def task_context(settings, engine, apps) -> TaskContext:
+    return TaskContext(settings, create_session_factory(engine), apps.transport)
+
+
+@pytest.fixture
+def app(settings, database, outbox, apps) -> FastAPI:
+    return create_app(settings, mail_backend=outbox, app_transport=apps.transport)
 
 
 @pytest.fixture

@@ -304,6 +304,10 @@ class Settings(BaseModel):
             host = f"{host}:{parts.port}"
         return f"{parts.scheme}://{host}"
 
+    def app(self, name: str) -> ImagoApp | None:
+        """A aplicação `name` do `IMAGO_APPS`, ou None se ela não está lá."""
+        return next((app for app in self.imago_apps if app.name == name), None)
+
     def app_token(self, name: str) -> SecretStr | None:
         """Token da aplicação `name` do `IMAGO_APPS`, ou None se ela não está lá."""
         if name not in self.app_names:

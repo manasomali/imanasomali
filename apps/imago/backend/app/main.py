@@ -4,6 +4,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx2
 from fastapi import APIRouter, FastAPI
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -16,6 +17,7 @@ from app.db import SessionDep, create_db_engine, create_session_factory
 from app.errors import ApiError, ErrorCode, install_error_handlers
 from app.internal.router import router as internal_router
 from app.internal.router import session_router as internal_session_router
+from app.internal.tasks import TaskContext
 from app.logs import RequestLogMiddleware, configure_logging
 from app.mail.backends import MailBackend
 from app.mail.sender import Mailer, build_backend
@@ -37,12 +39,16 @@ def health(session: SessionDep) -> dict[str, str]:
 
 
 def create_app(
-    settings: Settings | None = None, mail_backend: MailBackend | None = None
+    settings: Settings | None = None,
+    mail_backend: MailBackend | None = None,
+    app_transport: httpx2.BaseTransport | None = None,
 ) -> FastAPI:
     """Monta o app. Sem `settings`, a configuração é lida do ambiente na subida.
 
     Sem `mail_backend`, o envio de email segue o `EMAIL_BACKEND` da config; os testes passam um
-    backend apontado para o servidor SMTP falso (ou um em memória).
+    backend apontado para o servidor SMTP falso (ou um em memória). Sem `app_transport`, as
+    tarefas das aplicações (`app/internal/tasks.py`) saem pela rede; os testes passam as
+    aplicações falsas.
 
     A leitura fica no lifespan, não no import: config inválida (inclusive um `IMAGO_APPS` sem o
     token de alguma aplicação) derruba o servidor na subida com a lista das variáveis erradas, e
@@ -56,6 +62,7 @@ def create_app(
         engine = create_db_engine(current.database_path)
         api.state.settings = current
         api.state.session_factory = create_session_factory(engine)
+        api.state.task_context = TaskContext(current, api.state.session_factory, app_transport)
         backend = build_backend(current) if mail_backend is None else mail_backend
         api.state.mailer = Mailer(current, backend)
         try:

@@ -17,7 +17,9 @@ request de escrita passa antes pela checagem de `Origin` (`app/auth/origin.py`).
 - `GET /me`: os dados da conta, `terms_pending`, as aplicações do `IMAGO_APPS` e o
   `SUPPORT_EMAIL` (para pedir a troca de email).
 - `PATCH /me`: muda `timezone` (fuso IANA; desconhecido: 422 `invalid_timezone`) e `locale`. É o
-  único jeito de mudar o fuso: o login de conta existente o ignora. Exige os termos atuais.
+  único jeito de mudar o fuso: o login de conta existente o ignora. Exige os termos atuais. Quando
+  algo muda, cria na mesma transação uma tarefa `refresh` por aplicação do `IMAGO_APPS`
+  (`app/internal/tasks.py`), tentada depois da resposta.
 - `POST /me/terms`: aceita a versão atual dos termos. O corpo traz a versão que a pessoa leu; se
   ela não for a atual (os termos mudaram com a tela aberta), 409 `conflict` (field
   `terms_version`), e o front mostra os termos novos.
@@ -42,9 +44,18 @@ from app.auth.deps import CurrentSession, CurrentUser, CurrentUserAnyTerms, term
 from app.config import Settings, SettingsDep
 from app.db import SessionDep, write_transaction
 from app.errors import ApiError, ErrorCode, error_response
+from app.internal import tasks
+from app.internal.tasks import TaskContextDep
 from app.mail.language import Locale
 from app.mail.sender import Mailer, MailerDep, schedule
-from app.models import TERMS_VERSION_MAX_LENGTH, TIMEZONE_MAX_LENGTH, User, UserSession, utcnow
+from app.models import (
+    TERMS_VERSION_MAX_LENGTH,
+    TIMEZONE_MAX_LENGTH,
+    TaskAction,
+    User,
+    UserSession,
+    utcnow,
+)
 from app.request_info import client_ip, client_user_agent
 from app.terms import TERMS_VERSION
 
@@ -259,6 +270,8 @@ def update_me(
     request: Request,
     session: SessionDep,
     settings: SettingsDep,
+    task_context: TaskContextDep,
+    background_tasks: BackgroundTasks,
 ) -> MeResponse:
     if body.timezone is not None and not service.is_valid_timezone(body.timezone):
         raise ApiError(422, ErrorCode.INVALID_TIMEZONE, field="timezone")
@@ -282,9 +295,12 @@ def update_me(
                 ip=client_ip(request),
                 details={"changes": changes},
             )
-            # ETH-59: aqui, na mesma transação, entram as tarefas `refresh` de cada aplicação do
-            # IMAGO_APPS (no máximo uma pendente por conta, aplicação e ação), tentadas depois do
-            # commit em BackgroundTasks
+            # As aplicações guardam o idioma e o fuso em app_users: uma tarefa refresh para cada
+            # uma (no máximo uma pendente por conta e aplicação)
+            tasks.request_tasks(session, settings, user_id=user_id, action=TaskAction.REFRESH)
+    if changes:
+        # Depois do commit; o refresh manda os valores da conta na hora da chamada
+        tasks.schedule(background_tasks, task_context, user_id=user_id, action=TaskAction.REFRESH)
     return me_response(user, settings)
 
 

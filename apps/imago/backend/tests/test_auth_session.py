@@ -45,8 +45,8 @@ def admin_endpoint(user: AdminUser) -> dict[str, int]:
 
 
 @pytest.fixture
-def client(settings, database, make_client, outbox):
-    app = create_app(settings, mail_backend=outbox)
+def client(settings, database, make_client, outbox, apps):
+    app = create_app(settings, mail_backend=outbox, app_transport=apps.transport)
     app.include_router(probe)
     return make_client(app, client=(IP, 50000))
 

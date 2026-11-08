@@ -12,8 +12,8 @@ de `Origin` (`app/auth/origin.py`): não vêm do navegador.
   escrita por dia (`app/auth/deps.py`), então usar qualquer aplicação mantém a sessão viva. Só lê
   o cookie que veio no request e devolve o que o próprio dono do cookie já vê em `GET /me`;
 - `router`, com o token de cada aplicação (`app/internal/deps.py`) em todas as rotas:
-  `POST /internal/mail` (notificação de uma aplicação para um usuário). A ETH-59 acrescenta aqui
-  `POST /internal/users/lookup` e `GET /internal/users/{id}`.
+  `POST /internal/mail` (notificação de uma aplicação para um usuário),
+  `POST /internal/users/lookup` e `GET /internal/users/{id}` (ETH-59).
 
 `POST /internal/mail` `{kind: "notification", user_id, subject, text, html}` (corpo até 100 KB,
 `app/body_limit.py`): o destinatário é sempre um usuário do imago, por id, nunca um endereço
@@ -23,18 +23,27 @@ e a aplicação não fica sabendo); 204 para conta bloqueada ou em exclusão (se
 no teto); 404 `not_found` para id inexistente; 429 `mail_quota` com o teto de notificações
 atingido (`app/mail/quota.py`); 401 sem token ou com token errado; 422 na validação. O remetente
 é "<aplicação do token> <MAIL_FROM_ADDRESS>".
+
+`POST /internal/users/lookup` `{email}` (convites: o email vai no corpo, nunca na URL, para não
+parar em log): 200 `{id, locale}` da conta ativa com esse email (normalizado como no login); 404
+`not_found` se não existe, está bloqueada ou em exclusão (a mesma resposta nos três casos); 422 com
+email inválido ou campo desconhecido.
+
+`GET /internal/users/{id}`: 200 `{id, email, locale, timezone, active}`, com `active` = conta não
+bloqueada e fora de exclusão; 404 `not_found` se não existe; 422 com id fora de 1 a 2^53 - 1.
 """
 
 import unicodedata
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Path, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.deps import authenticate, session_token, terms_pending
+from app.auth.router import Email
 from app.auth.security import hash_secret
 from app.auth.service import can_sign_in
 from app.config import SettingsDep
@@ -43,6 +52,7 @@ from app.errors import ApiError, ErrorCode
 from app.internal.deps import CallerApp, caller_app
 from app.mail import quota
 from app.mail.kinds import MailKind
+from app.mail.language import Locale
 from app.mail.sender import MailerDep, Notification, schedule
 from app.models import MAX_ACCOUNT_ID, User, utcnow
 
@@ -163,3 +173,51 @@ def send_mail(
         Notification(to=to, app=app, subject=body.subject, text=body.text, html=body.html),
     )
     return JSONResponse(status_code=202, content=MAIL_ACCEPTED)
+
+
+# --- contas, para as aplicações (ETH-59) ---
+
+
+class LookupBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Normalizado (strip + lower) e validado como no login
+    email: Email
+
+
+class LookupResponse(BaseModel):
+    id: int
+    locale: Locale
+
+
+@router.post("/users/lookup")
+def lookup_user(body: LookupBody, session: SessionDep) -> LookupResponse:
+    user = session.scalar(select(User).where(User.email == body.email))
+    if user is None or not can_sign_in(user):
+        raise ApiError(404, ErrorCode.NOT_FOUND)
+    return LookupResponse(id=user.id, locale=Locale(user.locale))
+
+
+class InternalUser(BaseModel):
+    id: int
+    email: str
+    locale: Locale
+    timezone: str
+    # Conta não bloqueada e fora de exclusão
+    active: bool
+
+
+@router.get("/users/{user_id}")
+def get_user(
+    user_id: Annotated[int, Path(ge=1, le=MAX_ACCOUNT_ID)], session: SessionDep
+) -> InternalUser:
+    user = session.get(User, user_id)
+    if user is None:
+        raise ApiError(404, ErrorCode.NOT_FOUND)
+    return InternalUser(
+        id=user.id,
+        email=user.email,
+        locale=Locale(user.locale),
+        timezone=user.timezone,
+        active=can_sign_in(user),
+    )

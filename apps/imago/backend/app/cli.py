@@ -5,8 +5,7 @@ banco de `DATABASE_PATH`, que precisa já existir (migrado com `alembic upgrade 
 roda como `app-imago`: o `cleanup` pelo `imago-cleanup.timer`, de hora em hora, os outros à mão.
 O `create-admin` é o único jeito de ligar o `is_admin`: não existe endpoint para isso.
 
-Para acrescentar um comando (a ETH-59 traz o `run-tasks`, a ETH-61 o `reapply-deletions` e a
-ETH-64 o `import-users`):
+Para acrescentar um comando:
 
 1. escreva o handler `def _nome(context: CommandContext, args: argparse.Namespace) -> int`, que
    devolve o código de saída (0 = sucesso). Escrita no banco vai dentro de `write_transaction`;
@@ -28,6 +27,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+import httpx2
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
@@ -37,7 +37,10 @@ from app.audit import AuditEvent
 from app.auth.service import can_sign_in, normalize_email
 from app.config import ConfigError, Settings, load_settings
 from app.db import create_db_engine, create_session_factory, write_transaction
+from app.internal.tasks import TaskContext, run_pending
 from app.logs import configure_logging
+from app.mail.backends import MailBackend
+from app.mail.sender import Mailer, build_backend
 from app.models import User, utcnow
 from app.retention import run_cleanup
 from app.seed import seed
@@ -52,10 +55,23 @@ class CommandError(Exception):
 
 @dataclass(frozen=True)
 class CommandContext:
-    """O que todo comando recebe: a configuração e a fábrica de sessões do banco."""
+    """O que todo comando recebe: a configuração e a fábrica de sessões do banco.
+
+    `app_transport` e `mail_backend` só existem para os testes (aplicações falsas e email em
+    memória); em produção são None, e as chamadas e os emails saem de verdade.
+    """
 
     settings: Settings
     session_factory: sessionmaker[Session]
+    app_transport: httpx2.BaseTransport | None = None
+    mail_backend: MailBackend | None = None
+
+    def task_context(self) -> TaskContext:
+        return TaskContext(self.settings, self.session_factory, self.app_transport)
+
+    def mailer(self) -> Mailer:
+        backend = build_backend(self.settings) if self.mail_backend is None else self.mail_backend
+        return Mailer(self.settings, backend)
 
 
 Handler = Callable[[CommandContext, argparse.Namespace], int]
@@ -73,6 +89,22 @@ def _cleanup(context: CommandContext, _args: argparse.Namespace) -> int:
         f"{result.login_codes_deleted} códigos apagados, "
         f"{result.mail_log_deleted} envios apagados do mail_log, "
         f"{result.app_tasks_deleted} tarefas concluídas apagadas"
+    )
+    return EXIT_OK
+
+
+def _run_tasks(context: CommandContext, _args: argparse.Namespace) -> int:
+    """Tenta de novo as tarefas pendentes para as aplicações (`app/internal/tasks.py`).
+
+    Sai com 0 mesmo que alguma tarefa falhe (aplicação fora do ar): a falha fica gravada na
+    tarefa, vira uma linha de log e é tentada de novo na próxima execução, e o `cleanup` que vem
+    depois no `imago-cleanup.service` roda assim mesmo. Só um erro geral (config, banco
+    inacessível) sai com 1, e aí o `OnFailure=` da unit registra.
+    """
+    summary = run_pending(context.task_context())
+    print(
+        f"run-tasks: {summary.tried} tarefas tentadas, {summary.done} concluídas, "
+        f"{summary.failed} falhas, {summary.busy + summary.pending} ficaram para depois"
     )
     return EXIT_OK
 
@@ -148,6 +180,17 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     ).set_defaults(handler=_cleanup)
 
+    commands.add_parser(
+        "run-tasks",
+        help="tenta de novo as tarefas pendentes para as aplicações (delete e refresh)",
+        description=(
+            "Chama a API interna de cada aplicação do IMAGO_APPS para as tarefas pendentes "
+            "(apagar os dados de uma conta, atualizar a cópia da conta). Uma aplicação fora do "
+            "ar não para as outras: a falha fica na tarefa e é tentada de novo na próxima "
+            "execução. Sai com 0 mesmo com falhas; só um erro geral (banco, config) sai com 1."
+        ),
+    ).set_defaults(handler=_run_tasks)
+
     create_admin = commands.add_parser(
         "create-admin",
         help="torna admin uma conta que já existe (único jeito de criar admin)",
@@ -173,8 +216,17 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None, environ: Mapping[str, str] | None = None) -> int:
-    """Roda o comando de `argv` (padrão: sys.argv) e devolve o código de saída."""
+def main(
+    argv: Sequence[str] | None = None,
+    environ: Mapping[str, str] | None = None,
+    *,
+    app_transport: httpx2.BaseTransport | None = None,
+    mail_backend: MailBackend | None = None,
+) -> int:
+    """Roda o comando de `argv` (padrão: sys.argv) e devolve o código de saída.
+
+    `app_transport` e `mail_backend`: só para os testes (ver `CommandContext`).
+    """
     args = build_parser().parse_args(argv)
     handler: Handler = args.handler
     try:
@@ -188,7 +240,10 @@ def main(argv: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
 
     engine = create_db_engine(settings.database_path)
     try:
-        return handler(CommandContext(settings, create_session_factory(engine)), args)
+        context = CommandContext(
+            settings, create_session_factory(engine), app_transport, mail_backend
+        )
+        return handler(context, args)
     except CommandError as exc:
         return _fail(str(exc))
     except SQLAlchemyError as exc:

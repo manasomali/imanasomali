@@ -33,10 +33,10 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/router.py,app/auth/security.py,app/auth/service.py,app/body_limit.py,app/config.py,app/internal/deps.py,app/internal/router.py,app/mail/quota.py,app/mail/sender.py,app/retention.py,app/seed.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/router.py,app/auth/security.py,app/auth/service.py,app/body_limit.py,app/config.py,app/internal/deps.py,app/internal/router.py,app/internal/tasks.py,app/mail/quota.py,app/mail/sender.py,app/retention.py,app/seed.py   # depois do pytest
 ```
 
-Os módulos da lista acima precisam de 100% de cobertura (linhas e ramos); ela fica na variável `FULL_COVERAGE` do workflow. Os testes não precisam de `.env`: as fixtures de `tests/conftest.py` montam a config com um SQLite em arquivo temporário (`settings`, `make_settings`, `engine`, `db_session`, `outbox`, `app`, `client`, `make_client`, `smtp_server`, `make_smtp_server`, `make_account`). O banco de teste já vem com o schema completo: as migrações rodam uma vez por execução do pytest e cada teste recebe uma cópia. `tests/factories.py` tem `new_user`, `save` e `count`; `tests/auth_helpers.py`, o login completo (`login`), `cookie`, `open_session` e o `Outbox` (email em memória); `tests/internal_helpers.py`, os tokens de teste do ethos e do engrafi e `bearer(token)`.
+Os módulos da lista acima precisam de 100% de cobertura (linhas e ramos); ela fica na variável `FULL_COVERAGE` do workflow. Os testes não precisam de `.env`: as fixtures de `tests/conftest.py` montam a config com um SQLite em arquivo temporário (`settings`, `make_settings`, `engine`, `db_session`, `outbox`, `apps`, `task_context`, `app`, `client`, `make_client`, `smtp_server`, `make_smtp_server`, `make_account`). O banco de teste já vem com o schema completo: as migrações rodam uma vez por execução do pytest e cada teste recebe uma cópia. `tests/factories.py` tem `new_user`, `save` e `count`; `tests/auth_helpers.py`, o login completo (`login`), `cookie`, `open_session` e o `Outbox` (email em memória); `tests/internal_helpers.py`, os tokens de teste do ethos e do engrafi e `bearer(token)`; `tests/apps_helpers.py`, as aplicações falsas (`FakeApps`, num `httpx2.MockTransport`) que recebem as tarefas do imago: o `app` dos testes já vem ligado a elas (fixture `apps`), e nenhum teste chama a rede (uma chamada que escape delas falha o teste).
 
 Dependências entram com `uv add <pacote>` (ou `uv add --dev <pacote>`), que atualiza o `pyproject.toml` e o `uv.lock`. Os dois vão juntos no commit.
 
@@ -111,6 +111,24 @@ Só entre os serviços, direto em `127.0.0.1:3003`, nunca pelo nginx (que respon
 - `GET /internal/session`, sem token, chamado pelo `auth_request` do nginx em cada request de `/api/<app>/`: sempre 200 e corpo vazio. Com cookie válido, conta ativa e termos atuais aceitos, devolve `X-User-Id` (decimal), `X-User-Email`, `X-User-Locale`, `X-User-Timezone` e `X-User-Admin: 1` (só para admin); em qualquer outro caso, nenhum deles. Renova a sessão com a regra de uma escrita por dia. Responde igual a qualquer método, caso o nginx repasse o do request original.
 - Todo o resto de `/internal/*` exige `Authorization: Bearer <token da aplicação>` (`app/internal/deps.py`, `CallerApp`), comparado em tempo constante com os do `IMAGO_APP_TOKENS`; sem token ou com token errado, 401. O token diz qual aplicação chamou: é esse nome que vai no `mail_log` e no remetente, nunca um que venha no corpo. O `router` de `app/internal/router.py` põe a dependência em todas as rotas dele, e um teste confere, pelo OpenAPI, que toda rota de `/internal/` (menos `/internal/session`) responde 401 sem token.
 - `POST /internal/mail` `{kind: "notification", user_id, subject, text, html}`: 202 `{"status": "accepted"}` com a linha do `mail_log` gravada (o SMTP roda depois, em BackgroundTasks; a falha vira uma linha de log); 204 para conta bloqueada ou em exclusão (sem envio e sem contar); 404 `not_found` para id inexistente; 429 `mail_quota` com o teto de notificações atingido; 422 na validação (assunto até 200 caracteres numa linha só, campos desconhecidos recusados). O destinatário é sempre um usuário do imago, por id.
+- `POST /internal/users/lookup` `{email}` (convites; o email vai no corpo, nunca na URL): 200 `{id, locale}` da conta com esse email (normalizado como no login); 404 `not_found` se ela não existe, está bloqueada ou em exclusão (a mesma resposta nos três casos); 422 com email inválido ou campo desconhecido.
+- `GET /internal/users/{id}`: 200 `{id, email, locale, timezone, active}` (`active`: não bloqueada e fora de exclusão); 404 `not_found`; 422 com id fora de 1 a 2^53 - 1.
+
+### Tarefas para as aplicações
+
+O imago chama a API interna de cada aplicação do `IMAGO_APPS` (`app/internal/tasks.py`), com o token dela e timeout de 10 s, guardando cada pedido em `app_tasks`:
+
+- `delete` (`POST /internal/users/{id}/delete`, sem corpo): a exclusão de conta;
+- `refresh` (`POST /internal/users/{id}/refresh` com `{email, locale, timezone}`): o `PATCH /me` quando o idioma ou o fuso mudam e a troca de email pelo admin.
+
+Regras:
+
+- `request_tasks`, na mesma transação da mudança, cria uma tarefa por aplicação, no máximo uma pendente por (conta, aplicação, ação): pedir de novo com uma pendente não cria linha nova.
+- Depois do commit, `schedule` tenta as tarefas em `BackgroundTasks`; o que falhar fica para o `run-tasks` do `imago-cleanup.timer`, de hora em hora. Só a resposta 200 conta como sucesso (outro status, erro de conexão e timeout são falha), e cada aplicação é chamada à parte: uma fora do ar não impede as outras.
+- Sucesso grava `done_at`; falha soma 1 em `attempts` e grava `last_attempt_at`, com uma linha de aviso no log. A partir da 5ª falha seguida, cada tentativa grava uma linha de erro (`journalctl -u app-imago -p err`, ou o do `imago-cleanup`), com o id da conta, a aplicação e o motivo (status HTTP ou tipo do erro), nunca o email.
+- O `refresh` manda os valores da conta na hora da chamada. Se a conta muda durante a chamada (a mudança achou a tarefa pendente e não criou outra), a chamada se repete com os valores novos antes de a tarefa ser concluída.
+- Uma tarefa de uma aplicação que saiu do `IMAGO_APPS` não é chamada: conta como falha a cada execução, até a aplicação voltar ou alguém apagar a tarefa à mão.
+- Dentro do processo, a mesma tarefa nunca roda em duas threads ao mesmo tempo. Entre o servidor e o `run-tasks`, no pior caso a mesma tarefa é chamada duas vezes, o que as aplicações aceitam (as duas rotas são idempotentes).
 
 ### Email e teto de envio
 
@@ -136,7 +154,8 @@ O CLI lê a mesma config do servidor e abre o banco de `DATABASE_PATH`, que prec
 
 | Comando | O quê |
 |---|---|
-| `cleanup` | Retenção de dados (ver acima), numa transação só. Imprime quantas linhas mudou em cada passo; a segunda execução seguida não muda nada. Roda de hora em hora pelo `imago-cleanup.timer` (ETH-57), depois do `run-tasks` (ETH-59). |
+| `cleanup` | Retenção de dados (ver acima), numa transação só. Imprime quantas linhas mudou em cada passo; a segunda execução seguida não muda nada. Roda de hora em hora pelo `imago-cleanup.timer` (ETH-57), depois do `run-tasks`. |
+| `run-tasks` | Tenta as tarefas pendentes para as aplicações ([Tarefas para as aplicações](#tarefas-para-as-aplicações)). Imprime quantas tentou, concluiu, quantas falharam e quantas ficaram para depois (em andamento noutra thread ou com a conta mudando a cada chamada). Sai com 0 mesmo com falhas, que ficam gravadas e voltam na próxima execução; só um erro geral (config, banco) sai com 1. Roda de hora em hora pelo `imago-cleanup.timer`, antes do `cleanup`. |
 | `create-admin <email>` | Liga o `is_admin` de uma conta que já existe e grava `admin_created` (`{"via": "cli"}`). É o único jeito de criar admin: não existe endpoint para isso. O email é normalizado como no login. Email sem conta: erro, nada muda (a pessoa entra no imago uma vez antes). Conta bloqueada ou em exclusão: erro, nada muda. Conta que já é admin: avisa, sai com 0 e não grava nada. |
 | `seed` | Só com `APP_ENV=dev`. Cria as contas de exemplo com ids fixos, que os seeds das aplicações usam: 101 `ana@example.com` (admin, `America/Sao_Paulo`, pt), 102 `bia@example.com` (`America/Sao_Paulo`, pt) e 103 `caio@example.com` (`Europe/Lisbon`, en), todas com os termos atuais aceitos (`app/seed.py`, `SEED_ACCOUNTS`). Se alguma já existe, não grava nada. |
 
@@ -162,7 +181,7 @@ Comando novo: um handler `(context: CommandContext, args) -> int` em `app/cli.py
 - Mudança no catálogo de erros entra também nos `translation.json` do front.
 - Nada importa de `site/` nem de `apps/<outra>/`.
 
-Pontos de extensão para as próximas tasks: o `PATCH /me` marca onde entram as tarefas `refresh` (ETH-59); `app/internal/router.py` recebe `/internal/users/lookup` e `/internal/users/{id}` (ETH-59) já com o token; `app/auth/router.py` tem `code_request_response`, `reload_user` e `me_response` para o `POST /me/delete/request` e o `DELETE /me` (ETH-61), que usam `request_delete_code`/`use_delete_code` do `service.py`; `quota.reserve` com `MailKind.ACCOUNT` e `quota.support_alert` servem aos emails de conta; `Settings.app_token(nome)` dá o token para chamar cada aplicação.
+Pontos de extensão para as próximas tasks: `app/auth/router.py` tem `code_request_response`, `reload_user` e `me_response` para o `POST /me/delete/request` e o `DELETE /me` (ETH-61), que usam `request_delete_code`/`use_delete_code` do `service.py`; `quota.reserve` com `MailKind.ACCOUNT` e `quota.support_alert` servem aos emails de conta; `Settings.app_token(nome)` dá o token para chamar cada aplicação.
 
 ## Frontend
 
