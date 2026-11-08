@@ -13,7 +13,7 @@ Precisa do Docker (Docker Desktop no Windows e no Mac). Cada backend sobe na por
 | imago | `127.0.0.1:3003` | `http://localhost:8080/imago` | 5175 |
 | ethos | `127.0.0.1:3001` | `http://localhost:8080/ethos` | 5174 |
 
-O passo a passo de cada backend (`.env`, migrações, `seed`) está no `README.md` da aplicação. Depois, da raiz do repo:
+O imago chama a API interna de cada aplicação (e ela a dele) direto em `127.0.0.1`, sem o nginx, com o token da aplicação: o mesmo valor vai no `IMAGO_APP_TOKENS` do `.env` do imago (`ethos:<token>`) e no `INTERNAL_API_TOKEN` do `.env` do ethos, e o `IMAGO_APPS` do imago aponta para a porta de cada uma (`ethos=http://127.0.0.1:3001`). Um token de dev sai de `python -c "import secrets; print(secrets.token_urlsafe(32))"`. O passo a passo de cada backend (`.env`, migrações, `seed`) está no `README.md` da aplicação. Depois, da raiz do repo:
 
 ```bash
 bash apps/imago/dev/nginx.sh up           # front de produção: o dist/ de cada aplicação (npm run build)
