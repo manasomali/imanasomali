@@ -22,11 +22,30 @@
     "retry": "Try again",
     "redirecting": "Taking you back…"
   },
+  "legal": {
+    "version": "Version {{version}}",
+    "contents": "Contents"
+  },
   "pages": {
+    "terms": {
+      "title": "Terms of use"
+    },
+    "privacy": {
+      "title": "Privacy policy"
+    },
     "not_found": {
       "title": "Page not found",
       "text": "This address does not exist or has changed.",
       "back_home": "Back to your account"
+    }
+  },
+  "apps": {
+    "ethos": {
+      "name": "ethos",
+      "description": "Track habits on a yearly calendar, alone or shared with other people.",
+      "deletion": "the habits you own, with all their marks (guests' marks included; guests lose access and get an email about it), your participation in other people's habits, the invites you sent or received and your alerts. The marks you made in other people's habits stay in those habits, shown as by “Removed user”.",
+      "export_label": "Export everything from ethos (on the report screen)",
+      "export_path": "/ethos/relatorio"
     }
   },
   "errors": {

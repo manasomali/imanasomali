@@ -1,0 +1,99 @@
+{
+  "title": "Terms of use",
+  "sections": [
+    {
+      "id": "about",
+      "title": "manasomali.com and its applications",
+      "paragraphs": [
+        "manasomali.com brings together free applications, such as ethos, run by the person behind the website as a personal project. There is a single account for all of them: imago, at manasomali.com/imago, handles sign-in, the account and the sending of emails.",
+        "These terms and the privacy policy apply to imago and to every application, and each application also has its own section, with its rules. By signing in, you agree to these terms and to the privacy policy. If you do not agree, do not use the service."
+      ]
+    },
+    {
+      "id": "account",
+      "title": "One account for every application",
+      "paragraphs": [
+        "There is no password. To sign in, you get a 6-digit code by email, valid for 10 minutes and for one use only. Whoever controls your email controls your account, so keep access to it safe.",
+        "The account is created on your first sign-in, with the email already confirmed by the code, and works in every application on manasomali.com: signing in to one signs you in to all of them, and signing out, blocking or deleting the account also applies to all of them. Each email has a single account. You can end the sessions on all your devices at once.",
+        "You are responsible for what is done with your account."
+      ]
+    },
+    {
+      "id": "free-service",
+      "title": "Free service",
+      "paragraphs": [
+        "The applications are free and provided as is, with no availability guarantee: they may go offline, change or shut down. There are backups, but there is no guarantee that no data will be lost. To the extent allowed by law, we are not liable for damages caused by downtime, data loss or use of the service.",
+        "In the future, the applications may have paid plans, with different features or limits, and ads. Before that happens, these terms and the privacy policy will change, and you will need to accept the new version to keep using the service."
+      ]
+    },
+    {
+      "id": "acceptable-use",
+      "title": "Acceptable use",
+      "paragraphs": [
+        "You may not:",
+        [
+          "request sign-in codes for emails that are not yours, or request codes excessively;",
+          "send invites in bulk, to people you do not know or to people who do not want them;",
+          "use names, descriptions, notes or invites to send messages, advertising or illegal or offensive content to other people;",
+          "try to access other people's data, get around the limits or disrupt the service, for example with excessive automated requests."
+        ]
+      ]
+    },
+    {
+      "id": "limits",
+      "title": "Limits",
+      "paragraphs": [
+        "To keep the service free and protected from abuse, there are usage limits. For the account, there is a limit of sign-in codes per minute and per hour and a daily cap on emails, shared by all the applications. Near the cap, only sign-in codes and account emails go out, and the applications' invites, alerts and notices may be delayed or not sent. Each application also has its own limits, described in its section.",
+        "The screens tell you when a limit is reached. Limits may change."
+      ]
+    },
+    {
+      "id": "blocking",
+      "title": "Blocking and deletion for abuse",
+      "paragraphs": [
+        "In case of abuse or breach of these terms, the account may be blocked or deleted, without prior notice, in every application. A blocked account gets no codes and cannot sign in to any application, and its data is kept. A deleted account loses all of its data, as the privacy policy explains, and gets an email about the deletion."
+      ]
+    },
+    {
+      "id": "email-change",
+      "title": "Changing your email",
+      "paragraphs": [
+        "The account's email is only changed by support. Send your request to {{supportEmail}} from the account's current email. Before the change, we ask for a reply sent from the new email, to confirm it is correct.",
+        "If you lost access to the current email, we may ask for information that only the person who uses the account would know, and we may refuse the change if there is no way to confirm it. After the change, all sessions are ended and both emails get a notice."
+      ]
+    },
+    {
+      "id": "your-data",
+      "title": "Your data",
+      "paragraphs": [
+        "What you record in the applications is yours. We use this data only to make the service work. The privacy policy explains what we keep and who can see it, including the service administrator."
+      ]
+    },
+    {
+      "id": "ethos",
+      "title": "ethos",
+      "paragraphs": [
+        "ethos, at manasomali.com/ethos, is an application for tracking habits.",
+        "ethos limits: active or paused habits per person, marks per day on each habit, text length, guests per habit, other people's habits you take part in and invites per day.",
+        "The owner of a habit can invite people who already have a manasomali.com account, either as editors (they mark, unmark and edit marks, including other people's) or as viewers only. The owner controls the habit: only the owner changes its settings, invites, changes roles, removes members and deletes the habit.",
+        "All members see all of the habit's content: settings, costs, reward, punishment, marks, notes, history and the emails of the people who take part and of who made each mark.",
+        "Members who leave or are removed lose access, but the marks they made stay in the habit. When the owner deletes the habit or their own account, the habit is gone with all of its marks, including the guests' marks, and the guests get an email about it.",
+        "Goals, scores, alerts, rewards and punishments are reminders you set for yourself. ethos does not give medical, psychological or financial advice; for that, see a professional."
+      ]
+    },
+    {
+      "id": "changes",
+      "title": "Changes to these terms",
+      "paragraphs": [
+        "Each version of these terms and of the privacy policy is identified by a date. Any change, including a new application joining, makes a new version, and you are asked to accept it on your next visit, in any application. Until you accept, you cannot use the applications, but you can sign out or delete your account without accepting the new version."
+      ]
+    },
+    {
+      "id": "contact",
+      "title": "Contact",
+      "paragraphs": [
+        "Questions, requests and abuse reports: {{supportEmail}}."
+      ]
+    }
+  ]
+}

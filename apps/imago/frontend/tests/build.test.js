@@ -2,7 +2,7 @@
 // - os tokens de packages/tokens entram no CSS do imago, e mudar um token muda esse CSS;
 // - o index.html carrega o theme-init.js no <head>, sem defer, e não tem script nem estilo inline
 //   (a CSP do imago é script-src 'self' e style-src 'self');
-// - tudo é servido em /imago/, inclusive as traduções.
+// - tudo é servido em /imago/, inclusive as traduções e os textos legais.
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -110,5 +110,19 @@ describe('production build', () => {
     for (const language of ['pt', 'en']) {
       expect(() => JSON.parse(readFileSync(join(original, `locales/${language}/translation.json`), 'utf8'))).not.toThrow();
     }
+  });
+
+  it('keeps the legal texts out of the main bundle, one chunk per document and language', () => {
+    const html = readFileSync(join(original, 'index.html'), 'utf8');
+    const entry = /<script type="module"[^>]*\bsrc="\/imago\/assets\/([^"]+\.js)"/.exec(html)[1];
+    const main = readFileSync(join(original, 'assets', entry), 'utf8');
+    const scripts = assetFiles(original, '.js');
+    // Ids de seção que só existem nos JSON de src/legal: um dos termos e um da privacidade
+    const chunks = (needle) => scripts.filter((source) => source.includes(needle)).length;
+
+    expect(main).not.toContain('acceptable-use');
+    expect(main).not.toContain('who-sees');
+    expect(chunks('acceptable-use')).toBe(2);
+    expect(chunks('who-sees')).toBe(2);
   });
 });

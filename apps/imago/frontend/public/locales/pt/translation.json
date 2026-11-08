@@ -22,11 +22,30 @@
     "retry": "Tentar de novo",
     "redirecting": "Voltando…"
   },
+  "legal": {
+    "version": "Versão {{version}}",
+    "contents": "Sumário"
+  },
   "pages": {
+    "terms": {
+      "title": "Termos de uso"
+    },
+    "privacy": {
+      "title": "Política de privacidade"
+    },
     "not_found": {
       "title": "Página não encontrada",
       "text": "Este endereço não existe ou mudou.",
       "back_home": "Voltar para a sua conta"
+    }
+  },
+  "apps": {
+    "ethos": {
+      "name": "ethos",
+      "description": "Registre hábitos num calendário anual, sozinho ou junto com outras pessoas.",
+      "deletion": "os hábitos dos quais você é dono, com todas as marcações (inclusive as dos convidados, que perdem o acesso e recebem um email avisando), a sua participação em hábitos de outras pessoas, os convites enviados ou recebidos e os seus alertas. As marcações que você fez em hábitos de outras pessoas continuam neles, como de “Usuário removido”.",
+      "export_label": "Exportar tudo do ethos (na tela de relatório)",
+      "export_path": "/ethos/relatorio"
     }
   },
   "errors": {
