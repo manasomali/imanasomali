@@ -18,6 +18,7 @@ from app.cli import main
 from app.config import ENV_VARS
 from app.db import write_transaction
 from app.import_users import (
+    END_FIELDS,
     FIELDS,
     MAX_LINE_LENGTH,
     ImportFailure,
@@ -47,9 +48,23 @@ def record(account_id: int = 7, email: str = "ana@example.com", **values: Any) -
     } | values
 
 
+def end(total: int) -> dict[str, Any]:
+    """A linha final do `export-users` do ethos, com o total de contas."""
+    return {"end": True, "count": total}
+
+
 def line(data: Any) -> str:
     # O mesmo json.dumps do exportador: ASCII, sem espaços
     return json.dumps(data, ensure_ascii=True, separators=(",", ":"))
+
+
+def export_lines(records: list[Any]) -> list[str]:
+    """As linhas como o `export-users` escreve: uma por conta e a linha final com o total."""
+    return [line(data) for data in records] + [line(end(len(records)))]
+
+
+def export_text(records: list[Any]) -> str:
+    return "".join(f"{text}\n" for text in export_lines(records))
 
 
 EXPORT = [
@@ -83,7 +98,7 @@ def users(db_session) -> list[User]:
 
 
 def test_import_keeps_ids_emails_flags_and_dates(db_session, env, stdin, capsys):
-    stdin("".join(f"{line(data)}\n" for data in EXPORT))
+    stdin(export_text(EXPORT))
 
     with time_machine.travel(NOW, tick=False):
         assert main(["import-users", "-"], env) == 0
@@ -122,7 +137,7 @@ def test_import_keeps_ids_emails_flags_and_dates(db_session, env, stdin, capsys)
 
 
 def test_imported_account_signs_in_and_must_accept_the_terms(env, stdin, client, outbox):
-    stdin(line(record()) + "\n")
+    stdin(export_text([record()]))
     assert main(["import-users", "-"], env) == 0
 
     token = login(client, outbox, "ana@example.com")
@@ -132,7 +147,7 @@ def test_imported_account_signs_in_and_must_accept_the_terms(env, stdin, client,
 
 
 def test_normalizes_the_email_like_the_login(db_session):
-    [account] = parse_accounts([line(record(email="  Ana@Example.COM "))])
+    [account] = parse_accounts(export_lines([record(email="  Ana@Example.COM ")]))
 
     assert account.email == "ana@example.com"
 
@@ -146,7 +161,7 @@ def test_normalizes_the_email_like_the_login(db_session):
 )
 def test_existing_id_or_email_writes_nothing(db_session, env, stdin, capsys, existing, reason):
     save(db_session, new_user(**existing))
-    stdin("".join(f"{line(data)}\n" for data in EXPORT))
+    stdin(export_text(EXPORT))
 
     assert main(["import-users", "-"], env) == 1
 
@@ -170,7 +185,7 @@ def test_existing_id_or_email_writes_nothing(db_session, env, stdin, capsys, exi
 )
 def test_repeated_id_or_email_in_the_input(lines, reason):
     with pytest.raises(ImportFailure, match=re.escape(reason)):
-        parse_accounts(map(line, lines))
+        parse_accounts(export_lines(lines))
 
 
 @pytest.mark.parametrize(
@@ -203,11 +218,13 @@ def test_repeated_id_or_email_in_the_input(lines, reason):
         ({k: v for k, v in record().items() if k != "email"}, "faltam os campos email"),
         (record(sobra="x"), "1 campos desconhecidos"),
         ([record()], "não é um objeto JSON"),
+        # Uma conta com o campo da linha final é lida como uma linha final, e recusada
+        (record(end=True), "linha final inválida"),
     ],
 )
 def test_invalid_field_refuses_everything(data, reason):
     with pytest.raises(ImportFailure, match=reason) as raised:
-        parse_accounts([line(record(1, "ok@example.com")), line(data)])
+        parse_accounts(export_lines([record(1, "ok@example.com"), data]))
     assert str(raised.value).startswith("linha 2: ")
     # A mensagem nunca traz o valor recebido
     assert "joão" not in str(raised.value)
@@ -219,21 +236,24 @@ def test_invalid_field_refuses_everything(data, reason):
 )
 def test_lines_that_are_not_an_export_line(text):
     with pytest.raises(ImportFailure, match=r"linha 1: (não é JSON|linha longa demais)"):
-        parse_accounts([text])
+        parse_accounts([text, line(end(1))])
 
 
-def test_blank_lines_are_skipped():
-    accounts = parse_accounts(["\n", line(record()) + "\r\n", "   \n"])
+def test_blank_lines_before_the_end_are_skipped():
+    accounts = parse_accounts(["\n", line(record()) + "\r\n", "   \n", line(end(1)) + "\r\n"])
 
     assert [(account.line, account.id) for account in accounts] == [(2, 7)]
 
 
 def test_fields_match_the_exporter():
     assert tuple(record()) == FIELDS
+    assert tuple(end(0)) == END_FIELDS
+    # A linha final nunca passa por uma conta, nem o contrário
+    assert not set(FIELDS) & set(END_FIELDS)
 
 
 def test_an_error_on_the_last_line_writes_nothing(db_session, env, stdin, capsys):
-    stdin("".join(f"{line(data)}\n" for data in EXPORT) + line(record(99, locale="fr")) + "\n")
+    stdin(export_text([*EXPORT, record(99, locale="fr")]))
 
     assert main(["import-users", "-"], env) == 1
 
@@ -243,13 +263,113 @@ def test_an_error_on_the_last_line_writes_nothing(db_session, env, stdin, capsys
     assert count(db_session, User) == 0
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        # O export morreu entre duas linhas: o pipe fechou sem a linha final
+        "".join(f"{line(data)}\n" for data in EXPORT[:2]),
+        "".join(f"{line(data)}\n" for data in EXPORT),
+        # ...ou no meio da última, sem a quebra de linha
+        "".join(f"{line(data)}\n" for data in EXPORT[:3]) + line(EXPORT[3]),
+    ],
+)
+def test_input_without_the_end_line_writes_nothing(db_session, env, stdin, capsys, content):
+    stdin(content)
+
+    assert main(["import-users", "-"], env) == 1
+
+    out, err = capsys.readouterr()
+    assert (out, err) == (
+        "",
+        "erro: a entrada acabou sem a linha final do export-users (ele falhou ou parou no meio?); "
+        "nada foi gravado\n",
+    )
+    assert count(db_session, User) == 0
+
+
+def test_a_line_cut_in_the_middle_writes_nothing(db_session, env, stdin, capsys):
+    stdin(export_text(EXPORT)[:-30])
+
+    assert main(["import-users", "-"], env) == 1
+
+    assert capsys.readouterr() == ("", "erro: linha 4: não é JSON; nada foi gravado\n")
+    assert count(db_session, User) == 0
+
+
+@pytest.mark.parametrize("total", [0, 3, 5, MAX_ACCOUNT_ID])
+def test_a_wrong_total_writes_nothing(db_session, env, stdin, capsys, total):
+    stdin("".join(f"{line(data)}\n" for data in [*EXPORT, end(total)]))
+
+    assert main(["import-users", "-"], env) == 1
+
+    assert capsys.readouterr() == (
+        "",
+        "erro: linha 5: o total da linha final não bate com as 4 contas lidas; nada foi gravado\n",
+    )
+    assert count(db_session, User) == 0
+
+
+@pytest.mark.parametrize(
+    "after",
+    [
+        line(record(99, "outra@example.com")),
+        line(end(4)),
+        line(end(5)),
+        "",
+        "   ",
+        "nada",
+    ],
+)
+def test_any_line_after_the_end_writes_nothing(db_session, env, stdin, capsys, after):
+    stdin(export_text(EXPORT) + after + "\n")
+
+    assert main(["import-users", "-"], env) == 1
+
+    assert capsys.readouterr() == (
+        "",
+        "erro: linha 6: linha depois da linha final do export-users; nada foi gravado\n",
+    )
+    assert count(db_session, User) == 0
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"end": True},
+        {"count": 1},
+        {"end": True, "count": 1, "sobra": 1},
+        {"end": False, "count": 1},
+        {"end": 1, "count": 1},
+        {"end": "true", "count": 1},
+        {"end": None, "count": 1},
+        {"end": True, "count": None},
+        {"end": True, "count": True},
+        {"end": True, "count": "1"},
+        {"end": True, "count": 1.0},
+        {"end": True, "count": -1},
+        {"end": True, "sobra": 1},
+    ],
+)
+def test_an_invalid_end_line_is_refused(data):
+    with pytest.raises(ImportFailure) as raised:
+        parse_accounts([line(record()), line(data)])
+
+    if "end" in data:
+        assert str(raised.value) == (
+            'linha 2: linha final inválida (o formato é {"end": true, "count": <total>})'
+        )
+    else:
+        # Sem "end", é uma conta (com os campos errados)
+        assert str(raised.value).startswith("linha 2: faltam os campos")
+
+
 def test_import_needs_a_write_transaction(db_session):
     with pytest.raises(RuntimeError, match="fora de write_transaction"):
-        import_accounts(db_session, parse_accounts([line(record())]), now=NOW)
+        import_accounts(db_session, parse_accounts(export_lines([record()])), now=NOW)
 
 
 def test_many_accounts_in_one_transaction(db_session):
-    lines = [line(record(index, f"user{index}@example.com")) for index in range(1, 1201)]
+    lines = export_lines([record(index, f"user{index}@example.com") for index in range(1, 1201)])
 
     with write_transaction(db_session):
         summary = import_accounts(db_session, parse_accounts(lines), now=NOW)
@@ -259,19 +379,29 @@ def test_many_accounts_in_one_transaction(db_session):
 
     # Um id da última leva (depois de 1000 contas) já existe: nada entra
     save(db_session, new_user("nova@example.com", id=5000))
-    more = [line(record(index, f"mais{index}@example.com")) for index in range(4000, 5001)]
+    more = export_lines([record(index, f"mais{index}@example.com") for index in range(4000, 5001)])
     with pytest.raises(ImportFailure, match="o id 5000 já existe"), write_transaction(db_session):
         import_accounts(db_session, parse_accounts(more), now=NOW)
     assert count(db_session, User) == 1201
 
 
-def test_empty_input_is_refused(db_session, env, stdin, capsys):
-    stdin("\n\n")
+@pytest.mark.parametrize("content", ["", "\n\n"])
+def test_empty_input_is_refused(db_session, env, stdin, capsys, content):
+    stdin(content)
 
     assert main(["import-users", "-"], env) == 1
     assert capsys.readouterr().err == (
-        "erro: entrada vazia; nada foi gravado (o export-users rodou?)\n"
+        "erro: a entrada acabou sem a linha final do export-users (ele falhou ou parou no meio?); "
+        "nada foi gravado\n"
     )
+
+
+def test_an_export_without_accounts_is_refused(db_session, env, stdin, capsys):
+    stdin(export_text([]))
+
+    assert main(["import-users", "-"], env) == 1
+    assert capsys.readouterr() == ("", "erro: a entrada não tem nenhuma conta; nada foi gravado\n")
+    assert count(db_session, User) == 0
 
 
 def test_a_terminal_is_refused(env, monkeypatch, capsys):
@@ -305,18 +435,21 @@ def test_only_stdin_is_accepted(env, capsys, argv):
     assert "usage:" in capsys.readouterr().err
 
 
-def test_runs_as_a_module_with_a_pipe(db_session, env):
+def run_module(env: dict[str, str], content: str) -> subprocess.CompletedProcess[bytes]:
     environ = {key: value for key, value in os.environ.items() if key not in ENV_VARS}
-
-    result = subprocess.run(
+    return subprocess.run(
         [sys.executable, "-m", "app.cli", "import-users", "-"],
         cwd=BACKEND_DIR,
         env=environ | env | {"PYTHONIOENCODING": "utf-8"},
-        input="".join(f"{line(data)}\n" for data in EXPORT).encode(),
+        input=content.encode(),
         capture_output=True,
         timeout=60,
         check=False,
     )
+
+
+def test_runs_as_a_module_with_a_pipe(db_session, env):
+    result = run_module(env, export_text(EXPORT))
 
     assert (result.returncode, result.stderr.decode()) == (0, "")
     out = result.stdout.decode()
@@ -324,3 +457,13 @@ def test_runs_as_a_module_with_a_pipe(db_session, env):
     # Só contagens: nenhum email na saída
     assert "@" not in out
     assert count(db_session, User) == 4
+
+
+def test_a_truncated_pipe_fails_with_no_email_in_the_output(db_session, env):
+    result = run_module(env, "".join(f"{line(data)}\n" for data in EXPORT))
+
+    assert result.returncode == 1
+    assert result.stdout == b""
+    assert result.stderr.decode().startswith("erro: a entrada acabou sem a linha final")
+    assert "@" not in result.stderr.decode()
+    assert count(db_session, User) == 0

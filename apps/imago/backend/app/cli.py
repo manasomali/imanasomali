@@ -180,8 +180,9 @@ def _import_users(context: CommandContext, _args: argparse.Namespace) -> int:
     """Importa as contas do ethos, uma linha JSON por conta no stdin (`app/import_users.py`).
 
     Só pelo stdin, ligado por um pipe ao `export-users` do ethos: as contas (com os emails) não
-    passam por arquivo. Recusa um terminal no stdin. Tudo ou nada, numa transação só; a saída tem
-    só contagens, nunca email.
+    passam por arquivo. Recusa um terminal no stdin. A entrada precisa terminar na linha final do
+    export, com o total certo: sem ela, o export morreu no meio e o pipe trouxe só parte das
+    contas. Tudo ou nada, numa transação só; a saída tem só contagens, nunca email.
     """
     if sys.stdin.isatty():
         raise CommandError(
@@ -191,7 +192,7 @@ def _import_users(context: CommandContext, _args: argparse.Namespace) -> int:
     try:
         accounts = parse_accounts(_decoded_lines(sys.stdin.buffer))
         if not accounts:
-            raise CommandError("entrada vazia; nada foi gravado (o export-users rodou?)")
+            raise CommandError("a entrada não tem nenhuma conta; nada foi gravado")
         with context.session_factory() as session, write_transaction(session):
             summary = import_accounts(session, accounts, now=utcnow())
     except OSError as exc:
@@ -325,10 +326,12 @@ def build_parser() -> argparse.ArgumentParser:
         "import-users",
         help="importa as contas do ethos (export-users), uma vez só, pelo stdin",
         description=(
-            "Passagem do login do ethos para o imago: lê do stdin uma linha JSON por conta, no "
-            "formato do export-users do ethos, e grava todas numa transação só, com os mesmos "
-            "ids e sem o aceite dos termos. Não grava nada se uma linha for inválida, se um id ou "
-            "email se repetir na entrada ou já existir no imago. Imprime só as contagens."
+            "Passagem do login do ethos para o imago: lê do stdin uma linha JSON por conta e a "
+            'linha final {"end": true, "count": <total>}, no formato do export-users do ethos, e '
+            "grava todas numa transação só, com os mesmos ids e sem o aceite dos termos. Não grava "
+            "nada se uma linha for inválida, se um id ou email se repetir na entrada ou já existir "
+            "no imago, se faltar a linha final (o export parou no meio), se o total dela não bater "
+            "ou se vier alguma linha depois dela. Imprime só as contagens."
         ),
     )
     import_users.add_argument(
