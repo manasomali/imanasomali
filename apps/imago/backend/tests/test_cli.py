@@ -1,4 +1,5 @@
-"""CLI (`python -m app.cli`): cleanup, seed, erros e uso."""
+"""CLI (`python -m app.cli`): cleanup, seed, erros e uso. O create-admin fica em
+test_create_admin.py."""
 
 import os
 import subprocess
@@ -138,7 +139,9 @@ def test_seed_refuses_outside_dev(db_session, env, capsys):
     assert count(db_session, User) == 0
 
 
-@pytest.mark.parametrize("argv", [[], ["nao-existe"], ["cleanup", "--sobra"], ["seed", "x"]])
+@pytest.mark.parametrize(
+    "argv", [[], ["nao-existe"], ["cleanup", "--sobra"], ["create-admin"], ["seed", "x"]]
+)
 def test_wrong_usage_exits_with_2(env, argv, capsys):
     with pytest.raises(SystemExit) as raised:
         main(argv, env)
@@ -151,7 +154,7 @@ def test_help_lists_the_commands(capsys):
         main(["--help"], {})
     assert raised.value.code == 0
     out = capsys.readouterr().out
-    for command in ("cleanup", "seed"):
+    for command in ("cleanup", "create-admin", "seed"):
         assert command in out
 
 

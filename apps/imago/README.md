@@ -1,0 +1,172 @@
+# imago
+
+A conta única do `manasomali.com`: login, sessão, termos, exclusão de conta e o envio de todos os emails, para o site e todas as aplicações. Servido em `manasomali.com/imago/`, com API em `manasomali.com/api/imago/`. Segue a convenção de [apps/README.md](../README.md); o plano é o [imago-plan.md](../../imago-plan.md).
+
+| Pasta | O quê |
+|---|---|
+| `backend/` | API em Python + FastAPI, gerenciada pelo [uv](https://docs.astral.sh/uv/), porta 3003 |
+| `frontend/` | React + Vite, servido em `/imago/` |
+
+Back e front são independentes: cada um tem as suas dependências e o seu lockfile. O imago não importa código do ethos nem de outra aplicação, e elas não importam o dele: falam só por HTTP local (ver [API interna](#api-interna)).
+
+## Requisitos
+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/). Ele instala sozinho a versão do Python fixada em `backend/.python-version` (a mesma do ethos).
+- Node 22 e npm.
+
+## Backend
+
+```bash
+cd apps/imago/backend
+uv sync                                       # cria a .venv com as dependências de dev
+cp .env.example .env                          # config local; o .env fica fora do git
+uv run --env-file .env alembic upgrade head   # cria ou atualiza o banco (DATABASE_PATH)
+uv run --env-file .env python -m app.cli seed # contas de exemplo 101, 102 e 103 (opcional)
+uv run --env-file .env uvicorn app.main:app --reload --port 3003 --root-path /api/imago
+```
+
+A API sobe em `http://127.0.0.1:3003`, na porta de produção, porque as aplicações em dev chamam o imago nela (`IMAGO_INTERNAL_URL`). Como em produção, as rotas ficam na raiz (`http://127.0.0.1:3003/health`) e o prefixo público entra pelo `--root-path`: em produção o nginx tira o `/api/imago` antes de repassar a request. No Git Bash (Windows), o MSYS converte `/api/imago` num caminho do Windows: rode o comando no PowerShell ou prefixe com `MSYS_NO_PATHCONV=1`.
+
+Testes e lint:
+
+```bash
+uv run pytest                              # com cobertura; falha abaixo de 85%
+uv run ruff check                          # lint (--fix corrige o que der)
+uv run ruff format                         # formata; --check só confere, como no CI
+uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/router.py,app/auth/security.py,app/auth/service.py,app/body_limit.py,app/config.py,app/internal/deps.py,app/internal/router.py,app/mail/quota.py,app/mail/sender.py,app/retention.py,app/seed.py   # depois do pytest
+```
+
+Os módulos da lista acima precisam de 100% de cobertura (linhas e ramos); ela fica na variável `FULL_COVERAGE` do workflow. Os testes não precisam de `.env`: as fixtures de `tests/conftest.py` montam a config com um SQLite em arquivo temporário (`settings`, `make_settings`, `engine`, `db_session`, `outbox`, `app`, `client`, `make_client`, `smtp_server`, `make_smtp_server`, `make_account`). O banco de teste já vem com o schema completo: as migrações rodam uma vez por execução do pytest e cada teste recebe uma cópia. `tests/factories.py` tem `new_user`, `save` e `count`; `tests/auth_helpers.py`, o login completo (`login`), `cookie`, `open_session` e o `Outbox` (email em memória); `tests/internal_helpers.py`, os tokens de teste do ethos e do engrafi e `bearer(token)`.
+
+Dependências entram com `uv add <pacote>` (ou `uv add --dev <pacote>`), que atualiza o `pyproject.toml` e o `uv.lock`. Os dois vão juntos no commit.
+
+### Configuração
+
+Toda a config vem de variáveis de ambiente, lidas e validadas por `app/config.py` na subida. Variável obrigatória faltando ou valor inválido derruba o servidor com a lista do que está errado, sem mostrar os valores (passam por aqui a senha do SMTP e os tokens). Variável vazia conta como não definida.
+
+| Variável | O quê |
+|---|---|
+| `APP_ENV` | `prod` ou `dev`. Com `prod`, o email de console é recusado e o `APP_URL` precisa ser https |
+| `APP_URL` | URL pública do front (`https://manasomali.com/imago`). A origem dela é a única aceita no header `Origin` |
+| `DATABASE_PATH` | arquivo SQLite (`/var/lib/sqlite/imago/app.db` em produção) |
+| `SUPPORT_EMAIL` | contato da tela de conta (troca de email) e destino do aviso de teto de envio |
+| `MAIL_FROM_ADDRESS` | remetente de todos os emails (`no-reply@manasomali.com`); o nome é "manasomali.com" ou o da aplicação |
+| `EMAIL_BACKEND` | `smtp` ou `console` (só com `APP_ENV=dev`: o email, com o código, sai no terminal) |
+| `IMAGO_APPS` | aplicações que usam o imago, na ordem da tela de conta: `ethos=http://127.0.0.1:3001[,engrafi=http://127.0.0.1:3002]`. Pode ficar vazia |
+| `MAX_EMAILS_PER_DAY`, `MAX_EMAILS_PER_HOUR` | teto de envio em janelas móveis de 24 h e 1 h (padrão 275 e 60) |
+| `MAIL_RESERVED_FOR_CODES_PER_DAY`, `MAIL_RESERVED_FOR_CODES_PER_HOUR` | fim de cada janela reservado a códigos e emails de conta (padrão 60 e 15) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | credenciais SMTP (`/etc/infra/smtp.env`), obrigatórias com `EMAIL_BACKEND=smtp` |
+| `IMAGO_APP_TOKENS` | token da API interna de cada aplicação: `ethos:<token>[,engrafi:<token>]` (`/etc/infra/internal/imago.env`) |
+
+Validação do `IMAGO_APPS` e do `IMAGO_APP_TOKENS` na subida: nome de aplicação com a regra do `infra/databases.txt` (`^[a-z][a-z0-9-]{1,26}$`, nunca `imago`), URL só `http://127.0.0.1:<porta>` (sem caminho), nada repetido, token base64url de 32 a 512 caracteres, um token para cada aplicação do `IMAGO_APPS` e nenhum token igual em duas aplicações (é o token que diz quem chamou). Um token de uma aplicação fora do `IMAGO_APPS` é aceito na subida, mas não autentica nada.
+
+O `.env.example` já serve para desenvolver: `APP_ENV=dev`, `EMAIL_BACKEND=console`, o banco em `imago-dev.db`, `APP_URL` no nginx de desenvolvimento (`http://localhost:8080/imago`) e o ethos no `IMAGO_APPS` com um token só de dev, que vai também no `INTERNAL_API_TOKEN` do `.env` do ethos. Os nomes do `.env.example` são exatamente os da config (um teste confere); o teste que os compara com o `infra/apps/imago/app.env` + `smtp.env` + `IMAGO_APP_TOKENS` entra com a infra do imago (ETH-57).
+
+### Banco, erros e logs
+
+- `app/db.py`: o mesmo do ethos. Engine síncrona com `busy_timeout=5000`, `synchronous=NORMAL`, `foreign_keys=ON` e `secure_delete=ON` em toda conexão nova. Endpoints que usam o banco são `def` (nunca `async def`) e recebem a sessão por `SessionDep`. Toda escrita vai dentro de `with write_transaction(session):` (`BEGIN IMMEDIATE`); escrita do ORM fora dele é recusada.
+- `app/models.py`: `users`, `sessions`, `login_codes`, `audit_log`, `mail_log` e `app_tasks`. Datas sempre em UTC; enums e tamanhos com `CHECK` no banco. `users.id` é um inteiro aleatório de 1 a 2^53 - 1 (`generate_account_id`), sorteado ao criar a conta, nunca sequencial: a coluna é `BIGINT` (não vira o rowid do SQLite), então uma conta sem id é recusada em vez de ganhar o maior id + 1. `users.email` é único, só ASCII, salvo com strip + lower. `users.status` é `active` ou `deleting`; `terms_version` e `terms_accepted_at` vazios só numa conta que ainda não aceitou nenhuma versão (as importadas do ethos). Apagar um usuário apaga em cascata as sessões, os códigos e as tarefas, e deixa `NULL` o `audit_log.user_id`. `app_tasks` tem no máximo uma tarefa pendente por (`user_id`, `app`, `action`) (índice único parcial `uq_app_tasks_pending`).
+- `app/errors.py`: catálogo de códigos (`ErrorCode`), com `mail_quota` além dos do ethos. Toda resposta de erro sai como `{"error": "<codigo>", "field": "<campo>" | null}`.
+- `app/logs.py`: uma linha por request (método, rota declarada, status e duração). Nunca IP, query string, corpo, headers (nem os `X-User-*`), cookies, email, código ou token.
+- `app/body_limit.py`: corpo de qualquer request até 100 KB, conferido pelo `Content-Length` antes de ler o corpo; acima disso, ou sem `Content-Length` (chunked), 422 `validation_error`.
+- `GET /health`: 200 `{"status": "ok"}` se o banco responde a `SELECT 1`; senão 503 `database_unavailable`.
+
+### Migrações
+
+O schema é criado e alterado só pelo Alembic, com `alembic.ini` e `migrations/` na pasta do backend, como no ethos. **Desvio do plano**: a árvore do `imago-plan.md` mostra `alembic/versions/`, mas a pasta é `migrations/`, porque os scripts de deploy compartilhados (`packages/deploy/`, vindos de `apps/ethos/deploy/`) dependem desse layout. O banco vem de `DATABASE_PATH`.
+
+```bash
+uv run --env-file .env alembic upgrade head      # aplica as migrações que faltam
+uv run --env-file .env alembic current           # revisão em que o banco está
+uv run --env-file .env alembic downgrade -1      # desfaz a última
+```
+
+As regras são as do ethos (seção "Migrações" do [apps/ethos/README.md](../ethos/README.md)): uma transação só por execução, chaves estrangeiras desligadas durante a migração e conferidas antes do commit, só modo online, migração escrita à mão (`uv run alembic revision --rev-id 0002 -m "descricao"`) e `app/models.py` no mesmo PR. `tests/test_migrations.py` sobe, desce e sobe de novo e compara o banco migrado com os modelos (drift).
+
+### Auditoria e retenção
+
+- `app/audit.py`: `audit.record(session, AuditEvent.X, user_id=..., ip=..., details={...})` dentro do `write_transaction` da mudança. Lista fechada: eventos de auth (`code_requested`, `login`, `login_failed`, `logout`, `logout_all`, `delete_code_requested`, `send_cap_reached`), da conta (`terms_accepted`, `profile_updated`, `account_deleted`) e do admin (`admin_created`, `user_blocked`, `user_unblocked`, `email_changed`). Ação sobre outra conta leva o id dela em `details.target_user_id`. Nenhuma chave com `code`, `token`, `cookie`, `password` etc. no `details`.
+- `app/retention.py` (pelo `cleanup`, de hora em hora): eventos de auth com mais de 90 dias saem; IPs do `audit_log` e de `sessions` com mais de 90 dias viram `NULL`; sessões vencidas saem; `login_codes` criados há mais de 1 dia saem (o limite por email conta essas linhas, então um código vencido continua no banco até lá); `mail_log` com mais de 48 h sai; tarefas concluídas há mais de 7 dias saem (as pendentes ficam).
+
+### Login por código
+
+Cadastro e login são o mesmo fluxo, sem senha: `POST /auth/code/request` com `{email}` manda um código de 6 dígitos, e `POST /auth/code/verify` com `{email, code, timezone, locale}` confere o código, cria a conta no primeiro acesso e abre a sessão.
+
+- `app/auth/security.py` (ETH-16): código com `secrets.randbelow(10**6)` (sempre 6 dígitos), token com `secrets.token_urlsafe(32)`, id de conta aleatório, sha256 e comparação com `hmac.compare_digest`. No banco ficam só os hashes.
+- `app/auth/service.py` (ETH-17): o código vale 10 minutos, uma vez só, por no máximo 5 tentativas (contadas antes de comparar, num `BEGIN IMMEDIATE`, e gravadas mesmo quando a resposta é erro); pedir outro invalida o anterior do mesmo propósito. Limite por email de 1 código por minuto e 5 por hora, somando login e exclusão de conta, contado pelas linhas de `login_codes`. Depois, o teto de envio compartilhado (tipo `code`). Conta bloqueada ou em exclusão ganha a linha do código (conta nos limites), mas nenhum email. Conta nova nasce com o id aleatório, `TERMS_VERSION` aceita e o fuso e o idioma do navegador; conta existente ignora os dois. O email de uma conta em exclusão não cria conta nova. `request_delete_code` e `use_delete_code` já existem para a exclusão de conta (ETH-61).
+- `app/auth/router.py`: `request` responde sempre 202 com o mesmo corpo e headers (com conta, sem conta, bloqueada, em exclusão) e 429 `rate_limited` igual para qualquer email; `verify` responde 400 `invalid_code` (field `code`) para qualquer código recusado e 422 `invalid_timezone` para fuso desconhecido no primeiro acesso. Email só ASCII (até 254 caracteres): ele vai no header `X-User-Email` das aplicações.
+- `app/terms.py`: `TERMS_VERSION = "2026-11-08"`, a mesma constante do front (`frontend/src/lib/legal.js`, conferida pelo `src/lib/legal.test.js`). Fica no código e muda no mesmo PR dos textos.
+
+### Sessão, CSRF e conta
+
+- Cookie `__Host-imago_session` (`app/auth/cookies.py`): `HttpOnly; Secure; SameSite=Lax; Path=/`, sem `Domain`, `Max-Age` de 400 dias. Quem decide a validade é o `expires_at` da sessão (60 dias sem uso): a renovação feita pelo `auth_request` não chega ao navegador.
+- `app/auth/deps.py`: `CurrentUser` (sessão válida e termos atuais aceitos; senão 403 `terms_not_accepted`), `AdminUser` (`is_admin` lido do banco a cada request; senão 403 `forbidden`), `CurrentUserAnyTerms` (só `GET /me` e `POST /me/terms`, e a exclusão da conta na ETH-61) e `CurrentSession` (logout). Sem cookie, token desconhecido, sessão vencida, conta bloqueada ou em exclusão: 401 `unauthorized`. A sessão renova com o uso, no máximo uma escrita por dia (`RENEWAL_INTERVAL`), também pelo `/internal/session`.
+- `app/auth/origin.py`: toda request que não seja GET, HEAD ou OPTIONS sem exatamente um `Origin` igual à origem do `APP_URL` leva 403 `forbidden`, antes de ler o corpo. `/internal/*` fica de fora (confere o token).
+- Endpoints: `POST /auth/logout` (apaga a sessão atual e o cookie), `POST /auth/logout-all` (todas as sessões do usuário), `GET /me` (`{id, email, timezone, locale, is_admin, terms_version, current_terms_version, terms_pending, apps, support_email}`; `apps` são os nomes do `IMAGO_APPS`, e o link de cada um é `/<nome>/`), `PATCH /me` com `{timezone?, locale?}` (exige os termos atuais; fuso desconhecido: 422 `invalid_timezone`; `null` ou campo desconhecido: 422) e `POST /me/terms` com `{terms_version}` (diferente da atual: 409 `conflict`). Atenção: no ethos era `/auth/me`; no imago é `/me`.
+
+### API interna
+
+Só entre os serviços, direto em `127.0.0.1:3003`, nunca pelo nginx (que responde 404 para `/api/imago/internal/`).
+
+- `GET /internal/session`, sem token, chamado pelo `auth_request` do nginx em cada request de `/api/<app>/`: sempre 200 e corpo vazio. Com cookie válido, conta ativa e termos atuais aceitos, devolve `X-User-Id` (decimal), `X-User-Email`, `X-User-Locale`, `X-User-Timezone` e `X-User-Admin: 1` (só para admin); em qualquer outro caso, nenhum deles. Renova a sessão com a regra de uma escrita por dia. Responde igual a qualquer método, caso o nginx repasse o do request original.
+- Todo o resto de `/internal/*` exige `Authorization: Bearer <token da aplicação>` (`app/internal/deps.py`, `CallerApp`), comparado em tempo constante com os do `IMAGO_APP_TOKENS`; sem token ou com token errado, 401. O token diz qual aplicação chamou: é esse nome que vai no `mail_log` e no remetente, nunca um que venha no corpo. O `router` de `app/internal/router.py` põe a dependência em todas as rotas dele, e um teste confere, pelo OpenAPI, que toda rota de `/internal/` (menos `/internal/session`) responde 401 sem token.
+- `POST /internal/mail` `{kind: "notification", user_id, subject, text, html}`: 202 `{"status": "accepted"}` com a linha do `mail_log` gravada (o SMTP roda depois, em BackgroundTasks; a falha vira uma linha de log); 204 para conta bloqueada ou em exclusão (sem envio e sem contar); 404 `not_found` para id inexistente; 429 `mail_quota` com o teto de notificações atingido; 422 na validação (assunto até 200 caracteres numa linha só, campos desconhecidos recusados). O destinatário é sempre um usuário do imago, por id.
+
+### Email e teto de envio
+
+Só o imago fala com o SMTP (a unit dele é a única que lê o `smtp.env`), pelo pacote `app/mail/`:
+
+- `sender.py`: `Mailer`, `OutgoingEmail` (emails do próprio imago, do catálogo, com "manasomali.com" no remetente), `Notification` (emails prontos das aplicações, com o nome da aplicação no remetente) e `schedule(background_tasks, mailer, outgoing)`, chamado depois que o `write_transaction` fechou. Falha de envio vira uma linha de erro com o tipo do email e do erro, sem destinatário, código nem corpo, e não derruba o request.
+- `backends.py`: SMTP só com STARTTLS e certificado verificado (sem STARTTLS, nada sai) e o backend de console, recusado fora de `APP_ENV=dev`.
+- `catalog.py` e `templates.py`: os emails do imago em pt e en (código de login, código de exclusão, conta excluída, troca de email para o antigo e para o novo, teto atingido para o suporte). Assunto fixo por tipo e idioma, sem código nem email; todo dado escapado no HTML. Idioma pelo `users.locale` ou pelo `Accept-Language` (`language.py`), com `en` quando nada bate.
+- `quota.py`: um teto só para o imago e todas as aplicações, contado pelas linhas de `mail_log` (aplicação, tipo e instante, sem destinatário) em janelas móveis de 24 h e de 1 h. Códigos e emails de conta param em `MAX_EMAILS_PER_DAY`/`MAX_EMAILS_PER_HOUR`; notificações param antes, quando sobram só as reservas (`MAIL_RESERVED_FOR_CODES_*`). A linha é gravada na mesma transação `BEGIN IMMEDIATE` que confere o teto, antes do SMTP. Quando um código (ou email de conta) é recusado, o `SUPPORT_EMAIL` recebe um aviso, no máximo um por hora (o último é o evento `send_cap_reached`, lido e gravado na mesma transação), fora da contagem.
+
+Nos testes, a fixture `smtp_server` sobe um servidor SMTP falso (aiosmtpd) com STARTTLS e login obrigatórios; o `app` padrão usa o `outbox`, em memória.
+
+### Comandos de operação (CLI)
+
+```bash
+uv run --env-file .env python -m app.cli --help      # lista os comandos
+uv run --env-file .env python -m app.cli cleanup     # aplica a retenção de dados
+uv run --env-file .env python -m app.cli create-admin voce@example.com   # torna a conta admin
+uv run --env-file .env python -m app.cli seed        # contas de exemplo (só em dev)
+```
+
+O CLI lê a mesma config do servidor e abre o banco de `DATABASE_PATH`, que precisa existir e estar migrado. Código de saída 0 em sucesso, 1 em erro (a mensagem sai no stderr com `erro:`, sem stack trace nem valores) e 2 em uso errado. As contas aparecem pelo id, nunca pelo email.
+
+| Comando | O quê |
+|---|---|
+| `cleanup` | Retenção de dados (ver acima), numa transação só. Imprime quantas linhas mudou em cada passo; a segunda execução seguida não muda nada. Roda de hora em hora pelo `imago-cleanup.timer` (ETH-57), depois do `run-tasks` (ETH-59). |
+| `create-admin <email>` | Liga o `is_admin` de uma conta que já existe e grava `admin_created` (`{"via": "cli"}`). É o único jeito de criar admin: não existe endpoint para isso. O email é normalizado como no login. Email sem conta: erro, nada muda (a pessoa entra no imago uma vez antes). Conta bloqueada ou em exclusão: erro, nada muda. Conta que já é admin: avisa, sai com 0 e não grava nada. |
+| `seed` | Só com `APP_ENV=dev`. Cria as contas de exemplo com ids fixos, que os seeds das aplicações usam: 101 `ana@example.com` (admin, `America/Sao_Paulo`, pt), 102 `bia@example.com` (`America/Sao_Paulo`, pt) e 103 `caio@example.com` (`Europe/Lisbon`, en), todas com os termos atuais aceitos (`app/seed.py`, `SEED_ACCOUNTS`). Se alguma já existe, não grava nada. |
+
+Na VM, como `app-imago`, com o mesmo ambiente da unit:
+
+```bash
+sudo systemd-run --quiet --pipe --wait --collect \
+  --uid=app-imago --gid=app-imago \
+  --working-directory=/opt/apps/imago \
+  -p EnvironmentFile=/etc/infra/smtp.env \
+  -p EnvironmentFile=/etc/infra/internal/imago.env \
+  -p EnvironmentFile=/etc/infra/apps/imago.env \
+  /opt/apps/imago/.venv/bin/python -m app.cli create-admin voce@example.com
+```
+
+Comando novo: um handler `(context: CommandContext, args) -> int` em `app/cli.py`, registrado em `build_parser`. Erro esperado é `raise CommandError("mensagem")`.
+
+### Regras
+
+- Nunca logar email, código, token, cookie, IP nem os headers `X-User-*`. Nunca pôr código, token ou cookie no `details` da auditoria.
+- Toda escrita num `write_transaction`, com as leituras que decidem a escrita dentro dele. Emails só depois do commit.
+- Admin só pelo `create-admin`; o último admin ativo não é bloqueado nem apagado (ETH-61, ETH-62).
+- Mudança no catálogo de erros entra também nos `translation.json` do front.
+- Nada importa de `site/` nem de `apps/<outra>/`.
+
+Pontos de extensão para as próximas tasks: o `PATCH /me` marca onde entram as tarefas `refresh` (ETH-59); `app/internal/router.py` recebe `/internal/users/lookup` e `/internal/users/{id}` (ETH-59) já com o token; `app/auth/router.py` tem `code_request_response`, `reload_user` e `me_response` para o `POST /me/delete/request` e o `DELETE /me` (ETH-61), que usam `request_delete_code`/`use_delete_code` do `service.py`; `quota.reserve` com `MailKind.ACCOUNT` e `quota.support_alert` servem aos emails de conta; `Settings.app_token(nome)` dá o token para chamar cada aplicação.
+
+## CI
+
+O workflow [imago.yaml](../../.github/workflows/imago.yaml) roda em PRs e em push na `main` que tocam `apps/imago/**`, `packages/**` ou o próprio workflow, só com checagens (o deploy entra na ETH-63):
+
+- backend: `check-python-version.sh`, `uv lock --check`, `uv sync --frozen`, `ruff check`, `ruff format --check`, `pytest --cov` (85%) e 100% de cobertura nos módulos de `FULL_COVERAGE`;
+- frontend: `npm ci`, `npm run lint`, `npm run build` e `npm test`.
