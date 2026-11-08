@@ -394,3 +394,4 @@ O workflow [imago.yaml](../../.github/workflows/imago.yaml) roda em PRs e em pus
 
 - backend: `check-python-version.sh`, `uv lock --check`, `uv sync --frozen`, `ruff check`, `ruff format --check`, `pytest --cov` (85%) e 100% de cobertura nos módulos de `FULL_COVERAGE`;
 - frontend: `npm ci`, `npm run lint`, `npm run build` e `npm test`.
+- consistência com a infra: `.github/scripts/check-imago-apps.sh` (o `IMAGO_APPS` do `infra/apps/imago/app.env` tem toda aplicação de `infra/apps/`, com a porta do `app.conf` dela, e cada uma tem os textos da tela de conta em pt e en). O backend compara o `.env.example` com o `app.env`, o `smtp.env` e o `IMAGO_APP_TOKENS` (`tests/test_env_files.py`).

@@ -9,11 +9,23 @@ on:
       - "apps/imago/**"
       - "packages/**"
       - ".github/workflows/imago.yaml"
+      # Lidos pelos testes e checagens de consistência com a infra
+      - "infra/apps/*/app.conf"
+      - "infra/apps/imago/app.env"
+      - "infra/provision.sh"
+      - ".github/scripts/check-python-version.sh"
+      - ".github/scripts/check-imago-apps.sh"
   pull_request:
     paths:
       - "apps/imago/**"
       - "packages/**"
       - ".github/workflows/imago.yaml"
+      # Lidos pelos testes e checagens de consistência com a infra
+      - "infra/apps/*/app.conf"
+      - "infra/apps/imago/app.env"
+      - "infra/provision.sh"
+      - ".github/scripts/check-python-version.sh"
+      - ".github/scripts/check-imago-apps.sh"
 
 # Em PRs, um push novo cancela o run anterior do mesmo PR. Nunca o grupo "infra": o GitHub mantém
 # um run pendente por grupo e cancelaria um deploy na fila atrás de um provision
@@ -118,3 +130,14 @@ jobs:
 
       - name: 🧪 Testes
         run: npm test
+
+  # O IMAGO_APPS do infra/apps/imago/app.env bate com as aplicações de infra/apps/ (portas) e cada
+  # uma tem os textos dela na tela de conta, em pt e en
+  consistency:
+    name: 🔗 Aplicações do IMAGO_APPS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: IMAGO_APPS, portas e textos de cada aplicação
+        run: bash .github/scripts/check-imago-apps.sh
