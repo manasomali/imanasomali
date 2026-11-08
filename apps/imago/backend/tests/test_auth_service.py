@@ -16,6 +16,7 @@ from app.auth.service import (
     CodeRequestResult,
     LoginResult,
     VerifyFailure,
+    account_emails,
     can_sign_in,
     create_session,
     is_valid_timezone,
@@ -26,8 +27,9 @@ from app.auth.service import (
     verify_login_code,
 )
 from app.db import create_session_factory, write_transaction
-from app.mail.catalog import DeleteCode, LoginCode, SendCapReached
+from app.mail.catalog import AccountDeleted, DeleteCode, LoginCode, SendCapReached
 from app.mail.language import Locale
+from app.mail.sender import OutgoingEmail
 from app.models import (
     MAX_ACCOUNT_ID,
     AuditLog,
@@ -301,6 +303,45 @@ def test_delete_code_respects_the_cap(db_session, settings):
 
     assert result.outcome is CodeRequestOutcome.CAP_REACHED
     assert len(result.emails) == 1
+
+
+# --- emails de conta ---
+
+
+def account_email(to: str) -> OutgoingEmail:
+    return OutgoingEmail(to, Locale.PT, AccountDeleted())
+
+
+def test_account_emails_take_their_place_in_the_cap(db_session, settings):
+    with write_transaction(db_session):
+        allowed = account_emails(db_session, settings, map(account_email, [ANA, "b@x.io"]))
+
+    assert [outgoing.to for outgoing in allowed] == [ANA, "b@x.io"]
+    db_session.rollback()
+    assert list(db_session.scalars(select(MailLog.kind))) == ["account", "account"]
+    assert events(db_session, AuditEvent.SEND_CAP_REACHED) == []
+
+
+def test_account_emails_refused_by_the_cap_send_one_alert(db_session, settings):
+    fill_mail_log(db_session, 59)
+
+    with write_transaction(db_session):
+        allowed = account_emails(
+            db_session, settings, map(account_email, [ANA, "b@x.io", "c@x.io"])
+        )
+
+    # O primeiro coube (o 60º da hora); os outros dois viram um aviso só ao suporte
+    assert [outgoing.to for outgoing in allowed] == [ANA, "suporte@example.com"]
+    assert isinstance(allowed[1].email, SendCapReached)
+    db_session.rollback()
+    assert count(db_session, MailLog) == 60
+    [alert] = events(db_session, AuditEvent.SEND_CAP_REACHED)
+    assert alert.details == {"window": "hour", "limit": 60, "kind": "account"}
+
+
+def test_account_emails_need_a_write_transaction(db_session, settings):
+    with pytest.raises(RuntimeError, match="fora de write_transaction"):
+        account_emails(db_session, settings, [account_email(ANA)])
 
 
 # --- verificar ---

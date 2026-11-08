@@ -250,6 +250,7 @@ def test_event_list_is_well_formed():
     assert kept == {
         AuditEvent.TERMS_ACCEPTED,
         AuditEvent.PROFILE_UPDATED,
+        AuditEvent.ACCOUNT_DELETION_STARTED,
         AuditEvent.ACCOUNT_DELETED,
         AuditEvent.ADMIN_CREATED,
         AuditEvent.USER_BLOCKED,

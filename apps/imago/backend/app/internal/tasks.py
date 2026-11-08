@@ -48,7 +48,7 @@ from fastapi import BackgroundTasks, Depends, Request
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.config import ImagoApp, Settings
+from app.config import Settings
 from app.db import require_write_transaction, write_transaction
 from app.models import AppTask, TaskAction, User, UserStatus, utcnow
 
@@ -251,20 +251,22 @@ class _Attempt:
 
     task_id: int
     user_id: int
+    app: str
     action: TaskAction
-    app: ImagoApp
-    token: str = field(repr=False)
     payload: dict[str, str] | None = field(default=None, repr=False)
 
 
 def _run(session: Session, settings: Settings, client: httpx2.Client, task_id: int) -> TaskOutcome:
-    attempt = _begin(session, settings, task_id)
+    attempt = _begin(session, task_id)
     rounds = 0
     while isinstance(attempt, _Attempt):
         if rounds == MAX_REFRESH_ROUNDS:
             return TaskOutcome.PENDING
         rounds += 1
-        attempt = _finish(session, attempt, _call(client, attempt))
+        error = call_app(
+            client, settings, attempt.app, attempt.user_id, attempt.action, attempt.payload
+        )
+        attempt = _finish(session, attempt, error)
     return attempt
 
 
@@ -280,18 +282,13 @@ def _load(session: Session, task_id: int) -> tuple[AppTask, User] | None:
     return None if row is None else (row[0], row[1])
 
 
-def _begin(session: Session, settings: Settings, task_id: int) -> _Attempt | TaskOutcome:
+def _begin(session: Session, task_id: int) -> _Attempt | TaskOutcome:
     """Lê a tarefa e monta a chamada; ou o resultado, se não há o que chamar."""
     with write_transaction(session):
         loaded = _load(session, task_id)
         if loaded is None or loaded[0].done_at is not None:
             return TaskOutcome.GONE
         task, user = loaded
-        app, token = settings.app(task.app), settings.app_token(task.app)
-        if app is None or token is None:
-            # A aplicação saiu do IMAGO_APPS com a tarefa pendente: fica pendente (e com erro no
-            # log a cada tentativa, a partir da 5ª), até ela voltar ou alguém resolver à mão
-            return _failed(task, "aplicação fora do IMAGO_APPS", utcnow())
         action = TaskAction(task.action)
         payload = None
         if action is TaskAction.REFRESH:
@@ -301,29 +298,36 @@ def _begin(session: Session, settings: Settings, task_id: int) -> _Attempt | Tas
                 return TaskOutcome.GONE
             payload = refresh_payload(user)
         return _Attempt(
-            task_id=task.id,
-            user_id=task.user_id,
-            action=action,
-            app=app,
-            token=token.get_secret_value(),
-            payload=payload,
+            task_id=task.id, user_id=task.user_id, app=task.app, action=action, payload=payload
         )
 
 
-def _call(client: httpx2.Client, attempt: _Attempt) -> str | None:
-    """Faz a chamada. None quando a aplicação respondeu 200; senão, o motivo da falha.
+# Motivo da falha de uma tarefa cuja aplicação saiu do IMAGO_APPS: ela não é chamada e a tarefa
+# fica pendente (com erro no log a cada tentativa, a partir da 5ª), até a aplicação voltar ou
+# alguém resolver à mão
+UNKNOWN_APP = "aplicação fora do IMAGO_APPS"
+
+
+def call_app(
+    client: httpx2.Client,
+    settings: Settings,
+    app_name: str,
+    user_id: int,
+    action: TaskAction,
+    payload: dict[str, str] | None = None,
+) -> str | None:
+    """Chama a ação na aplicação. None quando ela respondeu 200; senão, o motivo da falha.
 
     O motivo é o status HTTP ou o tipo do erro: nunca a mensagem, a URL nem o token.
     """
-    url = f"{attempt.app.url}/internal/users/{attempt.user_id}/{attempt.action.value}"
+    app, token = settings.app(app_name), settings.app_token(app_name)
+    if app is None or token is None:
+        return UNKNOWN_APP
+    url = f"{app.url}/internal/users/{user_id}/{action.value}"
+    headers = {"Authorization": f"Bearer {token.get_secret_value()}"}
     try:
         # stream: o corpo da resposta não é lido (só o status importa)
-        with client.stream(
-            "POST",
-            url,
-            headers={"Authorization": f"Bearer {attempt.token}"},
-            json=attempt.payload,
-        ) as response:
+        with client.stream("POST", url, headers=headers, json=payload) as response:
             status = response.status_code
     except httpx2.HTTPError as exc:
         return type(exc).__name__

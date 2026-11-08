@@ -443,7 +443,8 @@ def test_run_tasks_exits_0_even_with_failures(db_session, settings, env, apps, a
     assert main(["run-tasks"], env, app_transport=apps.transport) == 0
 
     assert capsys.readouterr().out == (
-        "run-tasks: 2 tarefas tentadas, 1 concluídas, 1 falhas, 0 ficaram para depois\n"
+        "run-tasks: 2 tarefas tentadas, 1 concluídas, 1 falhas, 0 ficaram para depois; "
+        "0 exclusões de conta concluídas\n"
     )
 
 

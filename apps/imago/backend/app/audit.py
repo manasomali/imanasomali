@@ -28,9 +28,10 @@ Regras:
   conferidos: nunca ponha código, token ou cookie num valor.
 - Evento sobre outra conta (ações do admin) leva o id dela em `details.target_user_id`: é por
   ele que a exclusão da conta (ETH-61) acha as linhas que citam a conta, para tirar o IP e os
-  emails delas. `account_deleted` vai com `user_id` = quem apagou (`None` quando foi a própria
+  emails delas. `account_deletion_started` (passo 1 da exclusão) leva a conta em
+  `target_user_id`; `account_deleted` vai com `user_id` = quem apagou (`None` quando foi a própria
   pessoa, cuja linha já não existe) e o id da conta em `details` (`{"account_id": 7,
-  "by_admin": false}`), sem email.
+  "by_admin": false}`), sem email nem IP.
 
 Nunca ponha no `details` código, token, cookie nem senha, e evite email (só a troca de email pelo
 admin leva os dois endereços, que a exclusão da conta apaga).
@@ -75,6 +76,11 @@ class AuditEvent(StrEnum):
     TERMS_ACCEPTED = "terms_accepted"
     # Fuso ou idioma alterado; {"changes": [{"field", "old", "new"}]} (ETH-18)
     PROFILE_UPDATED = "profile_updated"
+    # Passo 1 da exclusão da conta (app/deletion.py); user_id = quem pediu (a própria conta, o
+    # admin, ou None no reapply-deletions), {"target_user_id": n, "by_admin": bool} ou
+    # {"target_user_id": n, "reapplied": true}. É por ele que o passo 3, que pode rodar depois
+    # (no run-tasks), sabe quem apagou e se manda o email; o passo 3 o apaga (ETH-61)
+    ACCOUNT_DELETION_STARTED = "account_deletion_started"
     # Conta apagada (fica depois da exclusão); user_id = quem apagou (None se a própria pessoa),
     # {"account_id": n, "by_admin": bool} ou {"account_id": n, "reapplied": true} (ETH-61)
     ACCOUNT_DELETED = "account_deleted"

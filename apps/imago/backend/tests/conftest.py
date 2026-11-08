@@ -27,7 +27,9 @@
   em 127.0.0.1, com STARTTLS e login obrigatórios. Para o app enviar por ele:
   `create_app(settings, mail_backend=smtp_server.backend())`;
 - `make_account(email, **campos)`: usuário salvo, com os termos atuais aceitos e uma sessão
-  aberta: `Account(user, headers)`, com o cookie em `headers`.
+  aberta: `Account(user, headers)`, com o cookie em `headers`. O `user` sai da sessão do banco
+  (um retrato da conta ao ser criada): `account.user.id` continua legível depois que a conta é
+  apagada. Para o estado atual, releia do banco.
 """
 
 import shutil
@@ -214,6 +216,8 @@ def make_account(db_session) -> Callable[..., Account]:
     def build(email: str, **fields: Any) -> Account:
         user = new_user(email, **({"terms_version": TERMS_VERSION} | fields))
         save(db_session, user)
-        return Account(user, cookie(open_session(db_session, user)))
+        headers = cookie(open_session(db_session, user))
+        db_session.expunge(user)
+        return Account(user, headers)
 
     return build

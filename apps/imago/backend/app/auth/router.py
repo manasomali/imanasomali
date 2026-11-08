@@ -24,8 +24,15 @@ request de escrita passa antes pela checagem de `Origin` (`app/auth/origin.py`).
   ela não for a atual (os termos mudaram com a tela aberta), 409 `conflict` (field
   `terms_version`), e o front mostra os termos novos.
 
-`GET /me`, `POST /me/terms` e o logout funcionam sem os termos atuais aceitos: quem não aceita a
-versão nova dos termos pode sair (e, com a ETH-61, apagar a conta).
+- `POST /me/delete/request`: manda o código de exclusão da conta para o email atual (202 com o mesmo
+  corpo do pedido de código de login; 429 `rate_limited` com os mesmos limites). O último admin
+  ativo recebe 409 `last_admin`.
+- `DELETE /me` com `{code}`: confere o código e começa a exclusão da conta em todas as aplicações
+  (`app/deletion.py`). 204 e o cookie apagado; as aplicações são chamadas depois da resposta.
+  Código recusado: 400 `invalid_code` (field `code`), como no login; último admin: 409.
+
+`GET /me`, `POST /me/terms`, a exclusão da conta e o logout funcionam sem os termos atuais aceitos:
+quem não aceita a versão nova dos termos pode sair ou apagar a conta.
 """
 
 from typing import Annotated, Any
@@ -36,7 +43,7 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, StringConstraints, f
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app import audit
+from app import audit, deletion
 from app.audit import AuditEvent
 from app.auth import service
 from app.auth.cookies import clear_session_cookie, set_session_cookie
@@ -336,3 +343,48 @@ def accept_terms(
                 details={"terms_version": TERMS_VERSION},
             )
     return me_response(user, settings)
+
+
+# --- exclusão da conta (ETH-61) ---
+
+
+@router.post("/me/delete/request", status_code=202)
+def request_account_deletion(
+    user: CurrentUserAnyTerms,
+    request: Request,
+    session: SessionDep,
+    settings: SettingsDep,
+    mailer: MailerDep,
+    background_tasks: BackgroundTasks,
+) -> JSONResponse:
+    result = deletion.request_account_deletion(
+        session, settings, user_id=user.id, ip=client_ip(request)
+    )
+    return code_request_response(result, background_tasks, mailer)
+
+
+class AccountDeleteBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: Code
+
+
+@router.delete("/me", status_code=204)
+def delete_me(
+    body: AccountDeleteBody,
+    current: CurrentSession,
+    response: Response,
+    session: SessionDep,
+    settings: SettingsDep,
+    task_context: TaskContextDep,
+    mailer: MailerDep,
+    background_tasks: BackgroundTasks,
+) -> None:
+    user_id = current.user.id
+    failure = deletion.delete_own_account(session, settings, user_id=user_id, code=body.code)
+    # A tentativa já foi gravada (commit no serviço); o erro só monta a resposta
+    if failure is not None:
+        raise ApiError(400, ErrorCode.INVALID_CODE, field="code")
+    clear_session_cookie(response)
+    # Depois do commit: as aplicações apagam os dados, e o passo 3 manda o "conta excluída"
+    background_tasks.add_task(deletion.continue_deletion, task_context, mailer, user_id)

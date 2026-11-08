@@ -38,9 +38,14 @@ de todos os propósitos do email; pedir um código de exclusão invalida só os 
 rodam dentro do `write_transaction` de quem chama, que relê a conta e confere o último admin na
 mesma transação.
 
+Emails de conta (`account_emails`: conta excluída, troca de email): cada um reserva o seu lugar no
+teto de envio (tipo `account`), na transação de quem chama. Recusado pelo teto, o email não sai e o
+`SUPPORT_EMAIL` recebe o aviso, com a mesma regra dos códigos (no máximo um por hora).
+
 Código e token nunca vão para log nem para o `audit_log`; no banco ficam só os sha256.
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import StrEnum
@@ -240,6 +245,32 @@ def _check_send_limits(
     delete_expired_login_codes(session, now)
     delete_expired_sessions(session, now)
     return None
+
+
+def account_emails(
+    session: Session, settings: Settings, emails: Iterable[OutgoingEmail]
+) -> tuple[OutgoingEmail, ...]:
+    """Reserva cada email de conta no teto de envio e devolve os que podem sair.
+
+    Cada email que coube no teto (tipo `account`) ganha a sua linha no `mail_log`. Se algum foi
+    recusado, entra no lugar dele o aviso ao `SUPPORT_EMAIL`, no máximo um por hora
+    (`quota.support_alert`). Exige `write_transaction`; quem chama agenda os emails depois do
+    commit.
+    """
+    require_write_transaction(session)
+    now = utcnow()
+    allowed: list[OutgoingEmail] = []
+    for outgoing in emails:
+        refusal = quota.reserve(
+            session, settings, app=IMAGO_APP_NAME, kind=MailKind.ACCOUNT, now=now
+        )
+        if refusal is None:
+            allowed.append(outgoing)
+            continue
+        alert = quota.support_alert(session, refusal, MailKind.ACCOUNT, now)
+        if alert is not None:
+            allowed.append(OutgoingEmail(settings.support_email, SUPPORT_LOCALE, alert))
+    return tuple(allowed)
 
 
 def _email_limit_reached(session: Session, email: str, now: datetime) -> bool:

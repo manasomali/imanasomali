@@ -33,7 +33,7 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/router.py,app/auth/security.py,app/auth/service.py,app/body_limit.py,app/config.py,app/internal/deps.py,app/internal/router.py,app/internal/tasks.py,app/mail/quota.py,app/mail/sender.py,app/retention.py,app/seed.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/router.py,app/auth/security.py,app/auth/service.py,app/body_limit.py,app/config.py,app/deletion.py,app/internal/deps.py,app/internal/router.py,app/internal/tasks.py,app/mail/quota.py,app/mail/sender.py,app/reapply.py,app/retention.py,app/seed.py   # depois do pytest
 ```
 
 Os módulos da lista acima precisam de 100% de cobertura (linhas e ramos); ela fica na variável `FULL_COVERAGE` do workflow. Os testes não precisam de `.env`: as fixtures de `tests/conftest.py` montam a config com um SQLite em arquivo temporário (`settings`, `make_settings`, `engine`, `db_session`, `outbox`, `apps`, `task_context`, `app`, `client`, `make_client`, `smtp_server`, `make_smtp_server`, `make_account`). O banco de teste já vem com o schema completo: as migrações rodam uma vez por execução do pytest e cada teste recebe uma cópia. `tests/factories.py` tem `new_user`, `save` e `count`; `tests/auth_helpers.py`, o login completo (`login`), `cookie`, `open_session` e o `Outbox` (email em memória); `tests/internal_helpers.py`, os tokens de teste do ethos e do engrafi e `bearer(token)`; `tests/apps_helpers.py`, as aplicações falsas (`FakeApps`, num `httpx2.MockTransport`) que recebem as tarefas do imago: o `app` dos testes já vem ligado a elas (fixture `apps`), e nenhum teste chama a rede (uma chamada que escape delas falha o teste).
@@ -85,7 +85,7 @@ As regras são as do ethos (seção "Migrações" do [apps/ethos/README.md](../e
 
 ### Auditoria e retenção
 
-- `app/audit.py`: `audit.record(session, AuditEvent.X, user_id=..., ip=..., details={...})` dentro do `write_transaction` da mudança. Lista fechada: eventos de auth (`code_requested`, `login`, `login_failed`, `logout`, `logout_all`, `delete_code_requested`, `send_cap_reached`), da conta (`terms_accepted`, `profile_updated`, `account_deleted`) e do admin (`admin_created`, `user_blocked`, `user_unblocked`, `email_changed`). Ação sobre outra conta leva o id dela em `details.target_user_id`. Nenhuma chave com `code`, `token`, `cookie`, `password` etc. no `details`.
+- `app/audit.py`: `audit.record(session, AuditEvent.X, user_id=..., ip=..., details={...})` dentro do `write_transaction` da mudança. Lista fechada: eventos de auth (`code_requested`, `login`, `login_failed`, `logout`, `logout_all`, `delete_code_requested`, `send_cap_reached`), da conta (`terms_accepted`, `profile_updated`, `account_deletion_started`, `account_deleted`) e do admin (`admin_created`, `user_blocked`, `user_unblocked`, `email_changed`). Ação sobre outra conta leva o id dela em `details.target_user_id`. Nenhuma chave com `code`, `token`, `cookie`, `password` etc. no `details`.
 - `app/retention.py` (pelo `cleanup`, de hora em hora): eventos de auth com mais de 90 dias saem; IPs do `audit_log` e de `sessions` com mais de 90 dias viram `NULL`; sessões vencidas saem; `login_codes` criados há mais de 1 dia saem (o limite por email conta essas linhas, então um código vencido continua no banco até lá); `mail_log` com mais de 48 h sai; tarefas concluídas há mais de 7 dias saem (as pendentes ficam).
 
 ### Login por código
@@ -103,6 +103,7 @@ Cadastro e login são o mesmo fluxo, sem senha: `POST /auth/code/request` com `{
 - `app/auth/deps.py`: `CurrentUser` (sessão válida e termos atuais aceitos; senão 403 `terms_not_accepted`), `AdminUser` (`is_admin` lido do banco a cada request; senão 403 `forbidden`), `CurrentUserAnyTerms` (só `GET /me` e `POST /me/terms`, e a exclusão da conta na ETH-61) e `CurrentSession` (logout). Sem cookie, token desconhecido, sessão vencida, conta bloqueada ou em exclusão: 401 `unauthorized`. A sessão renova com o uso, no máximo uma escrita por dia (`RENEWAL_INTERVAL`), também pelo `/internal/session`.
 - `app/auth/origin.py`: toda request que não seja GET, HEAD ou OPTIONS sem exatamente um `Origin` igual à origem do `APP_URL` leva 403 `forbidden`, antes de ler o corpo. `/internal/*` fica de fora (confere o token).
 - Endpoints: `POST /auth/logout` (apaga a sessão atual e o cookie), `POST /auth/logout-all` (todas as sessões do usuário), `GET /me` (`{id, email, timezone, locale, is_admin, terms_version, current_terms_version, terms_pending, apps, support_email}`; `apps` são os nomes do `IMAGO_APPS`, e o link de cada um é `/<nome>/`), `PATCH /me` com `{timezone?, locale?}` (exige os termos atuais; fuso desconhecido: 422 `invalid_timezone`; `null` ou campo desconhecido: 422) e `POST /me/terms` com `{terms_version}` (diferente da atual: 409 `conflict`). Atenção: no ethos era `/auth/me`; no imago é `/me`.
+- Quando o idioma ou o fuso mudam, o `PATCH /me` cria uma tarefa `refresh` para cada aplicação (ver [Tarefas para as aplicações](#tarefas-para-as-aplicações)).
 
 ### API interna
 
@@ -130,6 +131,30 @@ Regras:
 - Uma tarefa de uma aplicação que saiu do `IMAGO_APPS` não é chamada: conta como falha a cada execução, até a aplicação voltar ou alguém apagar a tarefa à mão.
 - Dentro do processo, a mesma tarefa nunca roda em duas threads ao mesmo tempo. Entre o servidor e o `run-tasks`, no pior caso a mesma tarefa é chamada duas vezes, o que as aplicações aceitam (as duas rotas são idempotentes).
 
+### Exclusão de conta
+
+Pela própria pessoa: `POST /me/delete/request` manda um código de exclusão ao email atual (202, com os mesmos limites, validade e tentativas do código de login; 409 `last_admin` para o último admin ativo) e `DELETE /me` com `{code}` começa a exclusão (204 e o cookie apagado; código recusado: 400 `invalid_code`, field `code`; último admin: 409). Os dois funcionam com os termos pendentes. Pelo admin, sem código: `DELETE /admin/users/{id}`. Os dois usam `app/deletion.py`, em três passos:
+
+1. **Na request**, numa transação `BEGIN IMMEDIATE`: confere que a conta não é o último admin ativo, muda o status para `deleting`, apaga as sessões, os códigos e as tarefas `refresh` pendentes, cria uma tarefa `delete` para cada aplicação do `IMAGO_APPS` e grava `account_deletion_started` (quem pediu: a própria pessoa ou o admin). Depois do commit, uma linha no log com só o id: `INFO app.deletion: conta <id> excluída`. A partir daí a pessoa não entra, não recebe código e o email dela não cria conta nova.
+2. **Depois da resposta** (`BackgroundTasks`): o `POST /internal/users/{id}/delete` de cada aplicação, pelas tarefas. O que falhar fica para o `run-tasks`, de hora em hora.
+3. **Quando não sobra tarefa `delete` pendente** (logo depois do passo 2 ou no `run-tasks`), numa transação `BEGIN IMMEDIATE` que confere se a linha ainda existe, então roda uma vez só mesmo com a request e o `run-tasks` terminando ao mesmo tempo: apaga a auditoria da própria conta (auth, termos, perfil, `admin_created` e o `account_deletion_started`), tira o IP e os emails das linhas que citam a conta (pelo `user_id`, pelo email ou pelo `details.target_user_id`, como a troca de email pelo admin), apaga os códigos de todos os emails que a conta teve (menos os de um email antigo que já é de outra conta), apaga a linha em `users` (o CASCADE leva sessões, códigos e tarefas) e grava `account_deleted` com o id e quem apagou (`user_id` do admin, ou vazio quando foi a própria pessoa), sem email nem IP. Depois do commit, o email "conta excluída" vai para o endereço lido, pelo teto de envio (tipo `account`).
+
+Emails de conta (conta excluída, troca de email) recusados pelo teto não saem, e o `SUPPORT_EMAIL` recebe o aviso de teto, como nos códigos (no máximo um por hora). Com o `IMAGO_APPS` vazio, os três passos rodam na própria request.
+
+#### Depois de restaurar um backup
+
+O backup (do imago ou de qualquer aplicação) traz de volta as contas apagadas depois dele. Antes de abrir os serviços de novo, rode o `reapply-deletions` do imago com as linhas do journal do `app-imago` (roteiro completo no `infra/RESTORE.md`):
+
+```bash
+sudo journalctl -u app-imago -o cat --no-pager \
+  | sudo systemd-run --quiet --pipe --wait --collect --uid=app-imago --gid=app-imago \
+      --working-directory=/opt/apps/imago -p EnvironmentFile=/etc/infra/smtp.env \
+      -p EnvironmentFile=/etc/infra/internal/imago.env -p EnvironmentFile=/etc/infra/apps/imago.env \
+      /opt/apps/imago/.venv/bin/python -m app.cli reapply-deletions
+```
+
+Ele lê as linhas `conta <id> excluída` (as outras são ignoradas) e, sem mandar email: refaz a exclusão inteira da conta que ainda existe no imago (com o `delete` de todas as aplicações do `IMAGO_APPS`; a que falhar fica como tarefa, e o `run-tasks` a termina) e chama o `delete` de cada aplicação para a conta que já não existe no imago (o caso de um banco de aplicação restaurado). O último admin ativo é pulado com um aviso. Pode rodar quantas vezes quiser. As exclusões dependem do journald (limite de 100M, e some junto se a VM for perdida): é um risco aceito no plano.
+
 ### Email e teto de envio
 
 Só o imago fala com o SMTP (a unit dele é a única que lê o `smtp.env`), pelo pacote `app/mail/`:
@@ -155,7 +180,8 @@ O CLI lê a mesma config do servidor e abre o banco de `DATABASE_PATH`, que prec
 | Comando | O quê |
 |---|---|
 | `cleanup` | Retenção de dados (ver acima), numa transação só. Imprime quantas linhas mudou em cada passo; a segunda execução seguida não muda nada. Roda de hora em hora pelo `imago-cleanup.timer` (ETH-57), depois do `run-tasks`. |
-| `run-tasks` | Tenta as tarefas pendentes para as aplicações ([Tarefas para as aplicações](#tarefas-para-as-aplicações)). Imprime quantas tentou, concluiu, quantas falharam e quantas ficaram para depois (em andamento noutra thread ou com a conta mudando a cada chamada). Sai com 0 mesmo com falhas, que ficam gravadas e voltam na próxima execução; só um erro geral (config, banco) sai com 1. Roda de hora em hora pelo `imago-cleanup.timer`, antes do `cleanup`. |
+| `run-tasks` | Tenta as tarefas pendentes para as aplicações ([Tarefas para as aplicações](#tarefas-para-as-aplicações)) e termina as exclusões de conta sem tarefa `delete` pendente (passo 3, com o email "conta excluída"). Imprime quantas tarefas tentou, concluiu, quantas falharam, quantas ficaram para depois (em andamento noutra thread ou com a conta mudando a cada chamada) e quantas exclusões terminou. Sai com 0 mesmo com falhas, que ficam gravadas e voltam na próxima execução; só um erro geral (config, banco) sai com 1. Roda de hora em hora pelo `imago-cleanup.timer`, antes do `cleanup`. |
+| `reapply-deletions [id ...]` | Depois de restaurar um backup ([Depois de restaurar um backup](#depois-de-restaurar-um-backup)): lê do stdin as linhas do `journalctl -u app-imago -o cat` (ou ids soltos, um por linha), ou recebe os ids (de 1 a 2^53 - 1) como argumentos, e refaz as exclusões sem email. Recusa um terminal no stdin, entrada vazia e uma linha de exclusão fora do formato (nada é apagado). Imprime quantas contas apagou de novo no imago (e quantas esperam uma aplicação: rode o `run-tasks`), quantas já não existiam no imago, quantas pulou (último admin) e quantas chamadas às aplicações falharam. Sai com 1 se o `delete` de uma conta que já não existe no imago falhou numa aplicação (essa falha não fica gravada em lugar nenhum: rode de novo). Com o `IMAGO_APPS` vazio (o ensaio numa cópia), só o banco do imago muda. |
 | `create-admin <email>` | Liga o `is_admin` de uma conta que já existe e grava `admin_created` (`{"via": "cli"}`). É o único jeito de criar admin: não existe endpoint para isso. O email é normalizado como no login. Email sem conta: erro, nada muda (a pessoa entra no imago uma vez antes). Conta bloqueada ou em exclusão: erro, nada muda. Conta que já é admin: avisa, sai com 0 e não grava nada. |
 | `seed` | Só com `APP_ENV=dev`. Cria as contas de exemplo com ids fixos, que os seeds das aplicações usam: 101 `ana@example.com` (admin, `America/Sao_Paulo`, pt), 102 `bia@example.com` (`America/Sao_Paulo`, pt) e 103 `caio@example.com` (`Europe/Lisbon`, en), todas com os termos atuais aceitos (`app/seed.py`, `SEED_ACCOUNTS`). Se alguma já existe, não grava nada. |
 
@@ -181,7 +207,7 @@ Comando novo: um handler `(context: CommandContext, args) -> int` em `app/cli.py
 - Mudança no catálogo de erros entra também nos `translation.json` do front.
 - Nada importa de `site/` nem de `apps/<outra>/`.
 
-Pontos de extensão para as próximas tasks: `app/auth/router.py` tem `code_request_response`, `reload_user` e `me_response` para o `POST /me/delete/request` e o `DELETE /me` (ETH-61), que usam `request_delete_code`/`use_delete_code` do `service.py`; `quota.reserve` com `MailKind.ACCOUNT` e `quota.support_alert` servem aos emails de conta; `Settings.app_token(nome)` dá o token para chamar cada aplicação.
+Pontos de extensão para as próximas tasks: `service.account_emails` reserva os emails de conta no teto (com o aviso ao suporte); `deletion.start_deletion` é o passo 1 da exclusão, para o admin (ETH-62).
 
 ## Frontend
 

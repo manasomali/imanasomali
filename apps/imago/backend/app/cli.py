@@ -23,7 +23,7 @@ aparecem pelo id.
 import argparse
 import sys
 import traceback
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -32,7 +32,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from app import audit
+from app import audit, deletion
 from app.audit import AuditEvent
 from app.auth.service import can_sign_in, normalize_email
 from app.config import ConfigError, Settings, load_settings
@@ -42,6 +42,7 @@ from app.logs import configure_logging
 from app.mail.backends import MailBackend
 from app.mail.sender import Mailer, build_backend
 from app.models import User, utcnow
+from app.reapply import InputError, parse_account_id, read_account_ids, reapply_deletions
 from app.retention import run_cleanup
 from app.seed import seed
 
@@ -94,19 +95,96 @@ def _cleanup(context: CommandContext, _args: argparse.Namespace) -> int:
 
 
 def _run_tasks(context: CommandContext, _args: argparse.Namespace) -> int:
-    """Tenta de novo as tarefas pendentes para as aplicações (`app/internal/tasks.py`).
+    """Tenta de novo as tarefas pendentes para as aplicações (`app/internal/tasks.py`) e termina
+    as exclusões de conta que não têm mais tarefa pendente (passo 3, `app/deletion.py`).
 
     Sai com 0 mesmo que alguma tarefa falhe (aplicação fora do ar): a falha fica gravada na
     tarefa, vira uma linha de log e é tentada de novo na próxima execução, e o `cleanup` que vem
     depois no `imago-cleanup.service` roda assim mesmo. Só um erro geral (config, banco
     inacessível) sai com 1, e aí o `OnFailure=` da unit registra.
     """
-    summary = run_pending(context.task_context())
+    task_context = context.task_context()
+    summary = run_pending(task_context)
+    finished = deletion.finish_ready_deletions(task_context, context.mailer())
     print(
         f"run-tasks: {summary.tried} tarefas tentadas, {summary.done} concluídas, "
-        f"{summary.failed} falhas, {summary.busy + summary.pending} ficaram para depois"
+        f"{summary.failed} falhas, {summary.busy + summary.pending} ficaram para depois; "
+        f"{finished} exclusões de conta concluídas"
     )
     return EXIT_OK
+
+
+def _reapply_deletions(context: CommandContext, args: argparse.Namespace) -> int:
+    """Refaz, depois de restaurar um backup, as exclusões de conta que o journald lista.
+
+    Lê as linhas do `journalctl -u app-imago -o cat` (ou ids soltos, um por linha) do stdin, ou
+    recebe os ids como argumentos, e chama `app/reapply.py`. Sem email. Entrada ilegível, vazia ou
+    com uma linha de exclusão fora do formato: erro, antes de mexer no banco. Sai com 1 também se
+    o `delete` de uma conta que já não existe no imago falhou numa aplicação (essa falha não fica
+    gravada: rode de novo); as que ficaram como tarefa pendente são do `run-tasks`.
+    """
+    if args.ids:
+        account_ids: tuple[int, ...] = tuple(dict.fromkeys(args.ids))
+        print(f"reapply-deletions: {len(account_ids)} contas nos argumentos")
+    else:
+        account_ids = _read_ids_from_stdin()
+    result = reapply_deletions(context.task_context(), account_ids)
+    for account_id in result.last_admin:
+        print(
+            f"aviso: a conta {account_id} é o último admin ativo e não foi apagada. Torne outra "
+            "conta admin (create-admin) e rode o reapply-deletions de novo",
+            file=sys.stderr,
+        )
+    for account_id, app, reason in result.failed_calls:
+        print(f"aviso: {app} não apagou a conta {account_id} ({reason})", file=sys.stderr)
+    print(
+        f"reapply-deletions: {len(result.deleted)} contas apagadas de novo no imago "
+        f"({len(result.pending)} esperando uma aplicação: rode o run-tasks), "
+        f"{len(result.missing)} que já não existiam no imago, "
+        f"{len(result.last_admin)} puladas (último admin); "
+        f"{len(result.failed_calls)} chamadas às aplicações falharam"
+    )
+    if result.failed_calls:
+        raise CommandError(
+            "o delete falhou em alguma aplicação para contas que já não existem no imago; "
+            "confira a aplicação e rode o reapply-deletions de novo"
+        )
+    return EXIT_OK
+
+
+def _read_ids_from_stdin() -> tuple[int, ...]:
+    if sys.stdin.isatty():
+        raise CommandError(
+            "mande as linhas pelo stdin (journalctl -u app-imago -o cat | ...) "
+            "ou passe os ids como argumentos"
+        )
+    try:
+        parsed = read_account_ids(_decoded_lines(sys.stdin.buffer))
+    except OSError as exc:
+        raise CommandError(f"não consegui ler a entrada ({type(exc).__name__})") from None
+    except InputError as exc:
+        raise CommandError(f"{exc}; nada foi apagado") from None
+    if parsed.lines == 0:
+        # journalctl sem sudo, unit errada: melhor parar do que dizer que não havia nada
+        raise CommandError("entrada vazia; confira o journalctl (precisa de sudo)")
+    print(
+        f"reapply-deletions: {parsed.lines} linhas lidas, {len(parsed.ids)} contas no log "
+        f"({parsed.repeated} repetições ignoradas)"
+    )
+    return parsed.ids
+
+
+def _decoded_lines(stream: Iterable[bytes]) -> Iterator[str]:
+    # Bytes, e não o texto do stdin: o journald grava UTF-8, qualquer que seja o locale da sessão
+    for raw in stream:
+        yield raw.decode("utf-8", errors="replace")
+
+
+def _account_id_argument(value: str) -> int:
+    try:
+        return parse_account_id(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from None
 
 
 def _create_admin(context: CommandContext, args: argparse.Namespace) -> int:
@@ -190,6 +268,27 @@ def build_parser() -> argparse.ArgumentParser:
             "execução. Sai com 0 mesmo com falhas; só um erro geral (banco, config) sai com 1."
         ),
     ).set_defaults(handler=_run_tasks)
+
+    reapply = commands.add_parser(
+        "reapply-deletions",
+        help="depois de restaurar um backup, refaz as exclusões de conta que o log lista",
+        description=(
+            "Lê do stdin as linhas do journalctl -u app-imago -o cat (as de 'conta <id> "
+            "excluída'; as outras são ignoradas) ou ids soltos, um por linha, ou recebe os ids "
+            "como argumentos, e refaz cada exclusão sem mandar email: a conta que ainda existe no "
+            "imago é apagada de novo, com o delete de todas as aplicações do IMAGO_APPS, e a que "
+            "já não existe recebe o delete em cada aplicação. O último admin ativo é pulado com "
+            "um aviso. Pode rodar quantas vezes quiser."
+        ),
+    )
+    reapply.add_argument(
+        "ids",
+        nargs="*",
+        type=_account_id_argument,
+        metavar="id",
+        help="ids das contas (de 1 a 2^53 - 1); sem eles, lê do stdin",
+    )
+    reapply.set_defaults(handler=_reapply_deletions)
 
     create_admin = commands.add_parser(
         "create-admin",
