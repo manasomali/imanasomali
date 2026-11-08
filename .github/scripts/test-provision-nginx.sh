@@ -240,4 +240,42 @@ sha256sum -c --quiet "$backup" || fail "os arquivos do nginx não voltaram ao qu
 nginx -t -q || fail "nginx -t falha depois do rollback"
 expect "/$victim/ depois do rollback" "$(get "/$victim/")" 200
 
+echo "--- nginx-http.conf que sai do repo (a app continua): sai do nginx junto com quem usa a zona"
+app=zz-http
+install -d "$INFRA_DIR/apps/$app"
+printf 'location /%s/ {\n        limit_req zone=zz_http burst=5 nodelay;\n        return 200 "com-zona";\n}\n' "$app" \
+  > "$INFRA_DIR/apps/$app/nginx.conf"
+# shellcheck disable=SC2016  # $binary_remote_addr é variável do nginx, não do shell
+printf 'limit_req_zone $binary_remote_addr zone=zz_http:1m rate=10r/m;\n' > "$INFRA_DIR/apps/$app/nginx-http.conf"
+provision_nginx 2>&1 | tee "$out"
+grep -q "atualizado: /etc/nginx/conf.d/$app.conf" "$out" || fail "conf.d/$app.conf não foi instalado"
+expect "/$app/ com a zona" "$(get "/$app/")" 200
+expect "/$app/ corpo" "$(cat "$out")" com-zona
+
+# Só o nginx-http.conf sai, e o nginx.conf ainda usa a zona: nginx -t falha e o conf.d volta
+sha256sum "/etc/nginx/conf.d/$app.conf" "/etc/nginx/apps.d/$app.conf" > "$backup"
+rm "$INFRA_DIR/apps/$app/nginx-http.conf"
+if (provision_nginx) > "$out" 2>&1; then
+  fail "provision_nginx tirou a zona que o nginx.conf ainda usa"
+fi
+grep -q "todos os arquivos anteriores foram restaurados" "$out" || { cat "$out"; fail "mensagem inesperada"; }
+sha256sum -c --quiet "$backup" || fail "conf.d/$app.conf não voltou depois do nginx -t falhar"
+nginx -t -q || fail "nginx -t falha depois do rollback da remoção"
+
+# Os dois mudam juntos: o conf.d sai, com uma cópia em /var/backups/infra
+printf 'location /%s/ {\n        return 200 "sem-zona";\n}\n' "$app" > "$INFRA_DIR/apps/$app/nginx.conf"
+provision_nginx 2>&1 | tee "$out"
+grep -q "removido do nginx: /etc/nginx/conf.d/$app.conf" "$out" || fail "a remoção do conf.d/$app.conf não foi registrada"
+[[ ! -e /etc/nginx/conf.d/$app.conf ]] || fail "conf.d/$app.conf continua no nginx"
+ls /var/backups/infra/nginx-conf.d-"$app".conf.* >/dev/null || fail "cópia do conf.d/$app.conf não ficou em /var/backups/infra"
+expect "/$app/ sem a zona" "$(get "/$app/")" 200
+expect "/$app/ corpo novo" "$(cat "$out")" sem-zona
+provision_nginx 2>&1 | tee "$out"
+if grep -q "atualizado\|recarregada\|removido" "$out"; then
+  fail "a execução seguinte mexeu no nginx de novo"
+fi
+rm -r "${INFRA_DIR:?}/apps/$app"
+rm "/etc/nginx/apps.d/$app.conf"
+systemctl reload nginx
+
 echo "ok"
