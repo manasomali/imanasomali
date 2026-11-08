@@ -1,7 +1,8 @@
 name: Imago
 
-# Só checagens, em PRs e em push na main. O deploy entra depois (ETH-63), com os scripts de
-# packages/deploy/. Como rodar as mesmas checagens localmente: apps/imago/README.md
+# Checagens em PRs; checagens e deploy em push na main e no workflow_dispatch (rollback).
+# Como funciona e o que configurar: apps/imago/README.md, seção "Deploy". Como rodar as mesmas
+# checagens localmente: apps/imago/README.md
 on:
   push:
     branches: [main]
@@ -9,26 +10,57 @@ on:
       - "apps/imago/**"
       - "packages/**"
       - ".github/workflows/imago.yaml"
-      # Lidos pelos testes e checagens de consistência com a infra
+      # Lidos pelos testes e checagens de consistência com a infra: porta e Python de cada aplicação
+      # (também o Python que o test-vm.sh instala), nomes do .env.example = app.env + smtp.env
+      # (backend) e SUPPORT_EMAIL dos textos legais (frontend)
       - "infra/apps/*/app.conf"
       - "infra/apps/imago/app.env"
       - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
       - ".github/scripts/check-imago-apps.sh"
+      # Prazos dos backups, conferidos contra a política de privacidade (frontend)
+      - "infra/scripts/snapshot.sh"
+      - "infra/lib/backups.sh"
+      # Usados pelo packages/deploy/test-vm.sh (uv e Python como o provision instala; o
+      # snapshot.sh e o restore-test.sh do backup-verify.yaml com o banco do imago)
+      - "infra/config.env"
+      - "infra/lib/common.sh"
+      - "infra/lib/packages.sh"
+      - "infra/scripts/restore-test.sh"
   pull_request:
     paths:
       - "apps/imago/**"
       - "packages/**"
       - ".github/workflows/imago.yaml"
-      # Lidos pelos testes e checagens de consistência com a infra
+      # Lidos pelos testes e checagens de consistência com a infra: porta e Python de cada aplicação
+      # (também o Python que o test-vm.sh instala), nomes do .env.example = app.env + smtp.env
+      # (backend) e SUPPORT_EMAIL dos textos legais (frontend)
       - "infra/apps/*/app.conf"
       - "infra/apps/imago/app.env"
       - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
       - ".github/scripts/check-imago-apps.sh"
+      # Prazos dos backups, conferidos contra a política de privacidade (frontend)
+      - "infra/scripts/snapshot.sh"
+      - "infra/lib/backups.sh"
+      # Usados pelo packages/deploy/test-vm.sh (uv e Python como o provision instala; o
+      # snapshot.sh e o restore-test.sh do backup-verify.yaml com o banco do imago)
+      - "infra/config.env"
+      - "infra/lib/common.sh"
+      - "infra/lib/packages.sh"
+      - "infra/scripts/restore-test.sh"
+  # Rollback (ou deploy de um commit específico): Actions → Imago → Run workflow, a partir da main
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "SHA completo (40 caracteres) de um commit da main. Rollback: o commit anterior"
+        required: true
+        type: string
 
-# Em PRs, um push novo cancela o run anterior do mesmo PR. Nunca o grupo "infra": o GitHub mantém
-# um run pendente por grupo e cancelaria um deploy na fila atrás de um provision
+# Em PRs, um push novo cancela o run anterior do mesmo PR. Na main (push e workflow_dispatch), os
+# runs andam um de cada vez, na ordem: um mais novo espera e nunca é ultrapassado por um mais velho.
+# Nunca o grupo "infra": o GitHub mantém um run pendente por grupo e cancelaria um deploy na fila
+# atrás de um provision
 concurrency:
   group: imago-checks-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -37,6 +69,86 @@ permissions:
   contents: read
 
 jobs:
+  # Só em push e workflow_dispatch: o commit a publicar, se o push muda o que vai para a VM, e o
+  # IMAGO_URL. Falha em segundos, sem esperar as checagens
+  prepare:
+    name: 🧭 Preparar o deploy
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+      deploy: ${{ steps.commit.outputs.deploy }}
+      url: ${{ steps.url.outputs.url }}
+    steps:
+      - name: Commit do deploy
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_COMMIT: ${{ inputs.commit }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # O que vai para a VM (packages/ inclui os scripts do deploy). O resto dos paths do workflow
+          # (os arquivos de infra/ que os testes leem, apps/imago/dev/, o README) só roda as checagens
+          deploy_paths='^(apps/imago/(backend|frontend)/|packages/|\.github/workflows/imago\.yaml$)'
+          deploy=true
+
+          if [[ $EVENT == workflow_dispatch ]]; then
+            # A definição do workflow (e os scripts do deploy) vem do branch escolhido no Run workflow
+            if [[ $GITHUB_REF != refs/heads/main ]]; then
+              echo "::error::Rode o workflow a partir da main (Use workflow from: main)"
+              exit 1
+            fi
+            if [[ ! $INPUT_COMMIT =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::commit: use o SHA completo (40 caracteres hexadecimais, minúsculos) de um commit da main"
+              exit 1
+            fi
+            # Só commits que passaram pela main: nunca um de um PR aberto ou de outro branch
+            if ! status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$INPUT_COMMIT...$GITHUB_SHA" --jq .status 2>/dev/null); then
+              echo "::error::commit $INPUT_COMMIT não encontrado no repositório"
+              exit 1
+            fi
+            if [[ $status != identical && $status != ahead ]]; then
+              echo "::error::$INPUT_COMMIT não é um commit da main"
+              exit 1
+            fi
+            sha=$INPUT_COMMIT
+            echo "::notice::deploy manual (rollback) de $sha"
+          else
+            sha=$GITHUB_SHA
+            # Push que só muda arquivos lidos pelos testes (infra/, README): checagens sem deploy. Na
+            # dúvida (before desconhecido, comparação com mais de 300 arquivos), faz o deploy
+            if [[ $BEFORE =~ ^[0-9a-f]{40}$ && ! $BEFORE =~ ^0+$ ]] \
+              && files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$GITHUB_SHA" --jq '.files[].filename' 2>/dev/null); then
+              count=$(grep -c . <<< "$files" || true)
+              if ((count < 300)) && ! grep -qE "$deploy_paths" <<< "$files"; then
+                deploy=false
+                echo "::notice::o push não muda o backend, o frontend, packages/ nem este workflow: só checagens"
+              fi
+            fi
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+
+      # Variável do repositório (Settings → Secrets and variables → Actions → Variables), não fixa
+      # aqui: trocar de domínio não mexe no workflow
+      - name: IMAGO_URL
+        id: url
+        if: steps.commit.outputs.deploy == 'true'
+        env:
+          IMAGO_URL: ${{ vars.IMAGO_URL }}
+        run: |
+          url=${IMAGO_URL%/}
+          if [[ -z $url ]]; then
+            echo "::error::Falta a variável IMAGO_URL: Settings → Secrets and variables → Actions → Variables → New repository variable, com o endereço do site (https://<domínio>, sem barra no fim)"
+            exit 1
+          fi
+          if [[ ! $url =~ ^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$ ]]; then
+            echo "::error::IMAGO_URL inválida: use só https://<domínio>, sem caminho (o health check usa \$IMAGO_URL/api/imago/health)"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
   backend:
     name: 🐍 Backend
     runs-on: ubuntu-latest
@@ -44,7 +156,10 @@ jobs:
       run:
         working-directory: apps/imago/backend
     steps:
+      # No workflow_dispatch, o commit escolhido; vazio (push e PR), o commit do evento
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
 
       # O setup-uv não publica mais tags de versão maior (v10), só a versão completa
       - uses: astral-sh/setup-uv@v10.3.2
@@ -76,9 +191,11 @@ jobs:
       # Política de testes: 100% de cobertura (linhas e ramos) nos módulos da lista, lida do
       # .coverage que o pytest acabou de gravar. Para exigir de outro módulo, acrescente uma
       # linha. Cada um é conferido sozinho, então um caminho errado também falha ("No data to
-      # report") em vez de passar calado
+      # report") em vez de passar calado. No rollback (workflow_dispatch), um módulo da lista que
+      # ainda não existia no commit é pulado
       - name: Cobertura de 100% nos módulos críticos
         env:
+          EVENT: ${{ github.event_name }}
           FULL_COVERAGE: |
             app/admin/accounts.py
             app/admin/router.py
@@ -102,6 +219,10 @@ jobs:
             app/seed.py
         run: |
           for module in $FULL_COVERAGE; do
+            if [[ $EVENT == workflow_dispatch && ! -f $module ]]; then
+              echo "::notice::$module não existe neste commit"
+              continue
+            fi
             uv run --no-sync coverage report --fail-under=100 --show-missing --include="$module"
           done
 
@@ -113,6 +234,8 @@ jobs:
         working-directory: apps/imago/frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
 
       - uses: actions/setup-node@v4
         with:
@@ -131,6 +254,16 @@ jobs:
       - name: 🧪 Testes
         run: npm test
 
+      # O deploy publica exatamente este build (o que passou nos testes), sem buildar de novo
+      - name: Guardar o build para o deploy
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: imago-frontend
+          path: apps/imago/frontend/dist/
+          if-no-files-found: error
+          retention-days: 1
+
   # O IMAGO_APPS do infra/apps/imago/app.env bate com as aplicações de infra/apps/ (portas) e cada
   # uma tem os textos dela na tela de conta, em pt e en
   consistency:
@@ -138,6 +271,152 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
 
       - name: IMAGO_APPS, portas e textos de cada aplicação
         run: bash .github/scripts/check-imago-apps.sh
+
+  # Os scripts do deploy (packages/deploy/, com o nome da aplicação) com o backend do imago, sempre
+  # os do commit do workflow
+  scripts:
+    name: 🧰 Scripts do deploy
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: shellcheck -x packages/deploy/*.sh
+
+      - name: Limpeza de assets, migrações do rollback e nome da aplicação
+        run: bash packages/deploy/test-deploy-scripts.sh
+
+      - name: sqlite3
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends sqlite3
+
+      # uv e Python como o provision instala, .venv, migração e API (com o .env.example) como
+      # app-imago, backup e restart; depois, o restore-test.sh do backup-verify.yaml com o banco do
+      # imago
+      - name: Passos da VM (vm.sh) e backup-verify
+        run: sudo bash packages/deploy/test-vm.sh imago
+
+  # Os 9 passos do deploy: checagens (needs) → VM pronta → backend → dependências → backup →
+  # restart (migração) → health check → front → limpeza. Qualquer falha para o job ali
+  deploy:
+    name: 🚀 Deploy
+    needs: [prepare, backend, frontend, consistency, scripts]
+    if: needs.prepare.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    # Nunca dois deploys do imago ao mesmo tempo. Grupo próprio: nem o "infra" (provision) nem o
+    # ethos-deploy, que roda em paralelo com este num push que muda packages/
+    concurrency:
+      group: imago-deploy
+      cancel-in-progress: false
+    env:
+      SHA: ${{ needs.prepare.outputs.sha }}
+      IMAGO_URL: ${{ needs.prepare.outputs.url }}
+    steps:
+      # Scripts do deploy e migrações da main (commit do workflow); o código a publicar em target/
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            packages/deploy
+            apps/imago/backend/migrations
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          path: target
+          sparse-checkout: apps/imago/backend
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: imago-frontend
+          path: dist
+
+      - name: Configurar SSH
+        env:
+          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          echo "SSH=ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes" >> "$GITHUB_ENV"
+          echo "TARGET=$REMOTE_USER@$REMOTE_HOST" >> "$GITHUB_ENV"
+
+      # Os passos na VM vão como "bash -s" com o script no stdin: nada fica gravado lá. O primeiro
+      # argumento é o nome da aplicação, literal (packages/deploy/README.md)
+      - name: VM pronta (unit, pastas, uv, Python, banco)
+        run: |
+          python=$(<target/apps/imago/backend/.python-version)
+          $SSH "$TARGET" bash -s -- imago check "$python" < packages/deploy/vm.sh
+
+      # Rollback para antes de uma migração já aplicada: o alembic do commit antigo não acharia a
+      # revisão do banco. As migrações são só aditivas; o commit leva os arquivos que faltam
+      - name: Migrações já aplicadas no banco
+        run: |
+          revision=$($SSH "$TARGET" bash -s -- imago revision < packages/deploy/vm.sh)
+          bash packages/deploy/keep-migrations.sh \
+            target/apps/imago/backend/migrations/versions apps/imago/backend/migrations/versions "$revision"
+
+      - name: Enviar o backend
+        run: |
+          rsync -rlptz --chmod=D0755,F0644 --delete --filter="merge packages/deploy/backend.rsync-filter" \
+            -e "$SSH" target/apps/imago/backend/ "$TARGET:/opt/apps/imago/"
+
+      - name: Instalar dependências (uv sync) e bytecode
+        run: $SSH "$TARGET" bash -s -- imago install < packages/deploy/vm.sh
+
+      - name: Backup do banco (pre-deploy-<sha>.db)
+        run: $SSH "$TARGET" bash -s -- imago backup "$SHA" < packages/deploy/vm.sh
+
+      # Se a migração falhar, o serviço não sobe, o job para aqui e o front anterior fica no ar. Com
+      # o imago parado, a API de todas as aplicações responde 500 (menos o /health delas)
+      - name: Reiniciar (migração no ExecStartPre)
+        run: $SSH "$TARGET" bash -s -- imago restart < packages/deploy/vm.sh
+
+      - name: Health check
+        run: |
+          url="$IMAGO_URL/api/imago/health"
+          for attempt in $(seq 1 10); do
+            if curl -fsS --max-time 10 "$url"; then
+              echo
+              exit 0
+            fi
+            echo "tentativa $attempt de 10 falhou"
+            if ((attempt < 10)); then
+              sleep 3
+            fi
+          done
+          echo "::error::$url não respondeu 200 em 10 tentativas. O front anterior continua no ar. Na VM: journalctl -u app-imago -n 50 --no-pager"
+          exit 1
+
+      # Sem --delete: os assets da versão anterior ficam para as abas abertas com ela. O index.html
+      # vai por último, quando tudo o que ele carrega já está lá
+      - name: Publicar o front
+        run: |
+          [[ -f dist/index.html && -d dist/assets ]] || { echo "::error::build do front sem index.html ou assets/"; exit 1; }
+          rsync -rlptz --chmod=D0755,F0644 --exclude=/index.html -e "$SSH" dist/ "$TARGET:/var/www/imago/"
+          rsync -rlptz --chmod=F0644 -e "$SSH" dist/index.html "$TARGET:/var/www/imago/index.html"
+
+      - name: Limpar assets com mais de 7 dias fora do build atual
+        run: |
+          mapfile -t files < <(cd dist/assets && find . -type f -printf '%P\n' | sort)
+          ((${#files[@]})) || { echo "::error::dist/assets vazio"; exit 1; }
+          # A lista vira argumentos do comando remoto: printf %q protege do shell da VM
+          args=$(printf '%q ' /var/www/imago/assets 7 "${files[@]}")
+          $SSH "$TARGET" "bash -s -- $args" < packages/deploy/clean-assets.sh
+
+      - name: Resumo
+        run: |
+          {
+            echo "### imago publicado"
+            echo
+            echo "- commit: \`$SHA\`"
+            echo "- health: $IMAGO_URL/api/imago/health"
+          } >> "$GITHUB_STEP_SUMMARY"

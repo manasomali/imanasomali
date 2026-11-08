@@ -390,8 +390,85 @@ Navegação de página inteira (o `next` de outra aplicação, recarregar a pág
 
 ## CI
 
-O workflow [imago.yaml](../../.github/workflows/imago.yaml) roda em PRs e em push na `main` que tocam `apps/imago/**`, `packages/**` ou o próprio workflow, só com checagens (o deploy entra na ETH-63):
+O workflow [imago.yaml](../../.github/workflows/imago.yaml) roda em PRs e em push na `main` que tocam `apps/imago/**`, `packages/**`, o próprio workflow ou os arquivos lidos pelas checagens (`infra/apps/*/app.conf`, `infra/apps/imago/app.env`, `infra/provision.sh`, `infra/scripts/snapshot.sh`, `infra/scripts/restore-test.sh`, `infra/lib/backups.sh`, `infra/config.env`, `infra/lib/common.sh`, `infra/lib/packages.sh`, `.github/scripts/check-python-version.sh` e `.github/scripts/check-imago-apps.sh`). Em PRs, só as checagens:
 
 - backend: `check-python-version.sh`, `uv lock --check`, `uv sync --frozen`, `ruff check`, `ruff format --check`, `pytest --cov` (85%) e 100% de cobertura nos módulos de `FULL_COVERAGE`;
-- frontend: `npm ci`, `npm run lint`, `npm run build` e `npm test`.
-- consistência com a infra: `.github/scripts/check-imago-apps.sh` (o `IMAGO_APPS` do `infra/apps/imago/app.env` tem toda aplicação de `infra/apps/`, com a porta do `app.conf` dela, e cada uma tem os textos da tela de conta em pt e en). O backend compara o `.env.example` com o `app.env`, o `smtp.env` e o `IMAGO_APP_TOKENS` (`tests/test_env_files.py`).
+- frontend: `npm ci`, `npm run lint`, `npm run build` e `npm test`;
+- consistência com a infra: `.github/scripts/check-imago-apps.sh` (o `IMAGO_APPS` do `infra/apps/imago/app.env` tem toda aplicação de `infra/apps/`, com a porta do `app.conf` dela, e cada uma tem os textos da tela de conta em pt e en). O backend compara o `.env.example` com o `app.env`, o `smtp.env` e o `IMAGO_APP_TOKENS` (`tests/test_env_files.py`);
+- scripts do deploy ([packages/deploy/](../../packages/deploy/README.md)): `shellcheck`, `test-deploy-scripts.sh` (limpeza de assets, migrações do rollback e recusa de nome de aplicação inválido) e `test-vm.sh imago`, que roda o `vm.sh` num Ubuntu 24.04 com o uv e o Python instalados pelas funções do provision: `.venv`, migração e `/health` como `app-imago` (com o `.env.example`, trocando só o `DATABASE_PATH`), backup e restart, inclusive o de uma unit cujo `ExecStartPre` falha (migração quebrada). No fim, o `restore-test.sh` do `backup-verify.yaml` com o banco do imago e um Litestream falso. O imago não passa um ensaio próprio ao `test-vm.sh`: o roteiro do `reapply-deletions` é testado no pytest (`tests/test_reapply_deletions.py`).
+
+Em push na `main` e no `workflow_dispatch`, o workflow também faz o deploy.
+
+## Deploy
+
+O job `deploy` só começa depois que as checagens (backend, frontend, consistência e scripts) passam: um teste quebrado para o workflow antes de qualquer passo na VM. Ele roda em push na `main` que muda o que vai para a VM (`apps/imago/backend/`, `apps/imago/frontend/`, `packages/`, com os scripts do deploy, ou o próprio workflow). Um push que só muda arquivos lidos pelas checagens (os de `infra/` e `.github/scripts/` da lista acima), `apps/imago/dev/` ou este README roda as checagens sem deploy. Um push que só muda outra aplicação (o ethos, por exemplo) nem dispara o workflow. Em PRs, nunca há deploy.
+
+Os passos, os detalhes (bytecode, backup, front sem `--delete`, ordem entre back e front) e o rollback são os do ethos ([apps/ethos/README.md](../ethos/README.md#deploy)), com os scripts de [packages/deploy/](../../packages/deploy/README.md) e o nome `imago`. Aqui fica o que é do imago.
+
+### Antes do primeiro deploy
+
+- **Variável `IMAGO_URL`** no GitHub: Settings → Secrets and variables → Actions → Variables → New repository variable, com o endereço do site, só `https://<domínio>`, sem caminho e sem barra no fim (hoje, `https://manasomali.com`, o mesmo do `ETHOS_URL`). O health check chama `$IMAGO_URL/api/imago/health`. Nenhum domínio fica fixo no workflow: trocar de domínio é trocar a variável. Sem ela, o workflow falha logo no começo (job "Preparar o deploy"), sem tocar na VM.
+- **Secrets**: os mesmos do site, do Infra e do ethos, já cadastrados no repositório: `REMOTE_HOST`, `REMOTE_USER`, `SERVER_SSH_KEY` e `SSH_KNOWN_HOSTS`. O job usa o environment `production`.
+- **Infra provisionado**: o workflow Infra precisa ter rodado com `infra/apps/imago/` e a linha `imago` do `databases.txt` (unit `app-imago`, parada até o primeiro deploy pelo `ConditionPathExists` da `.venv`, pastas, banco, uv, Python e os tokens da API interna em `/etc/infra/internal/imago.env`). O primeiro passo do deploy confere a unit, as pastas, o Python e o banco e, se faltar algo, falha pedindo para rodar o Infra.
+
+### Os passos
+
+| # | Passo | Onde |
+|---|---|---|
+| 1 | Checagens (needs) | runner |
+| 2 | `vm.sh check`: unit `app-imago.service`, `/opt/apps/imago` e `/var/www/imago` graváveis, uv, o Python de `.python-version`, `sqlite3`, banco e pasta de backup | VM |
+| 3 | rsync de `backend/` para `/opt/apps/imago/` com `--delete`, pelas regras de `packages/deploy/backend.rsync-filter` (antes, o `keep-migrations.sh` do rollback) | runner → VM |
+| 4 | `vm.sh install`: `uv sync --frozen --no-dev --no-build --compile-bytecode` com o Python de `/opt/uv/python`, e `compileall` de `app/` e `migrations/` | VM |
+| 5 | `vm.sh backup <sha>`: `sqlite3 .backup` como `app-imago` em `/var/backups/sqlite/imago/pre-deploy-<sha>.db` | VM |
+| 6 | `vm.sh restart`: `systemctl restart app-imago`; o `ExecStartPre` roda `alembic upgrade head` | VM |
+| 7 | Health check: `$IMAGO_URL/api/imago/health`, 10 tentativas, 3 s entre elas | runner |
+| 8 | rsync do `dist/` (o mesmo build que passou nos testes) para `/var/www/imago/`, **sem** `--delete`, com o `index.html` por último | runner → VM |
+| 9 | `clean-assets.sh`: apaga de `/var/www/imago/assets/` os arquivos com mais de 7 dias que não estão no build atual | VM |
+
+- Os passos na VM vão pelo SSH como `bash -s -- imago <comando> < packages/deploy/vm.sh`, com o nome literal no workflow: nada fica instalado lá.
+- **Todo deploy derruba a API das aplicações por alguns segundos** (depois que elas usam o imago): enquanto o `app-imago` reinicia (passo 6), o `auth_request` de `/api/<app>/` falha e a API de todas as aplicações responde 500 (menos o `/health` delas). É um risco aceito no [imago-plan.md](../../imago-plan.md) ("riscos aceitos").
+- **Migração quebrada**: o `app-imago` não sobe, o job para no passo 6 e o front anterior continua no ar, como no ethos. Aqui o efeito é maior: até a correção ou o rollback, ninguém entra e a API de todas as aplicações responde 500. O log do Actions não mostra o journal (o repositório é público): na VM, `journalctl -u app-imago -n 50 --no-pager`.
+- **Concorrência**: o job usa o grupo `imago-deploy`, nunca dois deploys do imago ao mesmo tempo, e os runs da `main` andam um de cada vez e na ordem (grupo `imago-checks-refs/heads/main`). Nem o grupo `infra` nem o `ethos-deploy`: um push que muda `packages/` publica o imago e o ethos em paralelo, e o deploy do ethos não depende do imago (o health check dele fica fora do `auth_request`).
+
+### Rollback
+
+Actions → Imago → Run workflow, a partir da `main`, com o SHA completo do commit a publicar (o anterior ao problema). Funciona como o do ethos ([Rollback](../ethos/README.md#rollback)): só commits da `main`, as checagens desse commit (os módulos de `FULL_COVERAGE` que ainda não existiam nele são pulados), os 9 passos com o código e o build dele e os scripts da `main`. As migrações não voltam: o `keep-migrations.sh` leva da `main` as que o banco já tem. O commit precisa ter o imago: um anterior a `apps/imago/` falha nas checagens, sem tocar na VM.
+
+- **Dados estragados por uma migração**: o rollback do código e depois o restore do `pre-deploy-<sha>.db` do deploy que a aplicou, na ordem da seção do ethos no [infra/RESTORE.md](../../infra/RESTORE.md#restaurar-o-banco-de-uma-app-ethos) (o rollback roda duas vezes, e o `alembic upgrade head` manual fica de fora), com as trocas do imago: unit `app-imago`, porta 3003, `imago_cli`, `imago-cleanup.timer` no lugar do `ethos-alerts.timer` e o `reapply-deletions` do imago, que lê as linhas `app.deletion: conta <id> excluída` ([Depois de restaurar um backup](#depois-de-restaurar-um-backup)): o backup traz de volta as contas apagadas depois dele. Enquanto o `app-imago` está parado, a API de todas as aplicações responde 500.
+- Um push novo na `main` depois do rollback publica a `main` de novo.
+
+### Regras do deploy
+
+- **Migrações só aditivas**: criar tabela ou coluna (anulável ou com default); remover ou renomear só num deploy seguinte, quando nenhum código no ar (nem o de um rollback) usa mais aquilo. **Nunca apague nem renomeie um arquivo de migração já publicado**: o rollback busca na `main` as migrações que o banco já tem. As mesmas regras do ethos ([Regras](../ethos/README.md#regras)).
+- **Mudança de infra entra num PR anterior ao do imago**: unit, variável nova no `app.env`, porta, versão do Python. O Infra e o imago rodam em paralelo, sem ordem garantida entre eles; o deploy confere a unit, as pastas e o Python e falha com mensagem clara se o provision ainda não rodou.
+- **O imago entra no ar antes de qualquer aplicação**: o `auth_request` de `/api/<app>/` pergunta a ele quem é o usuário, e as aplicações mandam email e buscam contas pela API interna dele. Uma aplicação só passa a usá-lo (o `auth_request` e o `IMAGO_INTERNAL_URL`, num PR de infra) depois do primeiro deploy do imago, com o `/api/imago/health` respondendo 200.
+- **Contrato da API interna ou dos headers `X-User-*`: primeiro as aplicações, depois o imago.** Uma mudança no que o imago manda (os headers do `/internal/session`, as tarefas `delete` e `refresh`, as respostas de `/internal/*`) entra antes nas aplicações, que passam a aceitar os dois formatos, e só depois no imago; o formato antigo sai das aplicações num PR seguinte. O imago e as aplicações têm deploys separados, sem ordem garantida entre eles: com as aplicações aceitando os dois formatos, nenhuma ordem de deploy (nem um rollback do imago) deixa uma delas sem entender o imago. Na direção contrária (um campo que o imago passa a exigir das aplicações), o imago aceita os dois formatos primeiro, as aplicações mudam, e só então ele deixa de aceitar o antigo.
+- **Nenhuma conta no imago antes da ETH-64**: as contas e o admin vêm do ethos pelo `import-users`, com os mesmos ids. Confirmar um código no `/imago/entrar` cria a conta, e o `import-users` recusaria o mesmo email (o passo 3 da [passagem do login](#passagem-do-login-do-ethos-eth-64-passo-3) diz como apagar uma conta criada por engano). Até lá, abra a tela de entrar, mas não confirme nenhum código.
+
+### Primeiro deploy em produção (ETH-63)
+
+O passo 2 da ordem do [imago-plan.md](../../imago-plan.md) ("migração do login do ethos"): depois do PR de infra do imago e antes do PR de infra que liga o `auth_request` do ethos. O imago fica no ar sem link em lugar nenhum e sem contas. Os comandos na VM rodam a partir de uma máquina com acesso a ela (`<REMOTE_USER>@<REMOTE_HOST>`, os mesmos dos secrets do deploy).
+
+1. Cadastre a variável `IMAGO_URL` ([Antes do primeiro deploy](#antes-do-primeiro-deploy)) e confira que o Infra rodou com o imago: na VM, `systemctl cat app-imago` mostra a unit.
+2. Faça o merge do PR. Em Actions → Imago, as checagens passam e o job Deploy faz os 9 passos.
+3. Confira, de qualquer máquina:
+
+   ```bash
+   IMAGO_URL=https://manasomali.com
+   curl -fsS "$IMAGO_URL/api/imago/health"; echo                             # {"status":"ok"}
+   curl -s -o /dev/null -w '%{http_code}\n' "$IMAGO_URL/api/imago/me"       # 401 (sem cookie)
+   ```
+
+   E na VM:
+
+   ```bash
+   sudo journalctl -u app-imago -n 50 --no-pager      # subida sem erro, com a migração: "Running upgrade  -> 0001"
+   ls /opt/apps/imago/app/__pycache__ | head -n 3      # bytecode gerado no deploy
+   sudo ls /var/backups/sqlite/imago/                  # pre-deploy-<sha>.db do deploy
+   sudo -u app-imago sqlite3 /var/lib/sqlite/imago/app.db 'SELECT count(*) FROM users;'   # 0
+   ```
+
+4. No navegador, `$IMAGO_URL/imago/entrar` carrega a tela de entrar. Não confirme nenhum código (ver as regras acima).
+5. Ensaio de rollback, depois de um segundo deploy (qualquer push que mude o imago): Actions → Imago → Run workflow, a partir da `main`, com o SHA do primeiro deploy. O job passa, o resumo mostra esse SHA e o health responde 200; o backup desse deploy ganha a hora no nome (`pre-deploy-<sha>-<AAAAMMDDTHHMMSSZ>.db`), porque o primeiro deploy do mesmo commit já deixou um (a pasta guarda 7 dias). Depois, Run workflow com o SHA atual da `main` (ou o próximo push) volta para ela.
+
+A migração quebrada (o serviço não sobe, o front anterior fica e o job falha) é testada pelo `test-vm.sh` no CI. Se quiser ensaiá-la em produção, o momento é antes do PR de infra que liga o `auth_request` do ethos: até lá, o `app-imago` fora do ar não derruba nenhuma aplicação.
