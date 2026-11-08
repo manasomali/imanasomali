@@ -225,7 +225,9 @@ def test_child_environment_drops_app_variables():
 def test_imported_accounts_input():
     lines = imported_accounts_input(["a@example.com", "b@example.com"]).splitlines()
 
-    records = [json.loads(line) for line in lines]
+    *records, end = [json.loads(line) for line in lines]
+    # A linha final do export-users, sem a qual o import-users do imago não grava nada
+    assert end == {"end": True, "count": 2}
     assert [record["email"] for record in records] == ["a@example.com", "b@example.com"]
     assert len({record["id"] for record in records}) == 2
     for record in records:
@@ -244,7 +246,7 @@ def test_imported_accounts_input():
         assert record["is_admin"] is True
         assert 1 <= record["id"] <= 2**53 - 1
         assert record["created_at"].endswith("Z")
-    assert imported_accounts_input([]) == ""
+    assert json.loads(imported_accounts_input([])) == {"end": True, "count": 0}
 
 
 @pytest.mark.parametrize("emails", [["A@example.com"], ["sem-arroba"], ["a@example.com"] * 2])

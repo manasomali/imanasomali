@@ -268,8 +268,9 @@ def child_environment(
 
 
 def imported_accounts_input(emails: Sequence[str]) -> str:
-    """A entrada do `import-users -` do imago: uma linha JSON por conta, no formato do
-    `export-users` do ethos de antes da passagem. Contas ativas, admins, que nunca entraram."""
+    """A entrada do `import-users -` do imago: uma linha JSON por conta e a linha final com o
+    total, no formato do `export-users` do ethos de antes da passagem. Contas ativas, admins, que
+    nunca entraram. O import recusa a entrada inteira sem a linha final."""
     if len(set(emails)) != len(emails):
         raise StackError("--imported-admin repetido")
     lines = []
@@ -289,6 +290,7 @@ def imported_accounts_input(emails: Sequence[str]) -> str:
             "last_login_at": None,
         }
         lines.append(json.dumps(record) + "\n")
+    lines.append(json.dumps({"end": True, "count": len(emails)}) + "\n")
     return "".join(lines)
 
 
