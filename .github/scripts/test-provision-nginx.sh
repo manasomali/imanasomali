@@ -45,6 +45,16 @@ get() {
 }
 # Valor do cabeçalho $1 da última resposta (sem o \r)
 header() { grep -i "^$1:" "$headers" | head -n1 | cut -d' ' -f2- | tr -d '\r'; }
+# Espera, por até 5 s, $1 responder com o corpo $2. O systemctl reload nginx só manda o sinal:
+# até o master trocar os workers, um worker antigo ainda responde com a config anterior
+wait_body() {
+  local _
+  for _ in $(seq 1 20); do
+    get "$1" >/dev/null || true
+    [[ $(cat "$out") == "$2" ]] && return 0
+    sleep 0.25
+  done
+}
 expect() {
   local desc=$1 got=$2 want=$3
   [[ $got == "$want" ]] || fail "$desc: '$got', esperado '$want'"
@@ -249,6 +259,7 @@ printf 'location /%s/ {\n        limit_req zone=zz_http burst=5 nodelay;\n      
 printf 'limit_req_zone $binary_remote_addr zone=zz_http:1m rate=10r/m;\n' > "$INFRA_DIR/apps/$app/nginx-http.conf"
 provision_nginx 2>&1 | tee "$out"
 grep -q "atualizado: /etc/nginx/conf.d/$app.conf" "$out" || fail "conf.d/$app.conf não foi instalado"
+wait_body "/$app/" com-zona
 expect "/$app/ com a zona" "$(get "/$app/")" 200
 expect "/$app/ corpo" "$(cat "$out")" com-zona
 
@@ -268,6 +279,7 @@ provision_nginx 2>&1 | tee "$out"
 grep -q "removido do nginx: /etc/nginx/conf.d/$app.conf" "$out" || fail "a remoção do conf.d/$app.conf não foi registrada"
 [[ ! -e /etc/nginx/conf.d/$app.conf ]] || fail "conf.d/$app.conf continua no nginx"
 ls /var/backups/infra/nginx-conf.d-"$app".conf.* >/dev/null || fail "cópia do conf.d/$app.conf não ficou em /var/backups/infra"
+wait_body "/$app/" sem-zona
 expect "/$app/ sem a zona" "$(get "/$app/")" 200
 expect "/$app/ corpo novo" "$(cat "$out")" sem-zona
 provision_nginx 2>&1 | tee "$out"
