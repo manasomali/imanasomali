@@ -20,13 +20,17 @@ bash apps/imago/dev/nginx.sh up           # front de produção: o dist/ de cada
 bash apps/imago/dev/nginx.sh up --vite    # front pelo dev server do Vite de cada aplicação, com HMR
 ```
 
-Abra `http://localhost:8080/imago/entrar`. O cookie `__Host-imago_session` é `Secure`, e o Chrome o aceita em `http://localhost`, que ele trata como origem segura (o E2E do ethos usa o mesmo comportamento). Com o `seed` do imago e `EMAIL_BACKEND=console`, o código de login sai no terminal do backend do imago; não existe atalho de login, nem em dev.
+Abra `http://localhost:8080/imago/entrar`. O cookie `__Host-imago_session` é `Secure`, e o Chrome o aceita em `http://localhost`, que ele trata como origem segura (o E2E do ethos usa o mesmo comportamento, em `http://127.0.0.1:8080`). Com o `seed` do imago e `EMAIL_BACKEND=console`, o código de login sai no terminal do backend do imago; não existe atalho de login, nem em dev.
 
 - **Front pelo `dist/`** (padrão): o mais perto de produção, com os mesmos headers (CSP sem `'unsafe-inline'`) e o mesmo cache. Rode `npm run build` no front que mudou. Sem o `dist/`, o `/<app>/` dá 404.
 - **Front pelo Vite** (`--vite`): cada front vem do `npm run dev` dele, com HMR. Só as locations do front mudam (um `location ~ ^/<app>/` de regex vence os de produção); as da API são as de produção. Sem a CSP de produção, que bloquearia o script inline do HMR.
-- **Linux sem Docker Desktop** (`--host-network`): lá o `host.docker.internal` só alcança o que escuta na interface da bridge, e não um serviço em `127.0.0.1`. Com a rede do host, o container usa o `127.0.0.1` da máquina, sem troca nenhuma.
+- **Linux sem Docker Desktop** (`--host-network`): lá o `host.docker.internal` só alcança o que escuta na interface da bridge, e não um serviço em `127.0.0.1`. Com a rede do host, o container usa o `127.0.0.1` da máquina, sem troca nenhuma, e o nginx escuta só em `127.0.0.1:8080` (na rede do Docker, quem limita à interface local é o `-p 127.0.0.1:8080:8080`).
 
 Se uma rota der **502**, o backend (ou o Vite) daquela porta não está rodando ou não é alcançável do container. O Vite em `localhost` pode escutar só em IPv6 (`::1`): suba-o com `npm run dev -- --host 127.0.0.1`.
+
+## E2E
+
+O E2E do ethos (seção "E2E" do [apps/ethos/README.md](../../ethos/README.md)) usa esta config: o `apps/ethos/backend/tests/e2e_stack.py` roda o `nginx.sh render` (com `--host-network` no Linux), sobe o mesmo `nginx:1.24` num container próprio (`ethos-e2e-nginx`, com o `dist/` do imago e do ethos) e o derruba no fim. A única troca na config gerada é o rate limit do login do imago, mais alto, porque a suíte faz dezenas de logins do mesmo IP. Por isso o `ethos.yaml` roda também quando muda algo em `apps/imago/` ou num `infra/apps/*/nginx*.conf`.
 
 ## Checagem
 

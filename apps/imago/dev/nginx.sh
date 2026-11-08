@@ -61,12 +61,15 @@ EOF
 }
 
 # Gera em $1 o conf.d (server de dev e nginx-http.conf) e o apps.d (nginx.conf de cada aplicação).
-# $2=1: front pelo Vite. $3: o endereço dos backends visto do container
+# $2=1: front pelo Vite. $3: o endereço dos backends visto do container (127.0.0.1: rede do host)
 render() {
-  local out=${1:?} vite=$2 upstream=$3 dir name port file dest
+  local out=${1:?} vite=$2 upstream=$3 dir name port file dest address=$listen
+  # Com a rede do host, o nginx escuta direto na máquina: só na interface local, como o -p do up
+  # faz na rede do Docker
+  [[ $upstream != 127.0.0.1 ]] || address=127.0.0.1:$listen
   rm -rf "$out"
   mkdir -p "$out/conf.d" "$out/apps.d"
-  sed "s/__LISTEN__/$listen/" "$dev/server.conf" > "$out/conf.d/00-dev.conf"
+  sed "s/__LISTEN__/$address/" "$dev/server.conf" > "$out/conf.d/00-dev.conf"
   for dir in "$repo"/infra/apps/*/; do
     [[ -d $dir ]] || continue
     name=$(basename "$dir")
