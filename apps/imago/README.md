@@ -25,7 +25,7 @@ uv run --env-file .env python -m app.cli seed # contas de exemplo 101, 102 e 103
 uv run --env-file .env uvicorn app.main:app --reload --port 3003 --root-path /api/imago
 ```
 
-A API sobe em `http://127.0.0.1:3003`, na porta de produção, porque as aplicações em dev chamam o imago nela (`IMAGO_INTERNAL_URL`). Como em produção, as rotas ficam na raiz (`http://127.0.0.1:3003/health`) e o prefixo público entra pelo `--root-path`: em produção o nginx tira o `/api/imago` antes de repassar a request. No Git Bash (Windows), o MSYS converte `/api/imago` num caminho do Windows: rode o comando no PowerShell ou prefixe com `MSYS_NO_PATHCONV=1`.
+A API sobe em `http://127.0.0.1:3003`, na porta de produção, porque as aplicações em dev chamam o imago nela (`IMAGO_INTERNAL_URL`). Como em produção, as rotas ficam na raiz (`http://127.0.0.1:3003/health`) e o prefixo público entra pelo `--root-path`: em produção o nginx tira o `/api/imago` antes de repassar a request. No Git Bash (Windows), o MSYS converte `/api/imago` num caminho do Windows: rode o comando no PowerShell ou prefixe com `MSYS_NO_PATHCONV=1`. A documentação interativa (`/docs`, `/redoc` e o schema em `/openapi.json`) só existe com `APP_ENV=dev`; abra pelo proxy do Vite, com o front rodando, em `http://localhost:5175/api/imago/docs`. Fora de dev os três respondem 404: o schema listaria as rotas internas e as de admin para qualquer um.
 
 Testes e lint:
 
