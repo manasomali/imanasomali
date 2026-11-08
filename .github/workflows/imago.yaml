@@ -1,0 +1,104 @@
+name: Imago
+
+# Só checagens, em PRs e em push na main. O deploy entra depois (ETH-63), com os scripts de
+# packages/deploy/. Como rodar as mesmas checagens localmente: apps/imago/README.md
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/imago/**"
+      - "packages/**"
+      - ".github/workflows/imago.yaml"
+  pull_request:
+    paths:
+      - "apps/imago/**"
+      - "packages/**"
+      - ".github/workflows/imago.yaml"
+
+# Em PRs, um push novo cancela o run anterior do mesmo PR. Nunca o grupo "infra": o GitHub mantém
+# um run pendente por grupo e cancelaria um deploy na fila atrás de um provision
+concurrency:
+  group: imago-checks-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: 🐍 Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/imago/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      # O setup-uv não publica mais tags de versão maior (v10), só a versão completa
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          working-directory: apps/imago/backend
+          enable-cache: true
+          # Relativo ao working-directory acima
+          cache-dependency-glob: uv.lock
+
+      - name: Python igual ao infra/apps/<nome>/app.conf
+        working-directory: ${{ github.workspace }}
+        run: bash .github/scripts/check-python-version.sh
+
+      - name: uv.lock em dia com o pyproject.toml
+        run: uv lock --check
+
+      - name: Instalar dependências
+        run: uv sync --frozen
+
+      - name: ruff check
+        run: uv run --no-sync ruff check
+
+      - name: ruff format --check
+        run: uv run --no-sync ruff format --check
+
+      - name: pytest (cobertura mínima de 85%)
+        run: uv run --no-sync pytest --cov
+
+      # Política de testes: 100% de cobertura (linhas e ramos) nos módulos da lista, lida do
+      # .coverage que o pytest acabou de gravar. Para exigir de outro módulo, acrescente uma
+      # linha. Cada um é conferido sozinho, então um caminho errado também falha ("No data to
+      # report") em vez de passar calado
+      - name: Cobertura de 100% nos módulos críticos
+        env:
+          FULL_COVERAGE: |
+            app/audit.py
+            app/config.py
+            app/retention.py
+            app/seed.py
+        run: |
+          for module in $FULL_COVERAGE; do
+            uv run --no-sync coverage report --fail-under=100 --show-missing --include="$module"
+          done
+
+  frontend:
+    name: ⚛️ Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/imago/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: apps/imago/frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: 🔍 Lint
+        run: npm run lint
+
+      - name: 🔨 Build
+        run: npm run build
+
+      - name: 🧪 Testes
+        run: npm test

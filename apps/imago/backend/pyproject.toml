@@ -1,0 +1,56 @@
+[project]
+name = "imago-backend"
+version = "0.1.0"
+description = "API do imago, a conta única do manasomali.com (manasomali.com/api/imago/)"
+requires-python = ">=3.14"
+dependencies = [
+    "alembic>=1.20.1",
+    "fastapi>=0.162.0",
+    "sqlalchemy>=2.1.6",
+    # Base de fusos do zoneinfo onde o sistema não tem uma (Windows); no Linux,
+    # o zoneinfo usa a do sistema primeiro
+    "tzdata>=2026.5",
+    "uvicorn>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "aiosmtpd>=1.4.6",
+    "httpx2>=2.16.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.2",
+    "time-machine>=3.5.1",
+    "trustme>=1.2.1",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# E/W: pycodestyle, F: pyflakes, I: isort, B: bugbear, UP: pyupgrade,
+# SIM: simplificações, C4: comprehensions, S: bandit, PT: pytest, RUF: ruff
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "S", "PT", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# assert é o jeito do pytest de checar
+"tests/**" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# Cobertura sempre ligada: abaixo de 85% o pytest falha (política de testes)
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov",
+    "--cov-report=term-missing",
+    "--cov-fail-under=85",
+]
+xfail_strict = true
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
