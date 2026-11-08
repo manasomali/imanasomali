@@ -2,8 +2,9 @@
 
 Cada comando lê a mesma configuração do servidor (variáveis de ambiente, `load_settings`) e abre o
 banco de `DATABASE_PATH`, que precisa já existir (migrado com `alembic upgrade head`). Em produção
-roda como `app-imago`: o `cleanup` pelo `imago-cleanup.timer`, de hora em hora, os outros à mão.
-O `create-admin` é o único jeito de ligar o `is_admin`: não existe endpoint para isso.
+roda como `app-imago`: o `run-tasks` e o `cleanup` pelo `imago-cleanup.timer`, de hora em hora, os
+outros à mão. O `create-admin` é o único jeito de ligar o `is_admin`: não existe endpoint para isso.
+O `import-users` só existe para a passagem do login do ethos (uma vez só).
 
 Para acrescentar um comando:
 
