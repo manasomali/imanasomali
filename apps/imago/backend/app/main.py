@@ -8,6 +8,7 @@ from fastapi import APIRouter, FastAPI
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.auth.router import router as auth_router
 from app.body_limit import BodyLimitMiddleware
 from app.config import Settings, load_settings
 from app.db import SessionDep, create_db_engine, create_session_factory
@@ -70,6 +71,7 @@ def create_app(
     api.add_middleware(RequestLogMiddleware)
     install_error_handlers(api)
     api.include_router(router)
+    api.include_router(auth_router)
     api.include_router(internal_router)
     return api
 

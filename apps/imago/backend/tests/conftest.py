@@ -21,7 +21,9 @@
 - `client`: `make_client(app)`;
 - `make_smtp_server(starttls=True)` / `smtp_server`: servidor SMTP falso (`tests/fake_smtp.py`)
   em 127.0.0.1, com STARTTLS e login obrigatórios. Para o app enviar por ele:
-  `create_app(settings, mail_backend=smtp_server.backend())`.
+  `create_app(settings, mail_backend=smtp_server.backend())`;
+- `make_account(email, **campos)`: usuário salvo, com os termos atuais aceitos e uma sessão
+  aberta: `Account(user, headers)`, com o cookie em `headers`.
 """
 
 import shutil
@@ -43,6 +45,9 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db import create_db_engine, create_session_factory
 from app.main import create_app
+from app.terms import TERMS_VERSION
+from tests.auth_helpers import Account, cookie, open_session
+from tests.factories import new_user, save
 from tests.fake_smtp import FakeSmtpServer, start_fake_smtp
 from tests.internal_helpers import ENGRAFI_TOKEN, ETHOS_TOKEN
 from tests.mail_helpers import Outbox
@@ -175,3 +180,13 @@ def make_smtp_server(smtp_ca) -> Iterator[Callable[..., FakeSmtpServer]]:
 @pytest.fixture
 def smtp_server(make_smtp_server) -> FakeSmtpServer:
     return make_smtp_server()
+
+
+@pytest.fixture
+def make_account(db_session) -> Callable[..., Account]:
+    def build(email: str, **fields: Any) -> Account:
+        user = new_user(email, **({"terms_version": TERMS_VERSION} | fields))
+        save(db_session, user)
+        return Account(user, cookie(open_session(db_session, user)))
+
+    return build
