@@ -33,7 +33,7 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/router.py,app/auth/security.py,app/auth/service.py,app/body_limit.py,app/config.py,app/deletion.py,app/internal/deps.py,app/internal/router.py,app/internal/tasks.py,app/mail/quota.py,app/mail/sender.py,app/reapply.py,app/retention.py,app/seed.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/admin/accounts.py,app/admin/router.py,app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/router.py,app/auth/security.py,app/auth/service.py,app/body_limit.py,app/config.py,app/deletion.py,app/internal/deps.py,app/internal/router.py,app/internal/tasks.py,app/mail/quota.py,app/mail/sender.py,app/reapply.py,app/retention.py,app/seed.py   # depois do pytest
 ```
 
 Os módulos da lista acima precisam de 100% de cobertura (linhas e ramos); ela fica na variável `FULL_COVERAGE` do workflow. Os testes não precisam de `.env`: as fixtures de `tests/conftest.py` montam a config com um SQLite em arquivo temporário (`settings`, `make_settings`, `engine`, `db_session`, `outbox`, `apps`, `task_context`, `app`, `client`, `make_client`, `smtp_server`, `make_smtp_server`, `make_account`). O banco de teste já vem com o schema completo: as migrações rodam uma vez por execução do pytest e cada teste recebe uma cópia. `tests/factories.py` tem `new_user`, `save` e `count`; `tests/auth_helpers.py`, o login completo (`login`), `cookie`, `open_session` e o `Outbox` (email em memória); `tests/internal_helpers.py`, os tokens de teste do ethos e do engrafi e `bearer(token)`; `tests/apps_helpers.py`, as aplicações falsas (`FakeApps`, num `httpx2.MockTransport`) que recebem as tarefas do imago: o `app` dos testes já vem ligado a elas (fixture `apps`), e nenhum teste chama a rede (uma chamada que escape delas falha o teste).
@@ -155,6 +155,18 @@ sudo journalctl -u app-imago -o cat --no-pager \
 
 Ele lê as linhas `conta <id> excluída` (as outras são ignoradas) e, sem mandar email: refaz a exclusão inteira da conta que ainda existe no imago (com o `delete` de todas as aplicações do `IMAGO_APPS`; a que falhar fica como tarefa, e o `run-tasks` a termina) e chama o `delete` de cada aplicação para a conta que já não existe no imago (o caso de um banco de aplicação restaurado). O último admin ativo é pulado com um aviso. Pode rodar quantas vezes quiser. As exclusões dependem do journald (limite de 100M, e some junto se a VM for perdida): é um risco aceito no plano.
 
+### Admin de contas
+
+`app/admin/router.py` (rotas) e `app/admin/accounts.py` (regras). Tudo exige `AdminUser` (sessão, termos atuais aceitos e `is_admin` lido do banco): sem sessão 401, usuário comum 403 `forbidden`, termos pendentes 403 `terms_not_accepted`. Cada escrita confere de novo, dentro do `BEGIN IMMEDIATE`, que quem age continua admin ativo (401 se foi bloqueado ou entrou em exclusão no meio, 403 se perdeu o admin), e grava no `audit_log` com `user_id` = o admin e a conta alvo em `details.target_user_id`.
+
+- `GET /admin/users?email&status&cursor&limit`: `{"users": [AdminUser], "next_cursor"}`, das contas mais novas para as mais antigas (`created_at`, id), paginadas por cursor (sem OFFSET). `email` é um trecho (espaços e maiúsculas não importam; `%` e `_` são letras); `status` é `active`, `blocked` (`is_active` falso) ou `deleting`; `limit` de 1 a 200, padrão 50. `AdminUser` = `{id, email, status ("active"|"deleting"), is_active, is_admin, timezone, locale, created_at, last_login_at|null}`, datas em ISO 8601 UTC.
+- `PATCH /admin/users/{id}` com `{is_active}` (só `true`/`false`): bloquear apaga as sessões da conta (`user_blocked`, com quantas) e a pessoa não entra nem recebe código; desbloquear grava `user_unblocked`. Sem mudança, nada é gravado. A própria conta: 409 `cannot_block_self`. Bloquear nunca tira o último admin ativo: quem bloqueia é um admin ativo diferente da conta bloqueada, e dois admins que se bloqueiam ao mesmo tempo esperam um pelo outro (o segundo já não é admin ativo: 401).
+- `PATCH /admin/users/{id}/email` com `{new_email}` (normalizado como no login): 409 `email_in_use` (field `new_email`) se o email já tem conta, inclusive o atual dela, sem mudar nada. Na troca: apaga as sessões da conta, vence os códigos pendentes do email antigo e da conta, grava `email_changed` (`old_email`, `new_email`, `sessions`), cria uma tarefa `refresh` para cada aplicação e manda depois da resposta os avisos ao email antigo e ao novo, no idioma da conta (cada um pelo teto de envio; recusado, avisa o suporte).
+- `DELETE /admin/users/{id}`: 204; o passo 1 da [exclusão de conta](#exclusão-de-conta), com as aplicações chamadas depois da resposta. Último admin ativo: 409 `last_admin`. Conta bloqueada também é apagada. O admin apagando a própria conta conta como exclusão pela própria pessoa. Conta já em exclusão: 204 sem gravar nada, e as aplicações que faltam são chamadas de novo.
+- `GET /admin/mail`: `{"window_hours": 24, "by_app": [{app, code, account, notification}], "day": {sent, limit, notification_limit}, "hour": {...}}`. `by_app` traz o imago e cada aplicação do `IMAGO_APPS`, nessa ordem e com zero se não mandaram nada, e depois uma aplicação que saiu do `IMAGO_APPS` e ainda tem envios na janela; `sent` é a contagem de cada janela móvel do teto, `limit` o teto de códigos e emails de conta e `notification_limit` onde as notificações param.
+
+Conta em exclusão aparece na listagem, mas bloquear, desbloquear e trocar o email dela dão 404 `not_found`, como uma conta que já não existe: ela está saindo de todas as aplicações. Conta inexistente: 404.
+
 ### Email e teto de envio
 
 Só o imago fala com o SMTP (a unit dele é a única que lê o `smtp.env`), pelo pacote `app/mail/`:
@@ -203,11 +215,11 @@ Comando novo: um handler `(context: CommandContext, args) -> int` em `app/cli.py
 
 - Nunca logar email, código, token, cookie, IP nem os headers `X-User-*`. Nunca pôr código, token ou cookie no `details` da auditoria.
 - Toda escrita num `write_transaction`, com as leituras que decidem a escrita dentro dele. Emails só depois do commit.
-- Admin só pelo `create-admin`; o último admin ativo não é bloqueado nem apagado (ETH-61, ETH-62).
+- Admin só pelo `create-admin`; o último admin ativo não é bloqueado nem apagado.
 - Mudança no catálogo de erros entra também nos `translation.json` do front.
 - Nada importa de `site/` nem de `apps/<outra>/`.
 
-Pontos de extensão para as próximas tasks: `service.account_emails` reserva os emails de conta no teto (com o aviso ao suporte); `deletion.start_deletion` é o passo 1 da exclusão, para o admin (ETH-62).
+Pontos de extensão para as próximas tasks: `service.account_emails` reserva os emails de conta no teto (com o aviso ao suporte); `deletion.start_deletion` é o passo 1 da exclusão.
 
 ## Frontend
 
