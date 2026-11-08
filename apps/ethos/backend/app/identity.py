@@ -115,10 +115,16 @@ class MalformedIdentityError(ValueError):
     """Header `X-User-*` fora do formato. A mensagem é só o nome do header, nunca o valor."""
 
 
+# Arquivos da base de fusos do sistema que o available_timezones() lista, mas não são fusos
+NOT_TIMEZONES = frozenset({"localtime"})
+
+
 @cache
 def _timezones() -> frozenset[str]:
-    # Lê a base de fusos uma vez por processo (a do sistema e a do pacote tzdata)
-    return frozenset(available_timezones())
+    # Lê a base de fusos uma vez por processo (a do sistema e a do pacote tzdata). No
+    # Debian/Ubuntu, a do sistema tem o `localtime`, link para o /etc/localtime, que não é fuso
+    # IANA (o navegador não conhece). A mesma regra do imago, que manda o X-User-Timezone
+    return frozenset(available_timezones() - NOT_TIMEZONES)
 
 
 def is_valid_timezone(name: str) -> bool:

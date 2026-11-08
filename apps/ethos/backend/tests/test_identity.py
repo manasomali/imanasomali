@@ -144,6 +144,22 @@ def test_largest_id_is_accepted():
     assert read_identity(Headers(HEADERS | {"X-User-Id": str(2**53 - 1)})).id == 2**53 - 1
 
 
+def test_localtime_of_the_system_zone_files_is_not_a_timezone(monkeypatch):
+    # No Debian/Ubuntu (a VM e o CI), o available_timezones() lista o link
+    # /usr/share/zoneinfo/localtime; no Windows, não. Simula a lista do Linux em qualquer máquina
+    monkeypatch.setattr(
+        identity_module, "available_timezones", lambda: {"America/Sao_Paulo", "localtime"}
+    )
+    identity_module._timezones.cache_clear()
+    try:
+        assert identity_module.is_valid_timezone("America/Sao_Paulo") is True
+        assert identity_module.is_valid_timezone("localtime") is False
+        with pytest.raises(MalformedIdentityError, match="x-user-timezone"):
+            read_identity(Headers(HEADERS | {"X-User-Timezone": "localtime"}))
+    finally:
+        identity_module._timezones.cache_clear()
+
+
 # --- require_user na API -------------------------------------------------------------------
 
 
