@@ -79,6 +79,7 @@ jobs:
             app/body_limit.py
             app/config.py
             app/deletion.py
+            app/import_users.py
             app/internal/deps.py
             app/internal/router.py
             app/internal/tasks.py

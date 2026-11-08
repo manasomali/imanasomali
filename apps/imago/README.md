@@ -33,7 +33,7 @@ Testes e lint:
 uv run pytest                              # com cobertura; falha abaixo de 85%
 uv run ruff check                          # lint (--fix corrige o que der)
 uv run ruff format                         # formata; --check só confere, como no CI
-uv run coverage report --fail-under=100 --include=app/admin/accounts.py,app/admin/router.py,app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/router.py,app/auth/security.py,app/auth/service.py,app/body_limit.py,app/config.py,app/deletion.py,app/internal/deps.py,app/internal/router.py,app/internal/tasks.py,app/mail/quota.py,app/mail/sender.py,app/reapply.py,app/retention.py,app/seed.py   # depois do pytest
+uv run coverage report --fail-under=100 --include=app/admin/accounts.py,app/admin/router.py,app/audit.py,app/auth/deps.py,app/auth/origin.py,app/auth/router.py,app/auth/security.py,app/auth/service.py,app/body_limit.py,app/config.py,app/deletion.py,app/import_users.py,app/internal/deps.py,app/internal/router.py,app/internal/tasks.py,app/mail/quota.py,app/mail/sender.py,app/reapply.py,app/retention.py,app/seed.py   # depois do pytest
 ```
 
 Os módulos da lista acima precisam de 100% de cobertura (linhas e ramos); ela fica na variável `FULL_COVERAGE` do workflow. Os testes não precisam de `.env`: as fixtures de `tests/conftest.py` montam a config com um SQLite em arquivo temporário (`settings`, `make_settings`, `engine`, `db_session`, `outbox`, `apps`, `task_context`, `app`, `client`, `make_client`, `smtp_server`, `make_smtp_server`, `make_account`). O banco de teste já vem com o schema completo: as migrações rodam uma vez por execução do pytest e cada teste recebe uma cópia. `tests/factories.py` tem `new_user`, `save` e `count`; `tests/auth_helpers.py`, o login completo (`login`), `cookie`, `open_session` e o `Outbox` (email em memória); `tests/internal_helpers.py`, os tokens de teste do ethos e do engrafi e `bearer(token)`; `tests/apps_helpers.py`, as aplicações falsas (`FakeApps`, num `httpx2.MockTransport`) que recebem as tarefas do imago: o `app` dos testes já vem ligado a elas (fixture `apps`), e nenhum teste chama a rede (uma chamada que escape delas falha o teste).
@@ -146,11 +146,10 @@ Emails de conta (conta excluída, troca de email) recusados pelo teto não saem,
 O backup (do imago ou de qualquer aplicação) traz de volta as contas apagadas depois dele. Antes de abrir os serviços de novo, rode o `reapply-deletions` do imago com as linhas do journal do `app-imago` (roteiro completo no `infra/RESTORE.md`):
 
 ```bash
+# imago_cli: ver "Comandos de operação (CLI)"
 sudo journalctl -u app-imago -o cat --no-pager \
-  | sudo systemd-run --quiet --pipe --wait --collect --uid=app-imago --gid=app-imago \
-      --working-directory=/opt/apps/imago -p EnvironmentFile=/etc/infra/smtp.env \
-      -p EnvironmentFile=/etc/infra/internal/imago.env -p EnvironmentFile=/etc/infra/apps/imago.env \
-      /opt/apps/imago/.venv/bin/python -m app.cli reapply-deletions
+  | "${imago_cli[@]}" /opt/apps/imago/.venv/bin/python -m app.cli reapply-deletions
+"${imago_cli[@]}" /opt/apps/imago/.venv/bin/python -m app.cli run-tasks   # o que ficou pendente
 ```
 
 Ele lê as linhas `conta <id> excluída` (as outras são ignoradas) e, sem mandar email: refaz a exclusão inteira da conta que ainda existe no imago (com o `delete` de todas as aplicações do `IMAGO_APPS`; a que falhar fica como tarefa, e o `run-tasks` a termina) e chama o `delete` de cada aplicação para a conta que já não existe no imago (o caso de um banco de aplicação restaurado). O último admin ativo é pulado com um aviso. Pode rodar quantas vezes quiser. As exclusões dependem do journald (limite de 100M, e some junto se a VM for perdida): é um risco aceito no plano.
@@ -183,6 +182,7 @@ Nos testes, a fixture `smtp_server` sobe um servidor SMTP falso (aiosmtpd) com S
 ```bash
 uv run --env-file .env python -m app.cli --help      # lista os comandos
 uv run --env-file .env python -m app.cli cleanup     # aplica a retenção de dados
+uv run --env-file .env python -m app.cli run-tasks   # tarefas pendentes para as aplicações
 uv run --env-file .env python -m app.cli create-admin voce@example.com   # torna a conta admin
 uv run --env-file .env python -m app.cli seed        # contas de exemplo (só em dev)
 ```
@@ -193,23 +193,95 @@ O CLI lê a mesma config do servidor e abre o banco de `DATABASE_PATH`, que prec
 |---|---|
 | `cleanup` | Retenção de dados (ver acima), numa transação só. Imprime quantas linhas mudou em cada passo; a segunda execução seguida não muda nada. Roda de hora em hora pelo `imago-cleanup.timer` (ETH-57), depois do `run-tasks`. |
 | `run-tasks` | Tenta as tarefas pendentes para as aplicações ([Tarefas para as aplicações](#tarefas-para-as-aplicações)) e termina as exclusões de conta sem tarefa `delete` pendente (passo 3, com o email "conta excluída"). Imprime quantas tarefas tentou, concluiu, quantas falharam, quantas ficaram para depois (em andamento noutra thread ou com a conta mudando a cada chamada) e quantas exclusões terminou. Sai com 0 mesmo com falhas, que ficam gravadas e voltam na próxima execução; só um erro geral (config, banco) sai com 1. Roda de hora em hora pelo `imago-cleanup.timer`, antes do `cleanup`. |
+| `import-users -` | Passagem do login do ethos ([roteiro](#passagem-do-login-do-ethos-eth-64-passo-3)), uma vez só: lê do stdin uma linha JSON por conta, no formato do `export-users` do ethos (`id`, `email`, `is_active`, `is_admin`, `timezone`, `locale`, `created_at`, `last_login_at`, datas ISO 8601 em UTC), e grava todas numa transação só, com os mesmos ids, status `active` e sem o aceite dos termos (o imago pede no primeiro acesso). Não grava nada se uma linha não é JSON, se falta ou sobra um campo, se um valor é inválido (id de 1 a 2^53 - 1, email pela normalização do login, fuso IANA, idioma `pt` ou `en`), se um id ou email se repete na entrada ou já existe no imago: o erro diz a linha e o motivo (com o id da conta do imago que já existe), nunca o email. Só o stdin (`-`; recusa um terminal e entrada vazia): as contas nunca passam por arquivo. Imprime só as contagens (importadas, ativas, bloqueadas, admins), nunca email. |
 | `reapply-deletions [id ...]` | Depois de restaurar um backup ([Depois de restaurar um backup](#depois-de-restaurar-um-backup)): lê do stdin as linhas do `journalctl -u app-imago -o cat` (ou ids soltos, um por linha), ou recebe os ids (de 1 a 2^53 - 1) como argumentos, e refaz as exclusões sem email. Recusa um terminal no stdin, entrada vazia e uma linha de exclusão fora do formato (nada é apagado). Imprime quantas contas apagou de novo no imago (e quantas esperam uma aplicação: rode o `run-tasks`), quantas já não existiam no imago, quantas pulou (último admin) e quantas chamadas às aplicações falharam. Sai com 1 se o `delete` de uma conta que já não existe no imago falhou numa aplicação (essa falha não fica gravada em lugar nenhum: rode de novo). Com o `IMAGO_APPS` vazio (o ensaio numa cópia), só o banco do imago muda. |
 | `create-admin <email>` | Liga o `is_admin` de uma conta que já existe e grava `admin_created` (`{"via": "cli"}`). É o único jeito de criar admin: não existe endpoint para isso. O email é normalizado como no login. Email sem conta: erro, nada muda (a pessoa entra no imago uma vez antes). Conta bloqueada ou em exclusão: erro, nada muda. Conta que já é admin: avisa, sai com 0 e não grava nada. |
 | `seed` | Só com `APP_ENV=dev`. Cria as contas de exemplo com ids fixos, que os seeds das aplicações usam: 101 `ana@example.com` (admin, `America/Sao_Paulo`, pt), 102 `bia@example.com` (`America/Sao_Paulo`, pt) e 103 `caio@example.com` (`Europe/Lisbon`, en), todas com os termos atuais aceitos (`app/seed.py`, `SEED_ACCOUNTS`). Se alguma já existe, não grava nada. |
 
-Na VM, como `app-imago`, com o mesmo ambiente da unit:
+Na VM, os comandos rodam como `app-imago`, com o mesmo ambiente e as mesmas proteções da unit (`infra/apps/imago/app-imago.service`), pelo `systemd-run`: os `EnvironmentFile=` são `0600` do root, então `sudo -u app-imago` não basta. Defina uma vez no shell:
 
 ```bash
-sudo systemd-run --quiet --pipe --wait --collect \
-  --uid=app-imago --gid=app-imago \
-  --working-directory=/opt/apps/imago \
-  -p EnvironmentFile=/etc/infra/smtp.env \
-  -p EnvironmentFile=/etc/infra/internal/imago.env \
-  -p EnvironmentFile=/etc/infra/apps/imago.env \
-  /opt/apps/imago/.venv/bin/python -m app.cli create-admin voce@example.com
+imago_cli=(sudo systemd-run --quiet --pipe --wait --collect --uid=app-imago --gid=app-imago
+  --working-directory=/opt/apps/imago
+  -p EnvironmentFile=/etc/infra/smtp.env -p EnvironmentFile=/etc/infra/internal/imago.env
+  -p EnvironmentFile=/etc/infra/apps/imago.env
+  -p NoNewPrivileges=true -p ProtectSystem=strict -p ProtectHome=true -p PrivateTmp=true
+  -p ReadWritePaths=/var/lib/sqlite/imago -p MemoryMax=150M
+  -E PYTHONUNBUFFERED=1 -E PYTHONDONTWRITEBYTECODE=1)
+"${imago_cli[@]}" /opt/apps/imago/.venv/bin/python -m app.cli create-admin voce@example.com
 ```
 
+`--pipe` liga o stdin e o stdout do comando ao terminal (ou ao pipe), `--wait` espera e devolve o código de saída, e `--collect` não deixa a unit temporária para trás quando ele falha.
+
 Comando novo: um handler `(context: CommandContext, args) -> int` em `app/cli.py`, registrado em `build_parser`. Erro esperado é `raise CommandError("mensagem")`.
+
+### Passagem do login do ethos (ETH-64, passo 3)
+
+A ordem completa está no [imago-plan.md](../../imago-plan.md) ("migração do login do ethos"). Este é o passo 3, na VM, depois do PR de infra A (o `auth_request` do ethos já pergunta ao imago, e o imago está no ar sem as contas do ethos) e com o `export-users` já publicado no ethos por um deploy normal. O ethos fica fora do ar daqui até o fim do deploy do PR do ethos.
+
+1. Defina o `imago_cli` ([Comandos de operação](#comandos-de-operação-cli)) e o do ethos, com o ambiente e as proteções das units dele nesse ponto (`infra/apps/ethos/app-ethos.service`; o ethos de hoje ainda lê o `smtp.env`):
+
+   ```bash
+   ethos_cli=(sudo systemd-run --quiet --pipe --wait --collect --uid=app-ethos --gid=app-ethos
+     --working-directory=/opt/apps/ethos
+     -p EnvironmentFile=/etc/infra/smtp.env -p EnvironmentFile=/etc/infra/internal/ethos.env
+     -p EnvironmentFile=/etc/infra/apps/ethos.env
+     -p NoNewPrivileges=true -p ProtectSystem=strict -p ProtectHome=true -p PrivateTmp=true
+     -p ReadWritePaths=/var/lib/sqlite/ethos -p MemoryMax=150M
+     -E PYTHONUNBUFFERED=1 -E PYTHONDONTWRITEBYTECODE=1)
+   ```
+
+   O `ReadWritePaths` do ethos vale também para o export, que só lê: o SQLite em WAL precisa criar o `-shm` ao lado do banco.
+
+2. Pare o ethos, para nenhuma conta nascer ou sumir no meio da passagem, e anote as contagens:
+
+   ```bash
+   sudo systemctl stop ethos-alerts.timer ethos-alerts.service app-ethos
+   systemctl is-active ethos-alerts.timer ethos-alerts.service app-ethos   # inactive (3x)
+   sudo -u app-ethos sqlite3 /var/lib/sqlite/ethos/app.db 'SELECT count(*) FROM users;'   # N
+   sudo -u app-imago sqlite3 /var/lib/sqlite/imago/app.db 'SELECT count(*) FROM users;'   # M, normalmente 0
+   ```
+
+3. Export e import ligados por um pipe, sem arquivo em disco. O `pipefail` faz um export que falhou aparecer no código de saída:
+
+   ```bash
+   ( set -o pipefail
+     "${ethos_cli[@]}" /opt/apps/ethos/.venv/bin/python -m app.cli export-users \
+       | "${imago_cli[@]}" /opt/apps/imago/.venv/bin/python -m app.cli import-users - )
+   echo "saída: $?"   # 0
+   ```
+
+   A saída esperada é `import-users: N contas importadas (A ativas, B bloqueadas, C admins)`, com o N do passo 2. O import é tudo ou nada: se ele recusar a entrada (o erro diz a linha e o motivo, nunca o email), nada foi gravado no imago; corrija e rode de novo.
+
+   Um id ou email que já existe no imago também é recusado: alguém achou o `/imago/` antes e criou uma conta (inclusive o admin testando o imago com o email dele). Essa conta não tem dados em lugar nenhum (o ethos de hoje não lê o imago), então apague-a direto no banco do imago, pelo id que o erro mostra, e rode o passo 3 de novo. Não use o painel nem o `DELETE /me`: essa exclusão espera o `delete` do ethos novo, e até lá a conta continua no imago.
+
+   ```bash
+   sudo -u app-imago sqlite3 /var/lib/sqlite/imago/app.db \
+     "PRAGMA foreign_keys=ON; DELETE FROM users WHERE id = <id do erro>;"
+   ```
+
+4. Confira no imago: o total é M + N, os admins e bloqueados batem com os do ethos e ninguém tem os termos aceitos:
+
+   ```bash
+   sudo -u app-imago sqlite3 /var/lib/sqlite/imago/app.db \
+     'SELECT count(*), sum(is_admin), sum(NOT is_active), sum(terms_version IS NULL) FROM users;'
+   sudo -u app-ethos sqlite3 /var/lib/sqlite/ethos/app.db \
+     'SELECT count(*), sum(is_admin), sum(NOT is_active) FROM users;'
+   ```
+
+   Até aqui o ethos não mudou: para desistir, `sudo systemctl start app-ethos ethos-alerts.timer` volta com o login antigo (as contas importadas ficam no imago; um import novo as recusaria).
+
+5. Faça o merge do PR do ethos que troca o login (ETH-14, 26, 27, 60 e a migração `users` → `app_users`). O deploy sobe o ethos novo; confira:
+
+   ```bash
+   systemctl is-active app-ethos                          # active
+   curl -fsS https://manasomali.com/api/ethos/health      # {"status":"ok"}
+   ```
+
+6. Religue os alertas: `sudo systemctl start ethos-alerts.timer`.
+7. Entre em `/imago/entrar` com o email do admin, aceite os termos, abra `/ethos/` (os hábitos de antes estão lá) e `/imago/admin`.
+
+Não rode o import de novo depois que ele deu certo: ele recusa os ids que já estão no imago.
 
 ### Regras
 

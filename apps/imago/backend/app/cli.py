@@ -37,6 +37,7 @@ from app.audit import AuditEvent
 from app.auth.service import can_sign_in, normalize_email
 from app.config import ConfigError, Settings, load_settings
 from app.db import create_db_engine, create_session_factory, write_transaction
+from app.import_users import ImportFailure, import_accounts, parse_accounts
 from app.internal.tasks import TaskContext, run_pending
 from app.logs import configure_logging
 from app.mail.backends import MailBackend
@@ -174,6 +175,35 @@ def _read_ids_from_stdin() -> tuple[int, ...]:
     return parsed.ids
 
 
+def _import_users(context: CommandContext, _args: argparse.Namespace) -> int:
+    """Importa as contas do ethos, uma linha JSON por conta no stdin (`app/import_users.py`).
+
+    Só pelo stdin, ligado por um pipe ao `export-users` do ethos: as contas (com os emails) não
+    passam por arquivo. Recusa um terminal no stdin. Tudo ou nada, numa transação só; a saída tem
+    só contagens, nunca email.
+    """
+    if sys.stdin.isatty():
+        raise CommandError(
+            "mande as contas pelo stdin, num pipe com o export-users do ethos "
+            "(roteiro no apps/imago/README.md)"
+        )
+    try:
+        accounts = parse_accounts(_decoded_lines(sys.stdin.buffer))
+        if not accounts:
+            raise CommandError("entrada vazia; nada foi gravado (o export-users rodou?)")
+        with context.session_factory() as session, write_transaction(session):
+            summary = import_accounts(session, accounts, now=utcnow())
+    except OSError as exc:
+        raise CommandError(f"não consegui ler a entrada ({type(exc).__name__})") from None
+    except ImportFailure as exc:
+        raise CommandError(f"{exc}; nada foi gravado") from None
+    print(
+        f"import-users: {summary.total} contas importadas ({summary.active} ativas, "
+        f"{summary.blocked} bloqueadas, {summary.admins} admins)"
+    )
+    return EXIT_OK
+
+
 def _decoded_lines(stream: Iterable[bytes]) -> Iterator[str]:
     # Bytes, e não o texto do stdin: o journald grava UTF-8, qualquer que seja o locale da sessão
     for raw in stream:
@@ -289,6 +319,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="ids das contas (de 1 a 2^53 - 1); sem eles, lê do stdin",
     )
     reapply.set_defaults(handler=_reapply_deletions)
+
+    import_users = commands.add_parser(
+        "import-users",
+        help="importa as contas do ethos (export-users), uma vez só, pelo stdin",
+        description=(
+            "Passagem do login do ethos para o imago: lê do stdin uma linha JSON por conta, no "
+            "formato do export-users do ethos, e grava todas numa transação só, com os mesmos "
+            "ids e sem o aceite dos termos. Não grava nada se uma linha for inválida, se um id ou "
+            "email se repetir na entrada ou já existir no imago. Imprime só as contagens."
+        ),
+    )
+    import_users.add_argument(
+        "source", choices=["-"], help="- (o stdin; as contas nunca passam por arquivo)"
+    )
+    import_users.set_defaults(handler=_import_users)
 
     create_admin = commands.add_parser(
         "create-admin",
