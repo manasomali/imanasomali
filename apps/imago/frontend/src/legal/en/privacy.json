@@ -1,0 +1,176 @@
+{
+  "title": "Privacy policy",
+  "sections": [
+    {
+      "id": "summary",
+      "title": "Summary",
+      "paragraphs": [
+        [
+          "A single account works in every application on manasomali.com. We keep only what they need to work: your email, your preferences and what you record in each application.",
+          "There are no ads, no tracking and no sale of data. The only cookie is the session cookie.",
+          "The people who take part in what you share in an application see what was shared. The service administrator can see the content of anyone's applications, and every such access is logged.",
+          "You can delete your account whenever you want. Deletion is immediate in every application, and the data is gone from the backups within 8 days."
+        ]
+      ]
+    },
+    {
+      "id": "controller",
+      "title": "Who looks after your data",
+      "paragraphs": [
+        "manasomali.com and its applications are a personal project, run by the person behind the website, who decides how the data is processed (the controller, under Brazil's General Data Protection Law, the LGPD). To talk about your data, write to {{supportEmail}}."
+      ]
+    },
+    {
+      "id": "account-data",
+      "title": "Account data",
+      "paragraphs": [
+        "imago keeps the account data, used by every application:",
+        [
+          "Account: email, time zone, language, the accepted version of the terms and when it was accepted, whether the account is an administrator or is blocked, and the dates of creation and last sign-in.",
+          "Sessions: when each one started and was last used, the IP address and the browser used (user agent).",
+          "Sign-in codes: the destination email and the code, stored in a way that cannot be read back (hash).",
+          "Audit log: sign-ins and sign-outs, code requests, account changes and administrator actions on the account, with the IP address.",
+          "Email sending: how many emails each application sent and of which type, without the recipient, to enforce the sending cap.",
+          "Web server technical logs: IP address, requested address, date and time and browser of each request."
+        ],
+        "Each application keeps what you record in it and a copy of the account's email and language (and time zone, when it needs it), to show who takes part in what is shared and for its emails. Each application's section, further below, says what it keeps."
+      ]
+    },
+    {
+      "id": "purposes",
+      "title": "What we use it for",
+      "paragraphs": [
+        [
+          "signing you in and keeping you signed in to every application (email, codes and sessions);",
+          "making each application work, as described in its section;",
+          "sending the account's and the applications' emails, in your language;",
+          "protecting the service from abuse and investigating problems (IP, browser, audit log and sending limits);",
+          "handling support requests, such as changing your email or deleting your account."
+        ],
+        "We process this data to do what you ask for when you use the service (performance of a contract, under the LGPD) and, for the security logs, for the legitimate interest of keeping the service secure. We do not use your data for advertising or profiling."
+      ]
+    },
+    {
+      "id": "storage",
+      "title": "Where the data is kept",
+      "paragraphs": [
+        "The databases of imago and of each application are on an Oracle Cloud Infrastructure (OCI) server, and the backups are in Oracle's Object Storage. The applications do not read imago's database, and imago does not read theirs: inside the server, they only exchange what is needed to identify you, send the emails and delete your data when the account is deleted.",
+        "Emails are sent through Brevo, an email delivery provider, which receives the destination address and the content of each message. Messages to {{supportEmail}} are received by the email service of the manasomali.com domain (Hostinger) and forwarded to the person who runs the service.",
+        "These providers may process the data outside Brazil."
+      ]
+    },
+    {
+      "id": "who-sees",
+      "title": "Who sees your data",
+      "paragraphs": [
+        [
+          "You see everything that is yours.",
+          "The people who take part in what you share in an application see what was shared, as each application's section explains.",
+          "The service administrator sees the list of accounts (email, dates, status, time zone and language) and can open the content of anyone's applications. Every time the administrator opens this content, the access is recorded in the application's audit log.",
+          "The providers in the previous section, only to store the data and send the emails."
+        ],
+        "We do not sell your data or pass it on to anyone else, unless required by law."
+      ]
+    },
+    {
+      "id": "emails",
+      "title": "Emails we send",
+      "paragraphs": [
+        "The service only sends emails related to using the applications, all of them through imago:",
+        [
+          "account and security: sign-in code, account deletion code, account deleted notice and email change notice (to the old and to the new email);",
+          "each application's invites, alerts and notices, on its behalf, as its section says."
+        ],
+        "We do not send marketing emails or newsletters. Some email apps show an unsubscribe link, added by the delivery provider. If you use it, you may stop getting sign-in codes and be unable to sign in."
+      ]
+    },
+    {
+      "id": "cookies",
+      "title": "Cookies and browser storage",
+      "paragraphs": [
+        "The service uses a single cookie, the session cookie (__Host-imago_session), which keeps you signed in to every application on manasomali.com. It is required for the service to work and cannot be read by scripts on the page. The browser may keep it for longer, but the session ends after 60 days without use and is renewed while you use any application.",
+        "The browser's local storage holds only preferences: theme and language (the same as on the manasomali.com website) and each application's screen preferences, such as the notices you dismissed. They stay in your browser.",
+        "We use no analytics tools, tracking pixels, ads or third-party content: pages, scripts and fonts come from manasomali.com itself."
+      ]
+    },
+    {
+      "id": "retention",
+      "title": "How long we keep it",
+      "paragraphs": [
+        [
+          "Account, preferences and the log of account changes (terms acceptance, time zone, language and email change) and of administrator actions on it: while the account exists.",
+          "Session: until you sign out, or after 60 days without use.",
+          "Sign-in code: valid for 10 minutes, and its record is deleted the next day.",
+          "Access logs (code requests, sign-ins and sign-outs): 90 days.",
+          "IP address in sessions and in the audit log: deleted after 90 days.",
+          "Count of emails sent, without the recipient: 48 hours.",
+          "Each application's data: as its section says.",
+          "Web server technical logs: deleted by the server's automatic log rotation.",
+          "Backups: up to 8 days."
+        ]
+      ]
+    },
+    {
+      "id": "deletion",
+      "title": "Deleting your account",
+      "paragraphs": [
+        "You can delete your account at any time on the account page (manasomali.com/imago), confirming with a code sent to your email. If the account is blocked, ask support to delete it. The administrator can also delete an account, for example in a case of abuse. Deletion is immediate, applies to every application and cannot be undone.",
+        "What is deleted: the account, its sessions, its codes and its access and change logs and, in each application, your data, as its section says. Right after you ask for the deletion you can no longer sign in; the applications delete their data next, and an application that is offline at that moment deletes it as soon as it is back.",
+        "What stays, without identifying you:",
+        [
+          "what each application's section says stays, such as your part in the history of what belonged to other people;",
+          "the records of the administrator's actions on the account, without your email or IP;",
+          "a record that an account, identified only by an internal number, was deleted."
+        ],
+        "Emails already sent stay in their recipients' inboxes.",
+        "Deleted data stays in the backups until they expire: within 8 days, it is gone from everywhere. To redo deletions if a backup ever has to be restored, the server keeps only the internal number of the deleted accounts."
+      ]
+    },
+    {
+      "id": "ethos",
+      "title": "ethos",
+      "paragraphs": [
+        "ethos (manasomali.com/ethos) is an application for tracking habits. It keeps:",
+        [
+          "habits and their settings (name, code, description, goal, color, reward, punishment and costs), marks (date and time, duration, cost, note and author), pauses, alert settings and invites, with the email of the invited person;",
+          "each habit's history: who did what and when (marks and changes to settings and sharing), without IP addresses;",
+          "a copy of the account's email, language and time zone, to show who takes part in the habits and for the alerts."
+        ],
+        "Who sees it: the members of a shared habit see all of its content, including notes, costs and history, and the emails of the people who take part and of who made each mark. Whoever gets an invite sees the habit's name and the email of the person who sent it. The service administrator can open the content of anyone's habits (settings, marks and notes), and every access is recorded in the ethos audit log.",
+        "Some habits may reveal information about health, addictions or other personal matters. You decide what you record and how you describe each habit.",
+        "ethos emails: an invite to a habit, the alerts you turn on (at most one a day for each habit), a notice when the owner deletes a habit and a notice of lost access when the owner of a habit you take part in deletes their account.",
+        "When the account is deleted, ethos deletes the habits you own (with all their marks, including the guests' marks, and their history), your participation in other people's habits, your alerts and invites and the copy of the account data. What stays: the marks you made in other people's habits, shown as made by a \"removed user\", and those habits' history, without your email.",
+        "Habits, marks and each habit's history are kept while the habit exists; pending invites, until they are accepted, declined or canceled, or until the habit is deleted."
+      ]
+    },
+    {
+      "id": "rights",
+      "title": "Your rights",
+      "paragraphs": [
+        "Under the LGPD, you can ask for confirmation that we process your data, access to it, correction, anonymization, portability, deletion and information about whom it is shared with. You change your time zone and language on the account page, and your email through support; each application may have its own export. For other requests, write to {{supportEmail}} from the account's email.",
+        "You can also file a complaint with Brazil's National Data Protection Authority (ANPD)."
+      ]
+    },
+    {
+      "id": "security",
+      "title": "Security",
+      "paragraphs": [
+        "The connection is always encrypted (HTTPS). Codes and sessions are stored as hashes, the session cookie cannot be read by scripts and the databases overwrite deleted data. No system is completely secure: keep access to your email safe, since it is the key to your account in every application."
+      ]
+    },
+    {
+      "id": "changes",
+      "title": "Changes to this policy",
+      "paragraphs": [
+        "Each version of this policy and of the terms of use is identified by a date. Any change, including a new application joining, makes a new version, and you are asked to accept it on your next visit."
+      ]
+    },
+    {
+      "id": "contact",
+      "title": "Contact",
+      "paragraphs": [
+        "Questions and requests about your data: {{supportEmail}}."
+      ]
+    }
+  ]
+}
