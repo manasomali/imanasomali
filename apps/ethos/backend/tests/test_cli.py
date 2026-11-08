@@ -1,3 +1,5 @@
+import json
+import logging
 import os
 import re
 import subprocess
@@ -8,6 +10,7 @@ from typing import Any
 import pytest
 import time_machine
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app import audit, cli
@@ -16,6 +19,7 @@ from app.cli import CommandError, main
 from app.config import ENV_VARS, Settings
 from app.db import write_transaction
 from app.models import AuditLog, User
+from tests.auth_helpers import open_session
 from tests.conftest import BACKEND_DIR
 from tests.factories import count, new_habit, new_user, save
 
@@ -254,3 +258,167 @@ def test_create_admin_refuses_a_blocked_account(db_session, env, is_admin, capsy
         f"erro: a conta {blocked.id} está bloqueada (is_active=false); nada mudou\n",
     )
     assert snapshot(db_session) == before
+
+
+def exported(out: str) -> list[dict[str, Any]]:
+    """As contas da saída do export-users, depois de conferir a linha final com o total."""
+    *accounts, end = [json.loads(line) for line in out.splitlines()]
+    assert end == {"end": True, "count": len(accounts)}
+    return accounts
+
+
+def database_files(settings: Settings) -> dict[str, bytes | None]:
+    """Os arquivos da pasta do banco, com o conteúdo do principal e do WAL.
+
+    O `-shm` é o índice em memória compartilhada do WAL, que o SQLite atualiza também em leituras
+    (marcas de leitura): conta só a existência dele, não o conteúdo.
+    """
+    folder = settings.database_path.parent
+    return {
+        path.name: None if path.name.endswith("-shm") else path.read_bytes()
+        for path in sorted(folder.iterdir())
+        if path.is_file()
+    }
+
+
+def test_export_users_writes_one_json_line_per_account(db_session, env, settings, caplog, capsys):
+    active = new_user(
+        "ana@example.com",
+        created_at=datetime(2026, 1, 2, 3, 4, 5, 678901, tzinfo=UTC),
+        last_login_at=datetime(2026, 5, 30, 12, 0, tzinfo=UTC),
+    )
+    blocked = new_user(
+        "bia@example.com",
+        is_active=False,
+        timezone="Europe/Lisbon",
+        locale="en",
+        created_at=datetime(2026, 2, 1, tzinfo=UTC),
+    )
+    admin = new_user(
+        "caio@example.com",
+        is_admin=True,
+        created_at=datetime(2026, 3, 1, 9, 30, tzinfo=UTC),
+        last_login_at=datetime(2026, 6, 1, 2, 59, 59, 1, tzinfo=UTC),
+    )
+    save(db_session, active, blocked, admin)
+    save(db_session, new_habit(active))
+    open_session(db_session, active)
+    db_session.rollback()
+    before = database_files(settings)
+
+    with caplog.at_level(logging.DEBUG):
+        assert main(["export-users"], env) == 0
+
+    out, err = capsys.readouterr()
+    assert err == ""
+    # Nada no log: nem a contagem nem os emails
+    assert caplog.records == []
+    assert out.isascii()
+    assert exported(out) == [
+        {
+            "id": active.id,
+            "email": "ana@example.com",
+            "is_active": True,
+            "is_admin": False,
+            "timezone": "America/Sao_Paulo",
+            "locale": "pt",
+            "created_at": "2026-01-02T03:04:05.678901Z",
+            "last_login_at": "2026-05-30T12:00:00.000000Z",
+        },
+        {
+            "id": blocked.id,
+            "email": "bia@example.com",
+            "is_active": False,
+            "is_admin": False,
+            "timezone": "Europe/Lisbon",
+            "locale": "en",
+            "created_at": "2026-02-01T00:00:00.000000Z",
+            "last_login_at": None,
+        },
+        {
+            "id": admin.id,
+            "email": "caio@example.com",
+            "is_active": True,
+            "is_admin": True,
+            "timezone": "America/Sao_Paulo",
+            "locale": "pt",
+            "created_at": "2026-03-01T09:30:00.000000Z",
+            "last_login_at": "2026-06-01T02:59:59.000001Z",
+        },
+    ]
+    # A linha final, com o total, fecha a saída (o import do imago exige exatamente esta)
+    assert out.endswith('\n{"end":true,"count":3}\n')
+    # As datas voltam para o mesmo instante
+    assert datetime.fromisoformat(exported(out)[0]["created_at"]) == active.created_at
+    # Só leu: os arquivos do banco estão iguais e nenhum arquivo novo apareceu
+    assert database_files(settings) == before
+
+
+def test_export_users_keeps_the_id_order_with_gaps(db_session, env, capsys):
+    users = [new_user(f"u{n}@example.com") for n in range(3)]
+    save(db_session, *users)
+    with write_transaction(db_session):
+        db_session.delete(db_session.get(User, users[1].id))
+
+    assert main(["export-users"], env) == 0
+
+    exported_ids = [line["id"] for line in exported(capsys.readouterr().out)]
+    assert exported_ids == [users[0].id, users[2].id]
+
+
+def test_export_users_with_no_accounts_writes_only_the_end_line(env, capsys):
+    assert main(["export-users"], env) == 0
+    assert capsys.readouterr() == ('{"end":true,"count":0}\n', "")
+
+
+def test_export_users_failing_midway_writes_no_end_line(db_session, env, monkeypatch, capsys):
+    save(db_session, *(new_user(f"u{n}@example.com") for n in range(3)))
+    db_session.rollback()
+    real_execute = Session.execute
+
+    def failing_execute(self, statement, *args, **kwargs):
+        # O banco falha depois da primeira conta, no meio da consulta
+        result = real_execute(self, statement, *args, **kwargs)
+
+        def rows():
+            yield next(iter(result))
+            raise OperationalError("SELECT", {}, Exception("disk I/O error"))
+
+        return rows()
+
+    monkeypatch.setattr(Session, "execute", failing_execute)
+
+    assert main(["export-users"], env) == 1
+
+    out, err = capsys.readouterr()
+    # Só a primeira conta saiu, e sem a linha final: o import do imago recusa a entrada
+    assert [json.loads(line)["email"] for line in out.splitlines()] == ["u0@example.com"]
+    assert '"end"' not in out
+    assert err.startswith("erro: falha no banco de dados (OperationalError em app/cli.py:")
+
+
+def test_export_users_refuses_a_terminal(env, ana, monkeypatch, capsys):
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+
+    assert main(["export-users"], env) == 1
+
+    assert capsys.readouterr() == (
+        "",
+        "erro: a saída tem os emails de todas as contas: mande-a por um pipe para o "
+        "import-users - do imago\n",
+    )
+
+
+def test_export_users_runs_as_a_module_into_a_pipe(env, ana):
+    environ = {key: value for key, value in os.environ.items() if key not in ENV_VARS}
+    result = subprocess.run(
+        [sys.executable, "-m", "app.cli", "export-users"],
+        cwd=BACKEND_DIR,
+        env=environ | env | {"PYTHONIOENCODING": "utf-8"},
+        capture_output=True,
+        encoding="utf-8",
+        timeout=60,
+        check=False,
+    )
+    assert (result.returncode, result.stderr) == (0, "")
+    assert [line["email"] for line in exported(result.stdout)] == ["ana@example.com"]
