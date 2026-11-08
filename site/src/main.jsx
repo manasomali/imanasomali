@@ -8,6 +8,8 @@ import About from './pages/About';
 import Projects from './pages/Projects';
 import Apps from './pages/Apps';
 import Publications from './pages/Publications';
+import Posts from './pages/Posts';
+import Post from './pages/Post';
 import Page404 from './pages/Page404';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -21,6 +23,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/projects" element={<Projects />} />
           <Route path="/apps" element={<Apps />} />
           <Route path="/publications" element={<Publications />} />
+          <Route path="/posts" element={<Posts />} />
+          <Route path="/posts/:slug" element={<Post />} />
           <Route path="*" element={<Page404 />} />
         </Routes>
       </BrowserRouter>

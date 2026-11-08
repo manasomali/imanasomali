@@ -1,0 +1,98 @@
+.prose {
+  display: grid;
+  grid-template-columns:
+    [wide-start] minmax(0, 1fr)
+    [text-start] minmax(0, var(--content-width))
+    [text-end] minmax(0, 1fr)
+    [wide-end];
+}
+
+.prose > * {
+  grid-column: text;
+  min-width: 0;
+}
+
+.prose > [data-width='wide'] {
+  grid-column: wide;
+}
+
+.prose > * + * {
+  margin-top: 1.25rem;
+}
+
+.prose > h2 {
+  margin-top: clamp(2.75rem, 7vw, 4rem);
+  font-size: var(--text-xl);
+}
+
+.prose > h3 {
+  margin-top: 2.25rem;
+  font-size: var(--text-lg);
+}
+
+.prose > h2 + *,
+.prose > h3 + * {
+  margin-top: 1rem;
+}
+
+.prose > figure {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Only the prose's own blocks: components inside it (post meta, tables, figures) keep
+   their own list and text styles. */
+.prose > p,
+.prose > ul > li,
+.prose > ol > li {
+  line-height: 1.75;
+}
+
+.prose > ul,
+.prose > ol {
+  margin-block: 0;
+  padding-inline-start: 1.5rem;
+}
+
+.prose > ul > li + li,
+.prose > ol > li + li {
+  margin-top: 0.5rem;
+}
+
+.prose > ol > li::marker {
+  font-weight: 700;
+}
+
+.prose strong {
+  font-weight: 700;
+}
+
+.prose > dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.5rem 1.5rem;
+  margin-block: 0;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+
+.prose > dl > dt {
+  font-weight: 700;
+}
+
+.prose > dl > dd {
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  .prose > dl {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+
+  .prose > dl > dd + dt {
+    margin-top: 0.6rem;
+  }
+}

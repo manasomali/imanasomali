@@ -34,4 +34,9 @@ i18n
     }
   });
 
+// BCP 47 locale for the Intl APIs (dates, decimal commas) of a supported language
+export function intlLocale(lng) {
+  return lng === 'pt' ? 'pt-BR' : 'en';
+}
+
 export default i18n;

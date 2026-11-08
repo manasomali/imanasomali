@@ -1,0 +1,47 @@
+.header {
+  display: grid;
+  gap: 1rem;
+  padding-bottom: clamp(1.5rem, 4vw, 2rem);
+  border-bottom: 2px solid var(--border);
+}
+
+/* Title's own bottom margin is for pages where the content follows straight after it */
+.header > h1 {
+  margin-bottom: 0;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: border-color var(--transition);
+}
+
+.back:hover {
+  border-bottom-color: var(--fg);
+}
+
+.lead {
+  color: var(--muted);
+  font-size: var(--text-lg);
+  line-height: 1.7;
+}
+
+.status {
+  color: var(--muted);
+}
+
+.reload {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}

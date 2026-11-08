@@ -1,0 +1,66 @@
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: clamp(1.25rem, 3vw, 1.75rem);
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.card:focus-within {
+  transform: translate(-3px, -3px);
+  box-shadow: 6px 6px 0 var(--fg);
+}
+
+@media (hover: hover) {
+  .card:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: 6px 6px 0 var(--fg);
+  }
+}
+
+.title {
+  font-size: var(--text-xl);
+}
+
+.link {
+  text-decoration: none;
+}
+
+/* stretched link: the whole card is the click target; the card's lift and shadow
+   (focus-within) stand in for the link's own focus ring */
+.link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+}
+
+.link:focus-visible {
+  outline: none;
+}
+
+.summary {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.more {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  border-bottom: 2px solid var(--fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card:hover,
+  .card:focus-within {
+    transform: none;
+  }
+}

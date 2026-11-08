@@ -1,0 +1,12 @@
+.scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.scroll:focus-visible {
+  outline-offset: 2px;
+}
+
+.content {
+  width: 100%;
+}
