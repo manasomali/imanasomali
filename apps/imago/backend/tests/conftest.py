@@ -9,14 +9,19 @@
   Todo teste que usa `engine`, `db_session`, `app` ou `client` já recebe o schema completo;
 - `engine`: engine desse banco, descartada no fim;
 - `db_session`: sessão desse banco, da mesma fábrica do app (escrita só em `write_transaction`);
-- `app`: app montado com `settings`, sobre o `database`;
+- `outbox`: backend de email em memória (`tests/mail_helpers.py`), sem rede: o que o app mandou
+  fica em `outbox.messages`;
+- `app`: app montado com `settings` e o `outbox`, sobre o `database`;
 - `make_alembic_config(path)`: Config do Alembic apontando para o banco em `path`;
 - `make_client(app, *, origin=True, **kwargs)`: TestClient com o lifespan rodando e o root_path
   de produção, fechado no fim do teste (kwargs vão para o TestClient). Como um navegador na página
   do imago, manda em todo request o header `Origin` igual ao `settings.app_origin` do app, que a
   checagem de CSRF exige nos métodos de escrita. `origin="https://..."` manda esse valor;
   `origin=False` não manda. Um `headers={"Origin": ...}` no request troca o valor só nele;
-- `client`: `make_client(app)`.
+- `client`: `make_client(app)`;
+- `make_smtp_server(starttls=True)` / `smtp_server`: servidor SMTP falso (`tests/fake_smtp.py`)
+  em 127.0.0.1, com STARTTLS e login obrigatórios. Para o app enviar por ele:
+  `create_app(settings, mail_backend=smtp_server.backend())`.
 """
 
 import shutil
@@ -27,6 +32,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import trustme
 from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
@@ -37,7 +43,9 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db import create_db_engine, create_session_factory
 from app.main import create_app
+from tests.fake_smtp import FakeSmtpServer, start_fake_smtp
 from tests.internal_helpers import ENGRAFI_TOKEN, ETHOS_TOKEN
+from tests.mail_helpers import Outbox
 
 # Mesmo prefixo que o uvicorn recebe em produção (--root-path /api/imago)
 ROOT_PATH = "/api/imago"
@@ -117,8 +125,13 @@ def db_session(engine) -> Iterator[Session]:
 
 
 @pytest.fixture
-def app(settings, database) -> FastAPI:
-    return create_app(settings)
+def outbox() -> Outbox:
+    return Outbox()
+
+
+@pytest.fixture
+def app(settings, database, outbox) -> FastAPI:
+    return create_app(settings, mail_backend=outbox)
 
 
 @pytest.fixture
@@ -140,3 +153,25 @@ def make_client() -> Iterator[Callable[..., TestClient]]:
 @pytest.fixture
 def client(app, make_client) -> TestClient:
     return make_client(app)
+
+
+@pytest.fixture(scope="session")
+def smtp_ca() -> trustme.CA:
+    return trustme.CA()
+
+
+@pytest.fixture
+def make_smtp_server(smtp_ca) -> Iterator[Callable[..., FakeSmtpServer]]:
+    with ExitStack() as stack:
+
+        def build(*, starttls: bool = True) -> FakeSmtpServer:
+            server, stop = start_fake_smtp(smtp_ca, starttls=starttls)
+            stack.callback(stop)
+            return server
+
+        yield build
+
+
+@pytest.fixture
+def smtp_server(make_smtp_server) -> FakeSmtpServer:
+    return make_smtp_server()

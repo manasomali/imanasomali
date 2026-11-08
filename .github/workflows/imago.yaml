@@ -70,7 +70,12 @@ jobs:
           FULL_COVERAGE: |
             app/audit.py
             app/auth/security.py
+            app/body_limit.py
             app/config.py
+            app/internal/deps.py
+            app/internal/router.py
+            app/mail/quota.py
+            app/mail/sender.py
             app/retention.py
             app/seed.py
         run: |

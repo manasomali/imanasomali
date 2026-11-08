@@ -1,4 +1,4 @@
-"""Montagem do app do imago: config, banco, middlewares e rotas."""
+"""Montagem do app do imago: config, banco, email, middlewares e rotas."""
 
 import logging
 from collections.abc import AsyncIterator
@@ -8,10 +8,14 @@ from fastapi import APIRouter, FastAPI
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.body_limit import BodyLimitMiddleware
 from app.config import Settings, load_settings
 from app.db import SessionDep, create_db_engine, create_session_factory
 from app.errors import ApiError, ErrorCode, install_error_handlers
+from app.internal.router import router as internal_router
 from app.logs import RequestLogMiddleware, configure_logging
+from app.mail.backends import MailBackend
+from app.mail.sender import Mailer, build_backend
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +33,13 @@ def health(session: SessionDep) -> dict[str, str]:
     return {"status": "ok"}
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None, mail_backend: MailBackend | None = None
+) -> FastAPI:
     """Monta o app. Sem `settings`, a configuração é lida do ambiente na subida.
+
+    Sem `mail_backend`, o envio de email segue o `EMAIL_BACKEND` da config; os testes passam um
+    backend apontado para o servidor SMTP falso (ou um em memória).
 
     A leitura fica no lifespan, não no import: config inválida (inclusive um `IMAGO_APPS` sem o
     token de alguma aplicação) derruba o servidor na subida com a lista das variáveis erradas, e
@@ -44,6 +53,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         engine = create_db_engine(current.database_path)
         api.state.settings = current
         api.state.session_factory = create_session_factory(engine)
+        backend = build_backend(current) if mail_backend is None else mail_backend
+        api.state.mailer = Mailer(current, backend)
         try:
             yield
         finally:
@@ -51,11 +62,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # O nginx tira o prefixo /api/imago antes de repassar a request, então as rotas ficam na raiz
     # (/health). O prefixo público é passado ao servidor com `uvicorn --root-path /api/imago`: o
-    # parâmetro root_path do FastAPI() está obsoleto desde o FastAPI 0.162
+    # parâmetro root_path do FastAPI() está obsoleto desde o FastAPI 0.162. A API interna
+    # (/internal/*) é chamada direto em 127.0.0.1:3003, sem o nginx
     api = FastAPI(title="imago", lifespan=lifespan)
+    # O último adicionado fica por fora: o log registra também o 422 do tamanho do corpo
+    api.add_middleware(BodyLimitMiddleware)
     api.add_middleware(RequestLogMiddleware)
     install_error_handlers(api)
     api.include_router(router)
+    api.include_router(internal_router)
     return api
 
 
