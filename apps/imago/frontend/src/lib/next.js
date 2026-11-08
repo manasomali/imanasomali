@@ -3,7 +3,10 @@
 // responde 401. Só vale caminho da mesma origem: a URL é montada com new URL(next, origem), que
 // precisa dar a mesma origem, e `next` com caractere de controle ou "\" é recusado (o navegador
 // tira tab e quebra de linha da URL, então "/\t/site.com" viraria "//site.com", e lê "/\site.com"
-// como "//site.com"). Assim a tela de entrar nunca redireciona para outro site
+// como "//site.com"). O caminho devolvido também não pode começar com "//": a resolução tira os
+// segmentos de ponto, e "/.//site.com" ou "/%2e%2e//site.com" dão a mesma origem com o pathname
+// "//site.com", que o navegador leria como o host site.com. Assim a tela de entrar nunca
+// redireciona para outro site
 
 import { BASENAME, PATHS } from '../paths';
 
@@ -31,8 +34,9 @@ function decoded(pathname) {
 
 /**
  * `pathname + search + hash` de `value` se ele for da mesma origem que `origin`; null se não for
- * texto, for vazio, tiver caractere de controle ou "\", ou apontar para outra origem (inclusive
- * "//site.com", "https://site.com" e "javascript:...", cuja origem é "null").
+ * texto, for vazio, tiver caractere de controle ou "\", apontar para outra origem (inclusive
+ * "//site.com", "https://site.com" e "javascript:...", cuja origem é "null") ou se o pathname
+ * resolvido começar com "//" ("/.//site.com", "/imago/..//site.com", "/%2e//site.com").
  */
 export function sameOriginPath(value, origin = window.location.origin) {
   if (typeof value !== 'string' || value === '') return null;
@@ -44,6 +48,10 @@ export function sameOriginPath(value, origin = window.location.origin) {
     return null;
   }
   if (url.origin !== origin) return null;
+  // O pathname serializado de uma URL http(s) sempre começa com "/" e nunca tem "\", espaço nem
+  // caractere de controle (viram "/" ou são codificados). Lido de novo pelo navegador, ele só sai
+  // da origem se começar com "//", que é um endereço sem esquema ("//site.com/caminho")
+  if (url.pathname.startsWith('//')) return null;
   return `${url.pathname}${url.search}${url.hash}`;
 }
 

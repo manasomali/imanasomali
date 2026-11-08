@@ -374,6 +374,12 @@ describe('the `next` parameter', () => {
     ['/\\evil.com', 'next=/\\evil.com'],
     ['/%09/evil.com (tab)', 'next=/%09/evil.com'],
     ['/imago/entrar', 'next=/imago/entrar'],
+    // Segmentos de ponto: a mesma origem, mas o pathname resolvido seria "//evil.com"
+    ['/.//evil.com', 'next=/.//evil.com'],
+    ['/..//evil.com', 'next=/..//evil.com'],
+    ['/imago/..//evil.com', 'next=/imago/..//evil.com'],
+    ['/%2e//evil.com', 'next=/%252e//evil.com'],
+    ['/%2E%2E//evil.com', 'next=/%252E%252E//evil.com'],
   ])('sends %s to /imago/', async (_, query) => {
     signedIn(meFixture({ timezone: browserTimezone() }));
     const leave = mockLeave();

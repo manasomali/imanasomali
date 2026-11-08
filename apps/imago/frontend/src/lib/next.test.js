@@ -60,8 +60,62 @@ describe('resolveNext', () => {
     ['/imago/entrar?next=/ethos/'],
     ['/imago/entrar#x'],
     ['https://manasomali.com/imago/entrar'],
+    // Segmentos de ponto que deixam o pathname resolvido começando com "//" (outro host para o
+    // navegador), inclusive com o ponto codificado e em maiúsculas
+    ['/.//evil.com'],
+    ['/..//evil.com'],
+    ['/imago/..//evil.com'],
+    ['/IMAGO/..//EVIL.COM'],
+    ['/ethos/habits/../..//evil.com/x?y=1#z'],
+    ['/%2e//evil.com'],
+    ['/%2E//evil.com'],
+    ['/%2e%2e//evil.com'],
+    ['/%2E%2E//evil.com'],
+    ['/.%2E//evil.com'],
+    ['/%2e.//evil.com'],
+    ['/.///evil.com'],
+    ['/.//manasomali.com/ethos/'],
+    ['/.//%2fevil.com'],
+    ['/.//%5cevil.com'],
+    ['/.//['],
+    ['https://manasomali.com/.//evil.com'],
   ])('sends %j to the default', (next) => {
     expect(resolveNext(next, ORIGIN)).toBe(DEFAULT_NEXT);
+  });
+
+  // Como chegam na query: o URLSearchParams decodifica uma vez, e um %25 vira o "%" de um ponto
+  // ou de uma barra codificados
+  it.each([
+    ['next=/%2e//evil.com'],
+    ['next=/%2E%2E//evil.com'],
+    ['next=/%252e//evil.com'],
+    ['next=/%252E%252E//evil.com'],
+    ['next=/%2e%2f/evil.com'],
+    ['next=/%2E%2F%2Fevil.com'],
+    ['next=/%2f/evil.com'],
+    ['next=/%2F%2Fevil.com'],
+    ['next=/%5c/evil.com'],
+    ['next=/%5C%5Cevil.com'],
+    ['next=/.%5c/evil.com'],
+    ['next=/imago/..%2f%2fevil.com'],
+  ])('sends %s to /imago/', (query) => {
+    expect(resolveNext(fromQuery(query), ORIGIN)).toBe('/imago/');
+  });
+
+  // Barra e contrabarra codificadas no próprio `next` ficam no caminho (o navegador não as
+  // decodifica no pathname): continuam na mesma origem
+  it.each([
+    ['/%2f/evil.com', '/%2f/evil.com'],
+    ['/%2F%2Fevil.com', '/%2F%2Fevil.com'],
+    ['/./%2f/evil.com', '/%2f/evil.com'],
+    ['/%5c/evil.com', '/%5c/evil.com'],
+    ['/.%5C/evil.com', '/.%5C/evil.com'],
+    ['/imago/../%2e/ethos/', '/ethos/'],
+  ])('keeps %s on the same origin as %s', (next, expected) => {
+    const path = resolveNext(next, ORIGIN);
+
+    expect(path).toBe(expected);
+    expect(new URL(path, ORIGIN).origin).toBe(ORIGIN);
   });
 
   it('uses the page origin by default', () => {
@@ -78,6 +132,12 @@ describe('sameOriginPath', () => {
   it('returns the path, query and hash of a same-origin URL', () => {
     expect(sameOriginPath('/a/b?c=1#d', ORIGIN)).toBe('/a/b?c=1#d');
     expect(sameOriginPath('https://evil.com/a', ORIGIN)).toBeNull();
+  });
+
+  it('refuses a path that resolves to one starting with "//"', () => {
+    expect(new URL('/.//evil.com', ORIGIN).pathname).toBe('//evil.com');
+    expect(sameOriginPath('/.//evil.com', ORIGIN)).toBeNull();
+    expect(sameOriginPath('/%2E%2E//evil.com', ORIGIN)).toBeNull();
   });
 
   it('does not treat a decoding error as a login path', () => {
