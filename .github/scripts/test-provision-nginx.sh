@@ -184,6 +184,11 @@ for name in "${apps[@]}"; do
     expect "/api/$name/x chega como /x" "$(cat "$out")" '{"path": "/x?y=1"}'
     security_headers "/api/$name/"
   fi
+  if has_location "$name" "/api/$name/health"; then
+    expect "/api/$name/health status" "$(get "/api/$name/health")" 200
+    expect "/api/$name/health chega como /health" "$(cat "$out")" '{"path": "/health"}'
+    security_headers "/api/$name/health"
+  fi
   if has_location "$name" "/api/$name/internal/"; then
     expect "/api/$name/internal/x de fora" "$(get "/api/$name/internal/x")" 404
   fi

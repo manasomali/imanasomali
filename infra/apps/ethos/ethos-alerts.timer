@@ -1,5 +1,5 @@
 [Unit]
-Description=ethos: alertas e limpeza de hora em hora
+Description=ethos: alertas de hora em hora
 
 [Timer]
 OnCalendar=hourly

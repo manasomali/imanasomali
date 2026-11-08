@@ -222,6 +222,11 @@ wait "$imago_pid" 2>/dev/null || true
 for name in "${auth_apps[@]}"; do
   expect "$name: /health sem o imago" "$(req "/api/$name/health")" 200
   expect "$name: /x sem o imago" "$(req "/api/$name/x" "${cookie_admin[@]}")" 500
+  # Login próprio de uma aplicação que ainda não passou para o imago: não depende dele
+  if grep -qE "^[[:space:]]*location[[:space:]]+/api/$name/auth/[[:space:]]*\{" "${conf_of[$name]}"; then
+    expect "$name: /api/$name/auth/ (login próprio) sem o imago" "$(req "/api/$name/auth/x")" 200
+    expect "$name: /api/$name/auth/ chega como /auth/x" "$(first_line)" "GET /auth/x"
+  fi
 done
 
 if ((failures)); then

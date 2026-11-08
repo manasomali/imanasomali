@@ -74,6 +74,19 @@ for manifest in "$INFRA_STATE_DIR"/apps/*.units; do
   check "$name: /api/$name/health responde 200 com JSON" app_health_ok "$name"
 done
 
+# A API das aplicações com auth_request pergunta ao imago quem é o usuário: sem ele no ar, responde
+# 500 (menos o /health). Antes do primeiro deploy do imago (VM nova), só avisa
+for conf in /etc/nginx/apps.d/*.conf; do
+  [[ -f $conf ]] || continue
+  grep -qE '^[[:space:]]*auth_request[[:space:]]+/_imago/session;' "$conf" || continue
+  name=$(basename "$conf" .conf)
+  if [[ -e /opt/apps/$IMAGO_APP/.venv/bin/uvicorn ]]; then
+    check "$name: app-$IMAGO_APP no ar (auth_request da API)" systemctl is-active --quiet "app-$IMAGO_APP"
+  else
+    warn "$name: a API pergunta ao $IMAGO_APP quem é o usuário, mas ele ainda não foi publicado: responde 500 até o deploy dele"
+  fi
+done
+
 # Tokens da API interna: só o root lê (os valores nunca são lidos aqui)
 if [[ -f $INFRA_STATE_DIR/apps/$IMAGO_APP.units ]]; then
   check "$INTERNAL_DIR/$IMAGO_APP.env existe" test -f "$INTERNAL_DIR/$IMAGO_APP.env"

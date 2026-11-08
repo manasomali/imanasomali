@@ -260,8 +260,9 @@ check_job() {
   [[ $(systemctl show -p TimersCalendar --value "$job.timer") == *"*-*-* *:00:00"* ]] \
     || fail "$job.timer não é de hora em hora"
 }
-# O ethos: alertas e depois limpeza. O imago: tarefas para as aplicações e depois limpeza
-check_job ethos ethos-alerts "run-alerts cleanup"
+# O ethos: só os alertas (a limpeza de contas é do imago). O imago: tarefas para as aplicações e
+# depois limpeza
+check_job ethos ethos-alerts "run-alerts"
 check_job imago imago-cleanup "run-tasks cleanup"
 
 echo "--- dono ou modo errado é corrigido"
