@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 import time_machine
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app import audit, cli
@@ -260,7 +261,10 @@ def test_create_admin_refuses_a_blocked_account(db_session, env, is_admin, capsy
 
 
 def exported(out: str) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in out.splitlines()]
+    """As contas da saída do export-users, depois de conferir a linha final com o total."""
+    *accounts, end = [json.loads(line) for line in out.splitlines()]
+    assert end == {"end": True, "count": len(accounts)}
+    return accounts
 
 
 def database_files(settings: Settings) -> dict[str, bytes | None]:
@@ -342,6 +346,8 @@ def test_export_users_writes_one_json_line_per_account(db_session, env, settings
             "last_login_at": "2026-06-01T02:59:59.000001Z",
         },
     ]
+    # A linha final, com o total, fecha a saída (o import do imago exige exatamente esta)
+    assert out.endswith('\n{"end":true,"count":3}\n')
     # As datas voltam para o mesmo instante
     assert datetime.fromisoformat(exported(out)[0]["created_at"]) == active.created_at
     # Só leu: os arquivos do banco estão iguais e nenhum arquivo novo apareceu
@@ -360,9 +366,35 @@ def test_export_users_keeps_the_id_order_with_gaps(db_session, env, capsys):
     assert exported_ids == [users[0].id, users[2].id]
 
 
-def test_export_users_with_no_accounts_writes_nothing(env, capsys):
+def test_export_users_with_no_accounts_writes_only_the_end_line(env, capsys):
     assert main(["export-users"], env) == 0
-    assert capsys.readouterr() == ("", "")
+    assert capsys.readouterr() == ('{"end":true,"count":0}\n', "")
+
+
+def test_export_users_failing_midway_writes_no_end_line(db_session, env, monkeypatch, capsys):
+    save(db_session, *(new_user(f"u{n}@example.com") for n in range(3)))
+    db_session.rollback()
+    real_execute = Session.execute
+
+    def failing_execute(self, statement, *args, **kwargs):
+        # O banco falha depois da primeira conta, no meio da consulta
+        result = real_execute(self, statement, *args, **kwargs)
+
+        def rows():
+            yield next(iter(result))
+            raise OperationalError("SELECT", {}, Exception("disk I/O error"))
+
+        return rows()
+
+    monkeypatch.setattr(Session, "execute", failing_execute)
+
+    assert main(["export-users"], env) == 1
+
+    out, err = capsys.readouterr()
+    # Só a primeira conta saiu, e sem a linha final: o import do imago recusa a entrada
+    assert [json.loads(line)["email"] for line in out.splitlines()] == ["u0@example.com"]
+    assert '"end"' not in out
+    assert err.startswith("erro: falha no banco de dados (OperationalError em app/cli.py:")
 
 
 def test_export_users_refuses_a_terminal(env, ana, monkeypatch, capsys):

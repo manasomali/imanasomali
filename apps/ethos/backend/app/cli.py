@@ -188,9 +188,14 @@ def _export_users(context: CommandContext, _args: argparse.Namespace) -> int:
 
     Campos: `id`, `email`, `is_active`, `is_admin`, `timezone`, `locale`, `created_at` e
     `last_login_at` (datas ISO 8601 em UTC, com `Z`; `null` para quem nunca entrou), em ordem de
-    id. Só lê o banco (uma consulta, sem transação de escrita) e só escreve no stdout: nada em
-    disco, nada no log, nem a contagem, que é do import. Sessões, códigos e o aceite dos termos
-    não passam (todo mundo entra de novo uma vez no imago e aceita os termos novos).
+    id. Depois da última conta, uma linha final com o total, `{"end": true, "count": N}`, só com
+    esses dois campos (nenhum deles existe numa conta). Ela só sai quando todas as contas saíram:
+    se o export morre no meio (falta de memória, erro no banco), o pipe fecha sem ela, e o import
+    recusa a entrada em vez de gravar só parte das contas.
+
+    Só lê o banco (uma consulta, sem transação de escrita) e só escreve no stdout: nada em disco,
+    nada no log. Sessões, códigos e o aceite dos termos não passam (todo mundo entra de novo uma
+    vez no imago e aceita os termos novos).
 
     Recusa um terminal no stdout: a saída tem os emails de todas as contas e é feita para o pipe
     (`... export-users | ... import-users -`, roteiro no README do imago), não para a tela.
@@ -210,22 +215,33 @@ def _export_users(context: CommandContext, _args: argparse.Namespace) -> int:
         User.created_at,
         User.last_login_at,
     ).order_by(User.id)
+    total = 0
     with context.session_factory() as session:
         for row in session.execute(query):
-            record = {
-                "id": row.id,
-                "email": row.email,
-                "is_active": row.is_active,
-                "is_admin": row.is_admin,
-                "timezone": row.timezone,
-                "locale": row.locale,
-                "created_at": _utc_iso(row.created_at),
-                "last_login_at": None if row.last_login_at is None else _utc_iso(row.last_login_at),
-            }
-            # ensure_ascii: a linha é ASCII puro, qualquer que seja o encoding do stdout
-            print(json.dumps(record, ensure_ascii=True, separators=(",", ":")))
+            _print_json_line(
+                {
+                    "id": row.id,
+                    "email": row.email,
+                    "is_active": row.is_active,
+                    "is_admin": row.is_admin,
+                    "timezone": row.timezone,
+                    "locale": row.locale,
+                    "created_at": _utc_iso(row.created_at),
+                    "last_login_at": (
+                        None if row.last_login_at is None else _utc_iso(row.last_login_at)
+                    ),
+                }
+            )
+            total += 1
+    # Só depois da consulta inteira: uma exceção no meio sai antes daqui, sem a linha final
+    _print_json_line({"end": True, "count": total})
     sys.stdout.flush()
     return EXIT_OK
+
+
+def _print_json_line(data: dict[str, object]) -> None:
+    # ensure_ascii: a linha é ASCII puro, qualquer que seja o encoding do stdout
+    print(json.dumps(data, ensure_ascii=True, separators=(",", ":")))
 
 
 def _utc_iso(value: datetime) -> str:
@@ -321,9 +337,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="escreve as contas no stdout, uma linha JSON por conta, para o import-users do imago",
         description=(
             "Passagem do login para o imago: uma linha JSON por conta (id, email, is_active, "
-            "is_admin, timezone, locale, created_at, last_login_at), em ordem de id, para o "
-            "import-users - do imago por um pipe. Só lê o banco e só escreve no stdout (nada em "
-            "disco nem no log). Recusa um terminal no stdout."
+            "is_admin, timezone, locale, created_at, last_login_at), em ordem de id, e no fim a "
+            'linha {"end": true, "count": <total>}, para o import-users - do imago por um pipe. '
+            "Só lê o banco e só escreve no stdout (nada em disco nem no log). Recusa um terminal "
+            "no stdout."
         ),
     ).set_defaults(handler=_export_users)
 
