@@ -1,0 +1,99 @@
+{
+  "title": "Termos de uso",
+  "sections": [
+    {
+      "id": "about",
+      "title": "O manasomali.com e as aplicações",
+      "paragraphs": [
+        "O manasomali.com reúne aplicações gratuitas, como o ethos, mantidas pelo responsável pelo site como projeto pessoal. A conta é uma só para todas elas: o imago, em manasomali.com/imago, cuida do login, da conta e do envio de emails.",
+        "Estes termos e a política de privacidade valem para o imago e para todas as aplicações, e cada aplicação tem também uma seção própria, com as regras dela. Ao entrar, você concorda com estes termos e com a política de privacidade. Se não concordar, não use o serviço."
+      ]
+    },
+    {
+      "id": "account",
+      "title": "Uma conta para todas as aplicações",
+      "paragraphs": [
+        "Não há senha. Para entrar, você recebe por email um código de 6 dígitos, que vale por 10 minutos e uma vez só. Quem controla o seu email controla a sua conta, então proteja o acesso a ele.",
+        "A conta é criada no primeiro acesso, com o email já confirmado pelo código, e vale para todas as aplicações do manasomali.com: entrar numa é entrar em todas, e sair, bloquear ou excluir a conta também vale para todas. Cada email tem uma conta só. Você pode encerrar de uma vez as sessões de todos os aparelhos.",
+        "Você é responsável pelo que for feito com a sua conta."
+      ]
+    },
+    {
+      "id": "free-service",
+      "title": "Serviço gratuito",
+      "paragraphs": [
+        "As aplicações são gratuitas e oferecidas como estão, sem garantia de disponibilidade: elas podem ficar fora do ar, mudar ou ser encerradas. Há cópias de segurança, mas não há garantia de que nenhum dado se perca. Na medida permitida pela lei, não respondemos por danos causados por indisponibilidade, perda de dados ou uso do serviço.",
+        "No futuro, as aplicações podem ter planos pagos, com recursos ou limites diferentes, e anúncios. Antes disso, estes termos e a política de privacidade mudam, e você precisa aceitar a nova versão para continuar usando o serviço."
+      ]
+    },
+    {
+      "id": "acceptable-use",
+      "title": "Uso aceitável",
+      "paragraphs": [
+        "Não é permitido:",
+        [
+          "pedir códigos de acesso para emails que não são seus, ou pedir códigos em excesso;",
+          "mandar convites em massa, para quem você não conhece ou para quem não quer recebê-los;",
+          "usar nomes, descrições, observações ou convites para mandar mensagens, propaganda ou conteúdo ilegal ou ofensivo a outras pessoas;",
+          "tentar acessar dados de outras pessoas, contornar os limites ou atrapalhar o funcionamento do serviço, por exemplo com acessos automatizados em excesso."
+        ]
+      ]
+    },
+    {
+      "id": "limits",
+      "title": "Limites",
+      "paragraphs": [
+        "Para o serviço continuar gratuito e protegido contra abuso, há limites de uso. Na conta, há um limite de códigos de acesso por minuto e por hora e um teto de emails por dia, dividido entre todas as aplicações. Perto do teto, só saem códigos de acesso e emails da conta, e convites, alertas e avisos das aplicações podem atrasar ou não sair. Cada aplicação tem também os limites dela, descritos na seção da aplicação.",
+        "As telas avisam quando um limite é atingido. Os limites podem mudar."
+      ]
+    },
+    {
+      "id": "blocking",
+      "title": "Bloqueio e exclusão por abuso",
+      "paragraphs": [
+        "Em caso de abuso ou de descumprimento destes termos, a conta pode ser bloqueada ou excluída, sem aviso prévio, em todas as aplicações. Conta bloqueada não recebe códigos nem entra em nenhuma aplicação, e os dados dela continuam guardados. Conta excluída perde todos os dados, como explica a política de privacidade, e recebe um email avisando da exclusão."
+      ]
+    },
+    {
+      "id": "email-change",
+      "title": "Troca de email",
+      "paragraphs": [
+        "O email da conta só é trocado pelo suporte. Mande o pedido para {{supportEmail}} a partir do email atual da conta. Antes da troca, pedimos uma resposta enviada do email novo, para confirmar que ele está certo.",
+        "Se você perdeu o acesso ao email atual, podemos pedir informações que só quem usa a conta saberia, e podemos recusar a troca se não houver como confirmar. Depois da troca, todas as sessões são encerradas e os dois emails recebem um aviso."
+      ]
+    },
+    {
+      "id": "your-data",
+      "title": "Seus dados",
+      "paragraphs": [
+        "O que você registra nas aplicações é seu. Usamos esses dados só para fazer o serviço funcionar. A política de privacidade explica o que guardamos e quem pode ver, inclusive o administrador do serviço."
+      ]
+    },
+    {
+      "id": "ethos",
+      "title": "ethos",
+      "paragraphs": [
+        "O ethos, em manasomali.com/ethos, é uma aplicação para registrar hábitos.",
+        "Limites do ethos: hábitos ativos ou pausados por pessoa, marcações por dia em cada hábito, tamanho dos textos, convidados por hábito, hábitos de outras pessoas dos quais você participa e convites por dia.",
+        "O dono de um hábito pode convidar pessoas que já têm conta no manasomali.com, com papel de edição (marcam, desmarcam e editam marcações, inclusive as dos outros) ou só de visualização. O dono controla o hábito: só ele muda a configuração, convida, troca papéis, remove membros e apaga o hábito.",
+        "Todos os membros veem todo o conteúdo do hábito: configuração, custos, recompensa, punição, marcações, observações, histórico e os emails de quem participa e de quem marcou.",
+        "Quem sai ou é removido perde o acesso, mas as marcações que fez continuam no hábito. Quando o dono apaga o hábito ou exclui a própria conta, o hábito some com todas as marcações, inclusive as dos convidados, que recebem um email avisando.",
+        "Metas, pontuação, alertas, recompensas e punições são lembretes que você mesmo define. O ethos não dá orientação médica, psicológica nem financeira; para isso, procure um profissional."
+      ]
+    },
+    {
+      "id": "changes",
+      "title": "Mudanças nos termos",
+      "paragraphs": [
+        "Cada versão destes termos e da política de privacidade é identificada por uma data. Qualquer mudança, inclusive a entrada de uma aplicação nova, gera uma versão nova, e o seu aceite é pedido no próximo acesso, em qualquer aplicação. Até aceitar, você não usa as aplicações, mas pode sair ou excluir a conta sem aceitar a versão nova."
+      ]
+    },
+    {
+      "id": "contact",
+      "title": "Contato",
+      "paragraphs": [
+        "Dúvidas, pedidos e denúncias de abuso: {{supportEmail}}."
+      ]
+    }
+  ]
+}

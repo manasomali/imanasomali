@@ -1,0 +1,256 @@
+{
+  "a11y": {
+    "skip_to_content": "Skip to content",
+    "main_navigation": "Main navigation",
+    "language": "Language",
+    "light_theme": "Use light theme",
+    "dark_theme": "Use dark theme"
+  },
+  "menu": {
+    "account": "Account",
+    "admin": "Admin",
+    "back_to_site": "manasomali.com"
+  },
+  "footer": {
+    "tagline": "imago: one account for every application on manasomali.com",
+    "legal": "Legal texts",
+    "terms": "Terms of use",
+    "privacy": "Privacy policy"
+  },
+  "common": {
+    "loading": "Loading…",
+    "retry": "Try again",
+    "redirecting": "Taking you back…"
+  },
+  "legal": {
+    "version": "Version {{version}}",
+    "contents": "Contents"
+  },
+  "pages": {
+    "login": {
+      "title": "Sign in",
+      "intro": "Enter your email and we will send you a 6-digit code. One account works in every application on manasomali.com; if you do not have one yet, it is created when you confirm the code.",
+      "email": "Email",
+      "send_code": "Send code",
+      "sending": "Sending…",
+      "have_code": "I already have a code",
+      "code_sent": "We sent a 6-digit code to {{email}}. It is valid for 10 minutes. If it does not arrive, check your spam folder.",
+      "code": "6-digit code",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "resend": "Send a new code",
+      "resend_in": "Send a new code in {{seconds}} s",
+      "resent": "We sent a new code.",
+      "change_email": "Use another email",
+      "consent": "By continuing, you agree to the <terms>terms of use</terms> and the <privacy>privacy policy</privacy> (links open in a new tab).",
+      "account_deleted": "Your account was deleted from every application. We sent a confirmation to your email."
+    },
+    "terms_acceptance": {
+      "title": "New terms of use",
+      "signed_in_as": "Signed in as {{email}}.",
+      "text": "The terms of use and the privacy policy of manasomali.com changed. To keep using the applications, read and accept the new version.",
+      "links": "Texts (open in a new tab)",
+      "accept": "Accept and continue",
+      "accepting": "Saving…",
+      "outdated": "A newer version of the terms was published while this page was open. Reload the page to read it.",
+      "reload": "Reload page",
+      "sign_out": "Sign out",
+      "signing_out": "Signing out…",
+      "disagree": "If you do not agree, you can delete your account on the <account>account page</account> without accepting."
+    },
+    "account": {
+      "title": "Account",
+      "saving": "Saving…",
+      "terms_pending": {
+        "title": "New terms of use",
+        "text": "The terms of use and the privacy policy changed. To keep using the applications and to change your language or time zone, read and accept the new version. If you do not agree, you can sign out or delete your account below.",
+        "accept": "Read and accept"
+      },
+      "email": {
+        "title": "Email",
+        "help": "To change your email, write to <mail>{{supportEmail}}</mail> from the account's current email, saying what the new one is. Before changing it, support confirms the new email by asking for a reply sent from it, so a typo cannot hand the account to someone else. After the change, you need to sign in again on every device.",
+        "lost_access": "Lost access to the current email? Write anyway, from another address. In that case, support asks for information only the account's user knows (such as data in the applications) before deciding."
+      },
+      "apps": {
+        "title": "Your applications",
+        "intro": "This account signs you in to all of them.",
+        "empty": "No applications yet."
+      },
+      "language": {
+        "title": "Language",
+        "help": "The language of the emails from manasomali.com and its applications (codes, invites and alerts). When you save, it also becomes the screen language in this browser.",
+        "save": "Save language",
+        "saved": "Language saved."
+      },
+      "timezone": {
+        "title": "Time zone",
+        "help": "The time zone of every application (in ethos, it sets the calendar days, the score and the alert times). Current account time zone: {{timezone}}.",
+        "device": "This device is in another time zone: {{timezone}}.",
+        "use_device": "Select this device's time zone",
+        "search": "Search time zone (city, region or UTC-03)",
+        "found_one": "{{count}} time zone found.",
+        "found_other": "{{count}} time zones found.",
+        "list": "Time zones",
+        "chosen": "Selected: {{timezone}}",
+        "save": "Save time zone",
+        "saved": "Time zone saved."
+      },
+      "sessions": {
+        "title": "Sessions",
+        "sign_out": "Sign out",
+        "sign_out_help": "Ends the session on this device only, in every application.",
+        "sign_out_all": "Sign out of all devices",
+        "sign_out_all_help": "Ends the session on every device, this one included. Use it if you lost a device or signed in on a computer that is not yours.",
+        "signing_out": "Signing out…"
+      },
+      "delete": {
+        "title": "Delete account",
+        "intro": "Deletes the account and your data in every application right away. First, the screen shows what goes away and where to take a copy of your data.",
+        "start": "Delete my account…",
+        "steps": "Deletion steps",
+        "step": "{{number}}. {{name}}",
+        "step_warning": "What goes away",
+        "step_export": "Your data",
+        "step_request": "Code",
+        "step_code": "Confirmation",
+        "warning_title": "What goes away with the account",
+        "warning_intro": "Deletion is immediate, applies to every application and cannot be undone. Gone for good:",
+        "lose_account": "your manasomali.com account: email, language, time zone, sessions and the record of your sign-ins;",
+        "app_fallback": "your data in this application.",
+        "backups": "Deleted data still stays a few days in the backups, until they expire (see the <privacy>privacy policy</privacy>, which opens in a new tab).",
+        "export_title": "Take a copy of your data",
+        "export_text": "Optional. Each application has its own export. After deletion, there is nothing left to download.",
+        "export_none": "None of your applications has an export.",
+        "export_new_tab": "The links open in a new tab; come back here to continue.",
+        "request_title": "Confirmation code",
+        "request_text": "We will send a 6-digit code to {{email}}. It is valid for 10 minutes.",
+        "send_code": "Send code",
+        "sending": "Sending…",
+        "have_code": "I already have a code",
+        "code_title": "Enter the code",
+        "code_sent": "We sent a 6-digit code to {{email}}. It is valid for 10 minutes. If it does not arrive, check your spam folder.",
+        "code": "6-digit code",
+        "final_title": "Final confirmation",
+        "final_confirm": "I understand the account and the data in every application go away right away and this cannot be undone.",
+        "submit": "Delete my account",
+        "deleting": "Deleting…",
+        "resend": "Send another code",
+        "resend_in": "Send another code in {{seconds}} s",
+        "resent": "We sent a new code.",
+        "continue": "Continue",
+        "back": "Back",
+        "cancel": "Cancel"
+      }
+    },
+    "terms": {
+      "title": "Terms of use"
+    },
+    "privacy": {
+      "title": "Privacy policy"
+    },
+    "not_found": {
+      "title": "Page not found",
+      "text": "This address does not exist or has changed.",
+      "back_home": "Back to your account"
+    }
+  },
+  "admin": {
+    "title": "Admin",
+    "load_more": "Load more",
+    "cancel": "Cancel",
+    "accounts": {
+      "title": "Accounts",
+      "filters": "Account filters",
+      "email": "Email contains",
+      "status": "Status",
+      "status_any": "All",
+      "status_active": "Active",
+      "status_blocked": "Blocked",
+      "status_deleting": "Being deleted",
+      "search": "Search",
+      "clear": "Clear filters",
+      "results": "Accounts found",
+      "empty": "No accounts found.",
+      "dates_hint": "Newest accounts first. Dates in your time zone ({{timezone}}).",
+      "admin_badge": "admin",
+      "you": "you",
+      "created": "Signed up",
+      "last_login": "Last sign-in",
+      "never": "Never signed in",
+      "timezone": "Time zone",
+      "locale": "Language",
+      "actions": "Actions for {{email}}",
+      "block": "Block",
+      "unblock": "Unblock",
+      "change_email": "Change email",
+      "delete": "Delete",
+      "deleting_note": "Deletion in progress in the applications. No actions until it finishes.",
+      "confirm_label": "To confirm, type the account email: {{email}}",
+      "new_email": "New email",
+      "block_title": "Block the account",
+      "block_warning": "The person is signed out everywhere and cannot get a code or sign in to any application until unblocked. The data stays.",
+      "block_confirm": "Block the account",
+      "email_title": "Change the account's email",
+      "email_warning": "Only on a request sent from the current email. First, confirm the new email with a reply sent from it. The person is signed out everywhere, and both the old and the new email get a notice.",
+      "email_confirm": "Change the email",
+      "delete_title": "Delete the account",
+      "delete_warning": "Deletes the account and its data in every application, as the privacy policy explains. This cannot be undone.",
+      "delete_confirm": "Delete the account",
+      "blocked_done": "Account {{email}} blocked.",
+      "unblocked_done": "Account {{email}} unblocked.",
+      "email_done": "Email changed from {{old}} to {{email}}.",
+      "deleted_done": "Account {{email}} deleted. The applications finish deleting its data in the background."
+    },
+    "mail": {
+      "title": "Emails sent",
+      "intro": "Every email from imago and the applications counts toward one shared cap. Near the end of each window, only codes and account emails go out.",
+      "day": "Last 24 hours",
+      "hour": "Last hour",
+      "window": "{{sent}} of {{limit}} sent; {{remaining}} left before the cap.",
+      "notification_window": "Notifications stop at {{limit}} ({{remaining}} left).",
+      "full": "Cap reached: no email goes out until the window moves.",
+      "notifications_stopped": "Notifications stopped: only codes and account emails go out.",
+      "caption": "Emails sent in the last {{hours}} hours, by application and type",
+      "app": "Application",
+      "kind": {
+        "code": "Codes",
+        "account": "Account",
+        "notification": "Notifications"
+      },
+      "total": "Total",
+      "empty": "No emails sent in the last 24 hours."
+    }
+  },
+  "apps": {
+    "ethos": {
+      "name": "ethos",
+      "description": "Track habits on a yearly calendar, alone or shared with other people.",
+      "deletion": "the habits you own, with all their marks (guests' marks included; guests lose access and get an email about it), your participation in other people's habits, the invites you sent or received and your alerts. The marks you made in other people's habits stay in those habits, shown as by “Removed user”.",
+      "export_label": "Export everything from ethos (on the report screen)",
+      "export_path": "/ethos/relatorio"
+    }
+  },
+  "errors": {
+    "bad_request": "The request could not be understood. Reload the page and try again.",
+    "unauthorized": "Your session has ended. Please sign in again.",
+    "forbidden": "You do not have permission to do this.",
+    "not_found": "Not found. It may have been deleted.",
+    "method_not_allowed": "This action is not allowed.",
+    "conflict": "This conflicts with another change. Reload the page and try again.",
+    "validation_error": "Some field is invalid. Check it and try again.",
+    "rate_limited": "Too many attempts. Please try again later.",
+    "internal_error": "Something went wrong on our side. Try again in a moment.",
+    "service_unavailable": "The service is unavailable right now. Please try again later.",
+    "database_unavailable": "The service is unavailable right now. Please try again later.",
+    "invalid_code": "Invalid or expired code. Check the code or request a new one.",
+    "invalid_timezone": "Unknown time zone. Choose another one.",
+    "terms_not_accepted": "Accept the new version of the terms of use to continue.",
+    "last_admin": "This is the last active administrator account: it cannot be blocked or deleted. Make another account an administrator first.",
+    "email_in_use": "This email already belongs to an account. Choose another one.",
+    "cannot_block_self": "You cannot block your own account.",
+    "mail_quota": "The email sending limit was reached. Please try again later.",
+    "network_error": "No connection to the server. Check your internet and try again.",
+    "session_not_saved": "The code was accepted, but this browser did not keep the session. Allow cookies for manasomali.com and sign in again.",
+    "unknown": "Something went wrong. Try again."
+  }
+}

@@ -1,0 +1,256 @@
+{
+  "a11y": {
+    "skip_to_content": "Pular para o conteúdo",
+    "main_navigation": "Navegação principal",
+    "language": "Idioma",
+    "light_theme": "Usar tema claro",
+    "dark_theme": "Usar tema escuro"
+  },
+  "menu": {
+    "account": "Conta",
+    "admin": "Admin",
+    "back_to_site": "manasomali.com"
+  },
+  "footer": {
+    "tagline": "imago: uma conta para todas as aplicações do manasomali.com",
+    "legal": "Textos legais",
+    "terms": "Termos de uso",
+    "privacy": "Política de privacidade"
+  },
+  "common": {
+    "loading": "Carregando…",
+    "retry": "Tentar de novo",
+    "redirecting": "Voltando…"
+  },
+  "legal": {
+    "version": "Versão {{version}}",
+    "contents": "Sumário"
+  },
+  "pages": {
+    "login": {
+      "title": "Entrar",
+      "intro": "Digite o seu email e enviamos um código de 6 dígitos. Uma conta só vale para todas as aplicações do manasomali.com; se você ainda não tem, ela é criada quando você confirma o código.",
+      "email": "Email",
+      "send_code": "Enviar código",
+      "sending": "Enviando…",
+      "have_code": "Já tenho um código",
+      "code_sent": "Enviamos um código de 6 dígitos para {{email}}. Ele vale por 10 minutos. Se não chegar, confira a caixa de spam.",
+      "code": "Código de 6 dígitos",
+      "submit": "Entrar",
+      "submitting": "Entrando…",
+      "resend": "Enviar um novo código",
+      "resend_in": "Enviar um novo código em {{seconds}} s",
+      "resent": "Enviamos um novo código.",
+      "change_email": "Usar outro email",
+      "consent": "Ao continuar, você concorda com os <terms>termos de uso</terms> e a <privacy>política de privacidade</privacy> (os links abrem em outra aba).",
+      "account_deleted": "A sua conta foi excluída de todas as aplicações. Enviamos uma confirmação para o seu email."
+    },
+    "terms_acceptance": {
+      "title": "Novos termos de uso",
+      "signed_in_as": "Você entrou como {{email}}.",
+      "text": "Os termos de uso e a política de privacidade do manasomali.com mudaram. Para continuar usando as aplicações, leia e aceite a nova versão.",
+      "links": "Textos (abrem em outra aba)",
+      "accept": "Aceitar e continuar",
+      "accepting": "Salvando…",
+      "outdated": "Uma versão mais nova dos termos foi publicada enquanto esta página estava aberta. Recarregue a página para ler.",
+      "reload": "Recarregar a página",
+      "sign_out": "Sair",
+      "signing_out": "Saindo…",
+      "disagree": "Se não concordar, você pode excluir a conta na <account>tela de conta</account>, sem aceitar."
+    },
+    "account": {
+      "title": "Conta",
+      "saving": "Salvando…",
+      "terms_pending": {
+        "title": "Novos termos de uso",
+        "text": "Os termos de uso e a política de privacidade mudaram. Para continuar usando as aplicações e mudar o idioma ou o fuso, leia e aceite a nova versão. Se não concordar, você pode sair ou excluir a conta aqui embaixo.",
+        "accept": "Ler e aceitar"
+      },
+      "email": {
+        "title": "Email",
+        "help": "Para trocar o email, escreva para <mail>{{supportEmail}}</mail> a partir do email atual da conta, dizendo qual é o novo. Antes da troca, o suporte confirma o email novo pedindo uma resposta enviada dele, para um erro de digitação não entregar a conta a outra pessoa. Depois da troca, é preciso entrar de novo em todos os aparelhos.",
+        "lost_access": "Perdeu o acesso ao email atual? Escreva assim mesmo, de outro endereço. Nesse caso, o suporte pede informações que só quem usa a conta sabe (como dados nas aplicações) antes de decidir."
+      },
+      "apps": {
+        "title": "Suas aplicações",
+        "intro": "Com esta conta você entra em todas elas.",
+        "empty": "Nenhuma aplicação ainda."
+      },
+      "language": {
+        "title": "Idioma",
+        "help": "O idioma dos emails do manasomali.com e das aplicações (códigos, convites e alertas). Ao salvar, ele vira também o idioma da tela neste navegador.",
+        "save": "Salvar idioma",
+        "saved": "Idioma salvo."
+      },
+      "timezone": {
+        "title": "Fuso horário",
+        "help": "O fuso de todas as aplicações (no ethos, ele define os dias do calendário, a pontuação e o horário dos alertas). Fuso atual da conta: {{timezone}}.",
+        "device": "Este aparelho está noutro fuso: {{timezone}}.",
+        "use_device": "Escolher o fuso deste aparelho",
+        "search": "Buscar fuso (cidade, região ou UTC-03)",
+        "found_one": "{{count}} fuso encontrado.",
+        "found_other": "{{count}} fusos encontrados.",
+        "list": "Fusos horários",
+        "chosen": "Escolhido: {{timezone}}",
+        "save": "Salvar fuso",
+        "saved": "Fuso salvo."
+      },
+      "sessions": {
+        "title": "Sessões",
+        "sign_out": "Sair",
+        "sign_out_help": "Encerra a sessão só neste aparelho, em todas as aplicações.",
+        "sign_out_all": "Sair de todos os aparelhos",
+        "sign_out_all_help": "Encerra a sessão em todos os aparelhos, inclusive neste. Use se perdeu um aparelho ou entrou num computador que não é seu.",
+        "signing_out": "Saindo…"
+      },
+      "delete": {
+        "title": "Excluir conta",
+        "intro": "Apaga a conta e os seus dados em todas as aplicações na hora. Antes, a tela mostra o que some e onde levar uma cópia dos seus dados.",
+        "start": "Excluir minha conta…",
+        "steps": "Etapas da exclusão",
+        "step": "{{number}}. {{name}}",
+        "step_warning": "O que some",
+        "step_export": "Seus dados",
+        "step_request": "Código",
+        "step_code": "Confirmação",
+        "warning_title": "O que some com a conta",
+        "warning_intro": "A exclusão é imediata, vale para todas as aplicações e não dá para desfazer. Some de vez:",
+        "lose_account": "a sua conta do manasomali.com: email, idioma, fuso, sessões e o registro dos seus acessos;",
+        "app_fallback": "os seus dados nesta aplicação.",
+        "backups": "Os dados apagados ainda ficam alguns dias nas cópias de segurança, até elas vencerem (veja a <privacy>política de privacidade</privacy>, que abre em outra aba).",
+        "export_title": "Leve uma cópia dos seus dados",
+        "export_text": "Opcional. Cada aplicação tem o seu export. Depois da exclusão, não dá mais para baixar nada.",
+        "export_none": "Nenhuma das suas aplicações tem export.",
+        "export_new_tab": "Os links abrem em outra aba; volte aqui para continuar.",
+        "request_title": "Código de confirmação",
+        "request_text": "Vamos mandar um código de 6 dígitos para {{email}}. Ele vale por 10 minutos.",
+        "send_code": "Enviar código",
+        "sending": "Enviando…",
+        "have_code": "Já tenho um código",
+        "code_title": "Digite o código",
+        "code_sent": "Enviamos um código de 6 dígitos para {{email}}. Ele vale por 10 minutos. Se não chegar, confira a caixa de spam.",
+        "code": "Código de 6 dígitos",
+        "final_title": "Confirmação final",
+        "final_confirm": "Entendo que a conta e os dados em todas as aplicações somem na hora e que não dá para desfazer.",
+        "submit": "Excluir minha conta",
+        "deleting": "Excluindo…",
+        "resend": "Enviar outro código",
+        "resend_in": "Enviar outro código em {{seconds}} s",
+        "resent": "Enviamos um novo código.",
+        "continue": "Continuar",
+        "back": "Voltar",
+        "cancel": "Cancelar"
+      }
+    },
+    "terms": {
+      "title": "Termos de uso"
+    },
+    "privacy": {
+      "title": "Política de privacidade"
+    },
+    "not_found": {
+      "title": "Página não encontrada",
+      "text": "Este endereço não existe ou mudou.",
+      "back_home": "Voltar para a sua conta"
+    }
+  },
+  "admin": {
+    "title": "Admin",
+    "load_more": "Carregar mais",
+    "cancel": "Cancelar",
+    "accounts": {
+      "title": "Contas",
+      "filters": "Filtros das contas",
+      "email": "Email contém",
+      "status": "Situação",
+      "status_any": "Todas",
+      "status_active": "Ativa",
+      "status_blocked": "Bloqueada",
+      "status_deleting": "Em exclusão",
+      "search": "Buscar",
+      "clear": "Limpar filtros",
+      "results": "Contas encontradas",
+      "empty": "Nenhuma conta encontrada.",
+      "dates_hint": "As contas mais novas primeiro. Datas no seu fuso ({{timezone}}).",
+      "admin_badge": "admin",
+      "you": "você",
+      "created": "Cadastro",
+      "last_login": "Último login",
+      "never": "Nunca entrou",
+      "timezone": "Fuso",
+      "locale": "Idioma",
+      "actions": "Ações de {{email}}",
+      "block": "Bloquear",
+      "unblock": "Desbloquear",
+      "change_email": "Trocar email",
+      "delete": "Excluir",
+      "deleting_note": "Exclusão em andamento nas aplicações. Sem ações até ela terminar.",
+      "confirm_label": "Para confirmar, digite o email da conta: {{email}}",
+      "new_email": "Novo email",
+      "block_title": "Bloquear a conta",
+      "block_warning": "A pessoa sai de todos os aparelhos e não recebe código nem entra em nenhuma aplicação até ser desbloqueada. Os dados ficam.",
+      "block_confirm": "Bloquear a conta",
+      "email_title": "Trocar o email da conta",
+      "email_warning": "Só com um pedido enviado do email atual. Antes, confirme o email novo com uma resposta enviada dele. A pessoa sai de todos os aparelhos, e o email antigo e o novo recebem um aviso.",
+      "email_confirm": "Trocar o email",
+      "delete_title": "Excluir a conta",
+      "delete_warning": "Apaga a conta e os dados dela em todas as aplicações, como explica a política de privacidade. Não dá para desfazer.",
+      "delete_confirm": "Excluir a conta",
+      "blocked_done": "Conta {{email}} bloqueada.",
+      "unblocked_done": "Conta {{email}} desbloqueada.",
+      "email_done": "Email trocado de {{old}} para {{email}}.",
+      "deleted_done": "Conta {{email}} excluída. As aplicações terminam de apagar os dados dela em segundo plano."
+    },
+    "mail": {
+      "title": "Emails enviados",
+      "intro": "Todo email do imago e das aplicações conta num teto só, compartilhado. No fim de cada janela, só saem códigos e emails de conta.",
+      "day": "Últimas 24 horas",
+      "hour": "Última hora",
+      "window": "{{sent}} de {{limit}} enviados; faltam {{remaining}} para o teto.",
+      "notification_window": "Notificações param em {{limit}} (faltam {{remaining}}).",
+      "full": "Teto atingido: nenhum email sai até a janela andar.",
+      "notifications_stopped": "Notificações paradas: só saem códigos e emails de conta.",
+      "caption": "Emails enviados nas últimas {{hours}} horas, por aplicação e tipo",
+      "app": "Aplicação",
+      "kind": {
+        "code": "Códigos",
+        "account": "Conta",
+        "notification": "Notificações"
+      },
+      "total": "Total",
+      "empty": "Nenhum email enviado nas últimas 24 horas."
+    }
+  },
+  "apps": {
+    "ethos": {
+      "name": "ethos",
+      "description": "Registre hábitos num calendário anual, sozinho ou junto com outras pessoas.",
+      "deletion": "os hábitos dos quais você é dono, com todas as marcações (inclusive as dos convidados, que perdem o acesso e recebem um email avisando), a sua participação em hábitos de outras pessoas, os convites enviados ou recebidos e os seus alertas. As marcações que você fez em hábitos de outras pessoas continuam neles, como de “Usuário removido”.",
+      "export_label": "Exportar tudo do ethos (na tela de relatório)",
+      "export_path": "/ethos/relatorio"
+    }
+  },
+  "errors": {
+    "bad_request": "Não foi possível entender o pedido. Recarregue a página e tente de novo.",
+    "unauthorized": "A sua sessão acabou. Entre de novo.",
+    "forbidden": "Você não tem permissão para fazer isso.",
+    "not_found": "Não encontrado. Pode ter sido apagado.",
+    "method_not_allowed": "Esta ação não é permitida.",
+    "conflict": "Isto conflita com outra mudança. Recarregue a página e tente de novo.",
+    "validation_error": "Algum campo é inválido. Confira e tente de novo.",
+    "rate_limited": "Muitas tentativas. Tente mais tarde.",
+    "internal_error": "Algo deu errado do nosso lado. Tente de novo daqui a pouco.",
+    "service_unavailable": "O serviço está indisponível agora. Tente mais tarde.",
+    "database_unavailable": "O serviço está indisponível agora. Tente mais tarde.",
+    "invalid_code": "Código inválido ou vencido. Confira o código ou peça um novo.",
+    "invalid_timezone": "Fuso horário desconhecido. Escolha outro.",
+    "terms_not_accepted": "Aceite a nova versão dos termos de uso para continuar.",
+    "last_admin": "Esta é a última conta de administrador ativa: não pode ser bloqueada nem excluída. Antes, torne outra conta administradora.",
+    "email_in_use": "Este email já tem uma conta. Escolha outro.",
+    "cannot_block_self": "Você não pode bloquear a própria conta.",
+    "mail_quota": "O limite de envio de emails foi atingido. Tente mais tarde.",
+    "network_error": "Sem conexão com o servidor. Confira a internet e tente de novo.",
+    "session_not_saved": "O código foi aceito, mas este navegador não guardou a sessão. Permita cookies para o manasomali.com e entre de novo.",
+    "unknown": "Algo deu errado. Tente de novo."
+  }
+}
