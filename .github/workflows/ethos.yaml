@@ -20,7 +20,7 @@ on:
       - "infra/lib/backups.sh"
       - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
-      # Usados pelo apps/ethos/deploy/test-vm.sh (uv e Python como o provision instala; o
+      # Usados pelo packages/deploy/test-vm.sh (uv e Python como o provision instala; o
       # restore-test.sh do backup-verify.yaml com o banco do ethos populado)
       - "infra/config.env"
       - "infra/lib/common.sh"
@@ -42,7 +42,7 @@ on:
       - "infra/lib/backups.sh"
       - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
-      # Usados pelo apps/ethos/deploy/test-vm.sh (uv e Python como o provision instala; o
+      # Usados pelo packages/deploy/test-vm.sh (uv e Python como o provision instala; o
       # restore-test.sh do backup-verify.yaml com o banco do ethos populado)
       - "infra/config.env"
       - "infra/lib/common.sh"
@@ -87,8 +87,9 @@ jobs:
           INPUT_COMMIT: ${{ inputs.commit }}
           BEFORE: ${{ github.event.before }}
         run: |
-          # O que vai para a VM. O resto dos paths do workflow só alimenta os testes
-          deploy_paths='^(apps/ethos/(backend|frontend|deploy)/|packages/|\.github/workflows/ethos\.yaml$)'
+          # O que vai para a VM (packages/ inclui os scripts do deploy). O resto dos paths do workflow
+          # só alimenta os testes
+          deploy_paths='^(apps/ethos/(backend|frontend)/|packages/|\.github/workflows/ethos\.yaml$)'
           deploy=true
 
           if [[ $EVENT == workflow_dispatch ]]; then
@@ -121,7 +122,7 @@ jobs:
               count=$(grep -c . <<< "$files" || true)
               if ((count < 300)) && ! grep -qE "$deploy_paths" <<< "$files"; then
                 deploy=false
-                echo "::notice::o push não muda o backend, o frontend, packages/ nem o deploy: só checagens"
+                echo "::notice::o push não muda o backend, o frontend, packages/ nem este workflow: só checagens"
               fi
             fi
           fi
@@ -352,7 +353,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # Os scripts do deploy (apps/ethos/deploy/), sempre os do commit do workflow
+  # Os scripts do deploy (packages/deploy/, com o nome da aplicação) e o ensaio do restore do ethos,
+  # sempre os do commit do workflow
   scripts:
     name: 🧰 Scripts do deploy
     runs-on: ubuntu-24.04
@@ -360,19 +362,19 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: shellcheck
-        run: shellcheck -x apps/ethos/deploy/*.sh
+        run: shellcheck -x packages/deploy/*.sh apps/ethos/backend/tests/vm-restore.sh
 
-      - name: Limpeza de assets e migrações do rollback
-        run: bash apps/ethos/deploy/test-deploy-scripts.sh
+      - name: Limpeza de assets, migrações do rollback e nome da aplicação
+        run: bash packages/deploy/test-deploy-scripts.sh
 
       - name: sqlite3
         run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends sqlite3
 
       # uv e Python como o provision instala, .venv, migração e API como app-ethos, backup e restart;
-      # depois, com o banco populado, o restore do infra/RESTORE.md (reapply-deletions) e o
-      # restore-test.sh do backup-verify.yaml
+      # depois, com o banco populado, o restore do infra/RESTORE.md (reapply-deletions, no
+      # vm-restore.sh do ethos) e o restore-test.sh do backup-verify.yaml
       - name: Passos da VM (vm.sh), restore e backup-verify
-        run: sudo bash apps/ethos/deploy/test-vm.sh
+        run: sudo bash packages/deploy/test-vm.sh ethos apps/ethos/backend/tests/vm-restore.sh
 
   # Os 9 passos do deploy: checagens (needs) → VM pronta → backend → dependências → backup →
   # restart (migração) → health check → front → limpeza. Qualquer falha para o job ali
@@ -394,7 +396,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            apps/ethos/deploy
+            packages/deploy
             apps/ethos/backend/migrations
 
       - uses: actions/checkout@v4
@@ -422,34 +424,35 @@ jobs:
           echo "SSH=ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes" >> "$GITHUB_ENV"
           echo "TARGET=$REMOTE_USER@$REMOTE_HOST" >> "$GITHUB_ENV"
 
-      # Os passos na VM vão como "bash -s" com o script no stdin: nada fica gravado lá
+      # Os passos na VM vão como "bash -s" com o script no stdin: nada fica gravado lá. O primeiro
+      # argumento é o nome da aplicação (packages/deploy/README.md)
       - name: VM pronta (unit, pastas, uv, Python, banco)
         run: |
           python=$(<target/apps/ethos/backend/.python-version)
-          $SSH "$TARGET" bash -s -- check "$python" < apps/ethos/deploy/vm.sh
+          $SSH "$TARGET" bash -s -- ethos check "$python" < packages/deploy/vm.sh
 
       # Rollback para antes de uma migração já aplicada: o alembic do commit antigo não acharia a
       # revisão do banco. As migrações são só aditivas; o commit leva os arquivos que faltam
       - name: Migrações já aplicadas no banco
         run: |
-          revision=$($SSH "$TARGET" bash -s -- revision < apps/ethos/deploy/vm.sh)
-          bash apps/ethos/deploy/keep-migrations.sh \
+          revision=$($SSH "$TARGET" bash -s -- ethos revision < packages/deploy/vm.sh)
+          bash packages/deploy/keep-migrations.sh \
             target/apps/ethos/backend/migrations/versions apps/ethos/backend/migrations/versions "$revision"
 
       - name: Enviar o backend
         run: |
-          rsync -rlptz --chmod=D0755,F0644 --delete --filter="merge apps/ethos/deploy/backend.rsync-filter" \
+          rsync -rlptz --chmod=D0755,F0644 --delete --filter="merge packages/deploy/backend.rsync-filter" \
             -e "$SSH" target/apps/ethos/backend/ "$TARGET:/opt/apps/ethos/"
 
       - name: Instalar dependências (uv sync) e bytecode
-        run: $SSH "$TARGET" bash -s -- install < apps/ethos/deploy/vm.sh
+        run: $SSH "$TARGET" bash -s -- ethos install < packages/deploy/vm.sh
 
       - name: Backup do banco (pre-deploy-<sha>.db)
-        run: $SSH "$TARGET" bash -s -- backup "$SHA" < apps/ethos/deploy/vm.sh
+        run: $SSH "$TARGET" bash -s -- ethos backup "$SHA" < packages/deploy/vm.sh
 
       # Se a migração falhar, o serviço não sobe, o job para aqui e o front anterior fica no ar
       - name: Reiniciar (migração no ExecStartPre)
-        run: $SSH "$TARGET" bash -s -- restart < apps/ethos/deploy/vm.sh
+        run: $SSH "$TARGET" bash -s -- ethos restart < packages/deploy/vm.sh
 
       - name: Health check
         run: |
@@ -481,7 +484,7 @@ jobs:
           ((${#files[@]})) || { echo "::error::dist/assets vazio"; exit 1; }
           # A lista vira argumentos do comando remoto: printf %q protege do shell da VM
           args=$(printf '%q ' /var/www/ethos/assets 7 "${files[@]}")
-          $SSH "$TARGET" "bash -s -- $args" < apps/ethos/deploy/clean-assets.sh
+          $SSH "$TARGET" "bash -s -- $args" < packages/deploy/clean-assets.sh
 
       - name: Resumo
         run: |

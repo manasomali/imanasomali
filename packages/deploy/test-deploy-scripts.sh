@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Testa clean-assets.sh e keep-migrations.sh em pastas temporárias, sem root.
-# Roda na raiz do repo, pelo ethos.yaml: bash apps/ethos/deploy/test-deploy-scripts.sh
+# Testa clean-assets.sh e keep-migrations.sh em pastas temporárias, e a recusa de nome de aplicação
+# inválido no vm.sh e no test-vm.sh, que acontece antes de qualquer outro passo. Sem root.
+# Roda pelo workflow de cada aplicação que usa o pacote: bash packages/deploy/test-deploy-scripts.sh
 set -euo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -25,6 +26,36 @@ expect_failure() {
   fi
   grep -qF -- "$message" "$out" || { show "$out"; fail "mensagem esperada: $message"; }
 }
+
+echo "=== nome da aplicação (vm.sh e test-vm.sh)"
+# Fora de ^[a-z][a-z0-9-]{1,26}$: vazio, maiúscula, curto e longo demais (28), começo fora da
+# regra, caracteres de caminho, de shell e de outro alfabeto, quebra de linha
+long=abcdefghijklmnopqrstuvwxyz0
+# shellcheck disable=SC2016 # '$(id)' é literal de propósito: não pode ser expandido em lugar nenhum
+invalid_names=('' Ethos e "${long}1" -ethos 1ethos ethos_x 'ethos x' 'ethos;id' '$(id)' ../ethos
+  ethos/../ethos . ethos. étos $'ethos\n' $'\nethos')
+for name in "${invalid_names[@]}"; do
+  expect_failure "nome da aplicação inválido" bash "$here/vm.sh" "$name" check 3.14.3
+  expect_failure "nome da aplicação inválido" bash "$here/vm.sh" "$name" revision
+done
+# Nome válido (2 e 27 caracteres, com hífen e dígito): passa da validação e para no comando
+for name in ab "$long" imago e2-x; do
+  expect_failure "comando desconhecido: nada" bash "$here/vm.sh" "$name" nada
+done
+expect_failure "uso:" bash "$here/vm.sh" ethos
+expect_failure "uso:" bash "$here/vm.sh"
+# A chamada de antes do pacote (sem o nome) não roda nenhum passo
+expect_failure "uso:" bash "$here/vm.sh" revision
+expect_failure "comando desconhecido: 3.14.3" bash "$here/vm.sh" check 3.14.3
+
+# O test-vm.sh valida o nome antes do require_root: estes casos rodam sem root
+for name in '' Ethos 'ethos;id' ../ethos $'ethos\n'; do
+  expect_failure "nome da aplicação inválido" bash "$here/test-vm.sh" "$name"
+done
+expect_failure "uso:" bash "$here/test-vm.sh"
+expect_failure "uso:" bash "$here/test-vm.sh" ethos ensaio.sh extra
+expect_failure "não existe" bash "$here/test-vm.sh" ethos "$work/nada.sh"
+expect_failure "não existe" bash "$here/test-vm.sh" app-que-nao-existe
 
 echo "=== clean-assets.sh"
 assets=$work/assets

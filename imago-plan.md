@@ -220,7 +220,7 @@ igual à do ethos (seção "stack" do `ethos-plan.md`): react + vite, python + f
 - o `seed` (só em dev) cria as contas de exemplo com ids fixos, que os seeds das aplicações usam para criar os dados delas
 - nginx (`infra/apps/imago/nginx.conf` e `nginx-http.conf`): `/imago/` com os mesmos headers e cache do frontend do ethos, `/api/imago/` com proxy, `/api/imago/auth/` com `limit_req` (zona `imago_auth`), `/_imago/session` interno e 404 em `/api/imago/internal/`
 - deploy (`.github/workflows/imago.yaml`): os mesmos 9 passos do ethos, com `concurrency: imago-deploy`, a variável `IMAGO_URL` e a checagem da versão do python (`.github/scripts/check-python-version.sh`)
-- os scripts de deploy de `apps/ethos/deploy/` têm o nome do ethos fixo, e o imago não importa código do ethos. eles vão para `packages/deploy/`, recebendo o nome da aplicação (ver "stack" do `engrafi-plan.md`), num PR anterior ao workflow do imago, que é a primeira aplicação nova a usá-los
+- os scripts do deploy ficam em `packages/deploy/` e recebem o nome da aplicação (`bash -s -- imago <passo> < packages/deploy/vm.sh`; contrato em `packages/deploy/README.md` e "stack" do `engrafi-plan.md`), porque o imago não importa código do ethos. o imago é a primeira aplicação nova a usá-los
 - monitoramento: o monitor externo chama `/api/imago/health`, além do health de cada aplicação
 - o login depende 100% do email chegar: DKIM e DMARC no domínio (feitos na ETH-01; não há SPF próprio, o envelope sai pelo domínio da Brevo e o DMARC alinha pelo DKIM) e a cota do provedor (Brevo, 300 por dia), que define os tetos acima
 

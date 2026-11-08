@@ -6,9 +6,8 @@ Aplicação de hábitos servida em `manasomali.com/ethos/`, com API em `manasoma
 |---|---|
 | `backend/` | API em Python + FastAPI, gerenciada pelo [uv](https://docs.astral.sh/uv/) |
 | `frontend/` | React + Vite, servido em `/ethos/` |
-| `deploy/` | Scripts do deploy (ver [Deploy](#deploy)), rodados pelo `ethos.yaml` |
 
-Back e front são independentes: cada um tem as suas dependências e o seu lockfile (`uv.lock` e `package-lock.json`). Nada aqui importa código do site; o que for compartilhado vem de `packages/`.
+Back e front são independentes: cada um tem as suas dependências e o seu lockfile (`uv.lock` e `package-lock.json`). Nada aqui importa código do site; o que for compartilhado vem de `packages/`, como os tokens de design e os scripts do deploy ([packages/deploy/](../../packages/deploy/README.md), ver [Deploy](#deploy)).
 
 ## Requisitos
 
@@ -549,13 +548,13 @@ O workflow [ethos.yaml](../../.github/workflows/ethos.yaml) roda em PRs e em pus
 - backend: `uv lock --check`, `uv sync --frozen`, `ruff check`, `ruff format --check`, `pytest --cov` e 100% de cobertura nos módulos de `FULL_COVERAGE`;
 - frontend: `npm ci`, `npm run lint`, `npm run build` e `npm test`;
 - E2E: `uv sync --frozen` no backend, `npm ci`, o Chromium do Playwright (em cache por versão; as bibliotecas do sistema saem do apt a cada execução) e `npm run e2e` (ver "E2E", acima). Em falha, o relatório HTML e os traces ficam no artifact `playwright-report` por 7 dias (`npx playwright show-report <pasta>` ou `npx playwright show-trace <trace.zip>`). Num rollback para um commit anterior ao E2E, o job passa sem rodar nada;
-- scripts do deploy (`deploy/`): `shellcheck`, `test-deploy-scripts.sh` (limpeza de assets e migrações do rollback) e `test-vm.sh`, que roda o `vm.sh` num Ubuntu 24.04 com o uv e o Python instalados pelas funções do provision: `.venv`, migração e `/health` como `app-ethos`, backup e restart. Depois, com o banco populado pelo `seed`, ensaia o [infra/RESTORE.md](../../infra/RESTORE.md): backup, uma exclusão de verdade com a linha no journald, o `restore-test.sh` do `backup-verify.yaml` (com um Litestream falso), o ensaio numa cópia, o restore do `pre-deploy-<sha>.db` e o `reapply-deletions` pelo `systemd-run`, duas vezes.
+- scripts do deploy ([packages/deploy/](../../packages/deploy/README.md)): `shellcheck` (com o `backend/tests/vm-restore.sh`), `test-deploy-scripts.sh` (limpeza de assets, migrações do rollback e recusa de nome de aplicação inválido) e `test-vm.sh` (com o nome `ethos` e o ensaio `backend/tests/vm-restore.sh`), que roda o `vm.sh` num Ubuntu 24.04 com o uv e o Python instalados pelas funções do provision: `.venv`, migração e `/health` como `app-ethos`, backup e restart. Depois, o `vm-restore.sh` ensaia o [infra/RESTORE.md](../../infra/RESTORE.md) com o banco populado pelo `seed`: backup, uma exclusão de verdade com a linha no journald, o ensaio numa cópia, o restore do `pre-deploy-<sha>.db` e o `reapply-deletions` pelo `systemd-run`, duas vezes. No fim, o `restore-test.sh` do `backup-verify.yaml` com esse banco e um Litestream falso.
 
 Em push na `main` e no `workflow_dispatch`, o workflow também faz o deploy.
 
 ## Deploy
 
-O job `deploy` só começa depois que as checagens (backend, frontend, E2E e scripts) passam: um teste quebrado para o workflow antes de qualquer passo na VM. Ele roda em push na `main` que muda o que vai para a VM (`apps/ethos/backend/`, `apps/ethos/frontend/`, `apps/ethos/deploy/`, `packages/` ou o próprio workflow). Um push que só muda arquivos lidos pelos testes (os de `infra/`, este README) roda as checagens sem deploy. Em PRs, nunca há deploy.
+O job `deploy` só começa depois que as checagens (backend, frontend, E2E e scripts) passam: um teste quebrado para o workflow antes de qualquer passo na VM. Ele roda em push na `main` que muda o que vai para a VM (`apps/ethos/backend/`, `apps/ethos/frontend/`, `packages/`, com os scripts do deploy, ou o próprio workflow). Um push que só muda arquivos lidos pelos testes (os de `infra/`, este README) roda as checagens sem deploy. Em PRs, nunca há deploy.
 
 ### Antes do primeiro deploy
 
@@ -569,7 +568,7 @@ O job `deploy` só começa depois que as checagens (backend, frontend, E2E e scr
 |---|---|---|
 | 1 | Checagens (needs) | runner |
 | 2 | `vm.sh check`: unit `app-ethos.service`, `/opt/apps/ethos` e `/var/www/ethos` graváveis, uv, o Python de `.python-version`, `sqlite3`, banco e pasta de backup | VM |
-| 3 | rsync de `backend/` para `/opt/apps/ethos/` com `--delete`, pelas regras de `deploy/backend.rsync-filter`: a `.venv` fica intocada; `tests/`, caches, `.env` e bancos locais não sobem | runner → VM |
+| 3 | rsync de `backend/` para `/opt/apps/ethos/` com `--delete`, pelas regras de `packages/deploy/backend.rsync-filter`: a `.venv` fica intocada; `tests/`, caches, `.env` e bancos locais não sobem | runner → VM |
 | 4 | `vm.sh install`: `uv sync --frozen --no-dev --no-build --compile-bytecode` com o Python de `/opt/uv/python` (nunca baixa um), e `compileall` de `app/` e `migrations/` | VM |
 | 5 | `vm.sh backup <sha>`: `sqlite3 .backup` como `app-ethos` em `/var/backups/sqlite/ethos/pre-deploy-<sha>.db` | VM |
 | 6 | `vm.sh restart`: `systemctl restart app-ethos`; o `ExecStartPre` roda `alembic upgrade head` | VM |
@@ -577,7 +576,7 @@ O job `deploy` só começa depois que as checagens (backend, frontend, E2E e scr
 | 8 | rsync do `dist/` (o mesmo build que passou nos testes) para `/var/www/ethos/`, **sem** `--delete`, com o `index.html` por último | runner → VM |
 | 9 | `clean-assets.sh`: apaga de `/var/www/ethos/assets/` os arquivos com mais de 7 dias que não estão no build atual | VM |
 
-- Os passos na VM vão pelo SSH como `bash -s -- <comando> < deploy/vm.sh`: nada fica instalado lá. O usuário de deploy (com sudo sem senha) roda como `app-ethos` só o que lê o banco e grava o backup, e como root só o `systemctl`.
+- Os scripts são os de [packages/deploy/](../../packages/deploy/README.md), comuns às aplicações, com o nome `ethos` como parâmetro. Os passos na VM vão pelo SSH como `bash -s -- ethos <comando> < packages/deploy/vm.sh`: nada fica instalado lá. O usuário de deploy (com sudo sem senha) roda como `app-ethos` só o que lê o banco e grava o backup, e como root só o `systemctl`.
 - **Bytecode**: o projeto não é instalado na `.venv` (não tem `build-system`), então o `--compile-bytecode` do uv só cobre os pacotes. O `compileall` gera o de `app/` e `migrations/`, porque o `app-ethos` não grava na pasta do código (e a unit roda com `PYTHONDONTWRITEBYTECODE`).
 - **Backup**: o mesmo método do `snapshot.sh` (consistente com o WAL e com o Litestream), gravado primeiro como `.partial`, conferido com `integrity_check` e só então renomeado. Se o commit já tem um `pre-deploy-<sha>.db` (re-run, rollback para um commit já publicado), o primeiro fica, porque é o de antes da migração dele, e o novo ganha a hora no nome (`pre-deploy-<sha>-<AAAAMMDDTHHMMSSZ>.db`). Retenção: o `snapshot.sh` diário apaga os `*.db` com mais de 7 dias dessa pasta, estes inclusive. Cada deploy guarda uma cópia inteira do banco por 7 dias.
 - **Migração quebrada**: cada `upgrade` roda numa transação só, então o banco fica na revisão anterior. O serviço não sobe (`StartLimitBurst` da unit: 5 tentativas em 5 min), o `restart` falha, o job para no passo 6, e o front anterior continua no ar, falando com uma API fora do ar. Corrija com um commit novo ou faça o rollback. O log do Actions não mostra o journal (o repositório é público): na VM, `journalctl -u app-ethos -n 50 --no-pager`.
@@ -745,7 +744,8 @@ O ethos não importa código do site. O que ele usa fora de `apps/ethos/` (confe
 | `packages/tokens/tokens.css` (e o contrato do `localStorage` em `packages/tokens/README.md`) | `frontend/vite.config.js` (alias `@tokens` e `server.fs.allow`), `src/index.css`, `src/lib/customColor.js` (`?raw`), `src/styles/palette.test.js`, `tests/build.test.js` e `e2e/theme.spec.js` | copiar para o repo novo e apontar o alias e os dois testes para a cópia |
 | `infra/apps/ethos/` (`app-ethos.service`, `ethos-alerts.service`, `ethos-alerts.timer`, `nginx.conf`, `nginx-http.conf`, `app.conf`, `app.env`) | o provision (units, nginx e `/etc/infra/apps/ethos.env`); `backend/tests/test_env_files.py`, `frontend/src/lib/legal.test.js` e `help.test.js` leem o `app.env`; `frontend/e2e/vite.config.js` lê os headers do `nginx.conf`; o `check-python-version.sh` lê o `app.conf` | levar como a config de deploy do repo novo e apontar os testes para a cópia |
 | `infra/databases.txt` (linha `ethos`) e a tabela de portas do `infra/README.md` | usuário `app-ethos`, pasta do banco, Litestream e snapshots; `check-ports.sh` | no monorepo, sair só depois de o banco estar no destino (tirar a linha mantém os dados, mas sem backup) |
-| `infra/provision.sh`, `infra/scripts/snapshot.sh`, `infra/scripts/restore-test.sh`, `infra/lib/backups.sh`, `infra/lib/common.sh`, `infra/lib/packages.sh`, `infra/config.env` | lidos pelos testes: `test_env_files.py` (a linha do `smtp.env` no provision), `legal.test.js` e `help.test.js` (prazos dos backups) e `deploy/test-vm.sh` (uv, Python, snapshot e restore-test) | trocar por constantes ou cópias no repo novo |
+| `infra/provision.sh`, `infra/scripts/snapshot.sh`, `infra/scripts/restore-test.sh`, `infra/lib/backups.sh`, `infra/lib/common.sh`, `infra/lib/packages.sh`, `infra/config.env` | lidos pelos testes: `test_env_files.py` (a linha do `smtp.env` no provision), `legal.test.js` e `help.test.js` (prazos dos backups) e `packages/deploy/test-vm.sh` (uv, Python, snapshot e restore-test) | trocar por constantes ou cópias no repo novo |
+| `packages/deploy/` (`vm.sh`, `keep-migrations.sh`, `clean-assets.sh`, `backend.rsync-filter` e os testes) | o deploy e o job de scripts do `ethos.yaml`; o `test-vm.sh` lê o `backend/tests/vm-restore.sh` | copiar para o repo novo (o nome da aplicação continua como parâmetro) |
 | `.github/workflows/ethos.yaml` | CI e deploy (os `paths` citam os arquivos de `infra/` acima) | copiar, trocando `apps/ethos/` pela raiz |
 | `.github/scripts/check-python-version.sh` | `ethos.yaml` e `infra.yaml` | levar, ou comparar direto com a config de deploy |
 | `.github/scripts/test-provision-apps.sh`, `test-provision-nginx.sh` e `check-ports.sh` | `infra.yaml`: testam as units, as rotas e a porta do ethos | no monorepo, tirar a parte do ethos quando `infra/apps/ethos/` sair |
@@ -755,6 +755,6 @@ O ethos não importa código do site. O que ele usa fora de `apps/ethos/` (confe
 Passos:
 
 1. `git subtree split -P apps/ethos -b ethos-sozinho` e um repo novo a partir desse branch (o histórico vem junto).
-2. No repo novo: `packages/tokens`, a config de `infra/apps/ethos/`, o workflow e o script do Python, com os caminhos ajustados; os testes que leem `infra/` passam a ler as cópias.
+2. No repo novo: `packages/tokens`, `packages/deploy`, a config de `infra/apps/ethos/`, o workflow e o script do Python, com os caminhos ajustados; os testes que leem `infra/` passam a ler as cópias.
 3. Migrar o banco ("Banco", acima) e o deploy, com o app antigo parado.
 4. No monorepo, com o ethos no ar no destino: tirar `apps/ethos/`, `infra/apps/ethos/` (o provision desliga as units e tira os snippets do nginx, com cópia em `/var/backups/infra`, sem apagar código nem dados), a linha do `databases.txt`, a da porta no `infra/README.md`, o `ethos.yaml` e a parte do ethos de `test-provision-apps.sh`, `test-provision-nginx.sh` e `.claude/launch.json`. Os dados em `/var/lib/sqlite/ethos/` ficam na VM até serem apagados à mão.

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Limpeza de /var/www/ethos/assets/ depois do deploy do front (passo 9 do deploy).
+# Limpeza de /var/www/<nome>/assets/ depois do deploy do front de uma aplicação (passo 9 do
+# deploy).
 #
 #   clean-assets.sh <pasta> <dias> <arquivo-do-build>...
 #
