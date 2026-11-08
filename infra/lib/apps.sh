@@ -24,7 +24,7 @@ provision_apps() {
 
   sync_dir /opt/apps 0755 root || true
   sync_dir "$INFRA_STATE_DIR/apps" 0755 root || true
-  check_smtp_env
+  check_smtp_env "$apps"
   if sync_file "$INFRA_DIR/systemd/infra-unit-failed@.service" "$UNIT_DIR/infra-unit-failed@.service"; then
     reload=1
   fi
@@ -36,7 +36,11 @@ provision_apps() {
     sync_dir "/var/www/$name" 0755 "$DEPLOY_USER" || true
     check_deploy_sudo "$name"
 
-    if install_app_env "$name" || ((${SMTP_CHANGED:-0})); then
+    if install_app_env "$name"; then
+      config_changed[$name]=1
+    fi
+    # Credenciais SMTP novas reiniciam só quem lê o smtp.env
+    if ((${SMTP_CHANGED:-0})) && app_reads_env_file "$name" "$INFRA_STATE_DIR/smtp.env"; then
       config_changed[$name]=1
     fi
     if install_app_units "$name"; then
@@ -44,6 +48,14 @@ provision_apps() {
       reload=1
     fi
   done <<< "$apps"
+
+  # Antes de subir as units: elas leem esses arquivos com EnvironmentFile= (sem eles, não sobem)
+  install_internal_tokens "$apps"
+  for name in "${TOKENS_CHANGED[@]}"; do
+    if app_reads_env_file "$name" "$INTERNAL_DIR/$name.env"; then
+      config_changed[$name]=1
+    fi
+  done
 
   if ((reload)); then
     systemctl daemon-reload
@@ -62,8 +74,11 @@ install_app_env() {
   while IFS= read -r line || [[ -n $line ]]; do
     [[ -z $line || $line == \#* ]] && continue
     [[ $line =~ ^[A-Z][A-Z0-9_]*= ]] || die "linha inválida em $src: $line"
-    # Segredos vão pelos secrets do GitHub (stdin), nunca versionados
+    # Segredos vão pelos secrets do GitHub (stdin) ou nascem na VM, nunca versionados
     [[ $line != SMTP_* ]] || die "$src não pode ter ${line%%=*}: credenciais SMTP ficam em $INFRA_STATE_DIR/smtp.env"
+    if [[ $line == INTERNAL_API_TOKEN=* || $line == IMAGO_APP_TOKENS=* ]]; then
+      die "$src não pode ter ${line%%=*}: os tokens da API interna são gerados na VM, em $INTERNAL_DIR"
+    fi
   done < "$src"
 
   sync_file "$src" "$INFRA_STATE_DIR/apps/$name.env" 0644
@@ -142,6 +157,7 @@ start_app_units() {
 
 # Aplicação que saiu de infra/apps/: desliga as units e tira as rotas do nginx (a config vai para
 # /var/backups/infra). Código em /opt/apps/<nome>, frontend e banco ficam. Avisa a cada provision.
+# O token da API interna dela sai do imago.env em seguida (install_internal_tokens).
 remove_old_apps() {
   local apps=$1 manifest name unit conf nginx_changed=0
 
@@ -180,14 +196,99 @@ remove_old_apps() {
   fi
 }
 
-# As apps mandam email: avisa se faltar alguma credencial (o secret não foi cadastrado no GitHub)
+# Avisa se faltar alguma credencial SMTP (o secret não foi cadastrado no GitHub), quando alguma
+# aplicação lê o smtp.env
 check_smtp_env() {
-  local key
+  local apps=$1 name key readers=""
+  while IFS= read -r name; do
+    if app_reads_env_file "$name" "$INFRA_STATE_DIR/smtp.env"; then
+      readers+=" $name"
+    fi
+  done <<< "$apps"
+  [[ -n $readers ]] || return 0
+
   for key in SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD; do
     if ! grep -q "^$key=" "$INFRA_STATE_DIR/smtp.env" 2>/dev/null; then
-      warn "$INFRA_STATE_DIR/smtp.env sem $key: cadastre o secret no GitHub e rode o Infra"
+      warn "$INFRA_STATE_DIR/smtp.env sem $key (lido por$readers): cadastre o secret no GitHub e rode o Infra"
     fi
   done
+}
+
+# 0 se o serviço principal da aplicação $1 (infra/apps/<nome>/app-<nome>.service) lê o arquivo $2
+# com EnvironmentFile= (opcional, com "-", ou não). Só ele reinicia quando o arquivo muda: os jobs
+# disparados por timer leem o arquivo de novo a cada execução
+app_reads_env_file() {
+  local unit="$INFRA_DIR/apps/$1/app-$1.service" file=$2 line
+  [[ -f $unit ]] || return 1
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line//[[:space:]]/}
+    if [[ $line == "EnvironmentFile=$file" || $line == "EnvironmentFile=-$file" ]]; then
+      return 0
+    fi
+  done < "$unit"
+  return 1
+}
+
+# Tokens da API interna (imago-plan.md, "API interna"), em $INTERNAL_DIR (0700, root):
+# - <app>.env para cada aplicação de infra/apps/ menos o imago, com INTERNAL_API_TOKEN (32 bytes
+#   aleatórios em base64url). Criado só se não existir: o provision seguinte não muda o arquivo, e
+#   uma aplicação nova ganha o dela sem mudar o das outras. Apagar o arquivo troca o token;
+# - imago.env com IMAGO_APP_TOKENS=<app>:<token>,... (ordem alfabética), montado a partir deles.
+#   Uma aplicação que sai de infra/apps/ sai dele, e o token dela deixa de valer (o arquivo fica).
+# Todos 0600 do root: o systemd lê como root. Os tokens nunca vão para log, argumento de processo
+# nem mensagem de erro, e nunca saem da VM. Preenche TOKENS_CHANGED com as aplicações cujo arquivo
+# nasceu agora e com o imago, se o imago.env mudou.
+install_internal_tokens() {
+  local apps=$1 name file token entries=""
+  local -A owner=()
+  TOKENS_CHANGED=()
+
+  sync_dir "$INTERNAL_DIR" 0700 root || true
+  # LC_ALL=C: a mesma ordem em qualquer locale, senão o imago.env mudaria de um provision para outro
+  while IFS= read -r name; do
+    [[ -n $name && $name != "$IMAGO_APP" ]] || continue
+    file=$INTERNAL_DIR/$name.env
+    if [[ ! -e $file && ! -L $file ]]; then
+      new_token_file "$file"
+      log "criado: $file (token da API interna de $name)"
+      TOKENS_CHANGED+=("$name")
+    fi
+    [[ -f $file && ! -L $file ]] || die "$file não é um arquivo comum"
+    if [[ $(stat -c '%U:%G %a' "$file") != "root:root 600" ]]; then
+      chown root:root "$file"
+      chmod 0600 "$file"
+      log "atualizado: $file (root 600)"
+    fi
+    token=$(<"$file")
+    # O formato que o imago aceita (32 a 512 caracteres base64url), senão ele não sobe
+    if [[ ! $token =~ ^INTERNAL_API_TOKEN=([A-Za-z0-9_-]{32,})$ ]] || ((${#BASH_REMATCH[1]} > 512)); then
+      die "$file fora do formato INTERNAL_API_TOKEN=<base64url> (conteúdo omitido): apague-o e rode o provision de novo para gerar outro"
+    fi
+    token=${BASH_REMATCH[1]}
+    # O token diz ao imago quem chamou: dois iguais, e ele não sobe
+    if [[ -n ${owner[$token]:-} ]]; then
+      die "$file tem o mesmo token de $INTERNAL_DIR/${owner[$token]}.env: apague um dos dois e rode o provision de novo"
+    fi
+    owner[$token]=$name
+    entries+="$name:$token,"
+  done < <(LC_ALL=C sort <<< "$apps")
+
+  if printf 'IMAGO_APP_TOKENS=%s\n' "${entries%,}" | sync_content "$INTERNAL_DIR/$IMAGO_APP.env" 0600; then
+    TOKENS_CHANGED+=("$IMAGO_APP")
+  fi
+}
+
+# Grava em $1 (que ainda não existe) um token novo, 0600 do root. O valor passa só por pipes e pelo
+# printf do bash (builtin), nunca por argumento de um processo (visível no ps)
+new_token_file() {
+  local file=$1 token tmp
+  token=$(head -c 32 /dev/urandom | base64 -w0 | tr '+/' '-_' | tr -d '=')
+  [[ $token =~ ^[A-Za-z0-9_-]{43}$ ]] || die "não foi possível gerar o token de $file"
+  tmp=$(mktemp "$INTERNAL_DIR/.token.XXXXXX")
+  printf 'INTERNAL_API_TOKEN=%s\n' "$token" > "$tmp"
+  chown root:root "$tmp"
+  chmod 0600 "$tmp"
+  mv -f "$tmp" "$file"
 }
 
 # O deploy de uma aplicação roda, com sudo -n: systemctl restart app-<nome> e sqlite3 como

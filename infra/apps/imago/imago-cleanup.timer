@@ -1,0 +1,10 @@
+[Unit]
+Description=imago: tarefas das aplicações e limpeza de hora em hora
+
+[Timer]
+OnCalendar=hourly
+AccuracySec=1min
+Unit=imago-cleanup.service
+
+[Install]
+WantedBy=timers.target

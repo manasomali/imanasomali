@@ -7,6 +7,9 @@ SQLITE_ROOT=/var/lib/sqlite
 BACKUP_ROOT=/var/backups/sqlite
 # app-<nome> precisa caber no limite de 32 caracteres de usuário do Linux
 DB_NAME_RE='^[a-z][a-z0-9-]{1,26}$'
+# Tokens da API interna entre o imago (a conta única) e cada aplicação: <app>.env e imago.env
+INTERNAL_DIR=$INFRA_STATE_DIR/internal
+IMAGO_APP=imago
 
 log() { printf '[%s] %s\n' "$(date -u +%FT%TZ)" "$*"; }
 warn() { log "AVISO: $*" >&2; }

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,9 +9,4 @@ export const FRONTEND_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..
 /** Conteúdo de um arquivo do repo, pelo caminho relativo a apps/imago/frontend. */
 export function readFrontendFile(path) {
   return readFileSync(resolve(FRONTEND_DIR, path), 'utf8');
-}
-
-/** Se o arquivo existe, pelo caminho relativo a apps/imago/frontend. */
-export function frontendFileExists(path) {
-  return existsSync(resolve(FRONTEND_DIR, path));
 }

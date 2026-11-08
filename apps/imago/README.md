@@ -60,7 +60,7 @@ Toda a config vem de variáveis de ambiente, lidas e validadas por `app/config.p
 
 Validação do `IMAGO_APPS` e do `IMAGO_APP_TOKENS` na subida: nome de aplicação com a regra do `infra/databases.txt` (`^[a-z][a-z0-9-]{1,26}$`, nunca `imago`), URL só `http://127.0.0.1:<porta>` (sem caminho), nada repetido, token base64url de 32 a 512 caracteres, um token para cada aplicação do `IMAGO_APPS` e nenhum token igual em duas aplicações (é o token que diz quem chamou). Um token de uma aplicação fora do `IMAGO_APPS` é aceito na subida, mas não autentica nada.
 
-O `.env.example` já serve para desenvolver: `APP_ENV=dev`, `EMAIL_BACKEND=console`, o banco em `imago-dev.db`, `APP_URL` no nginx de desenvolvimento (`http://localhost:8080/imago`) e o ethos no `IMAGO_APPS` com um token só de dev, que vai também no `INTERNAL_API_TOKEN` do `.env` do ethos. Os nomes do `.env.example` são exatamente os da config (um teste confere); o teste que os compara com o `infra/apps/imago/app.env` + `smtp.env` + `IMAGO_APP_TOKENS` entra com a infra do imago (ETH-57).
+O `.env.example` já serve para desenvolver: `APP_ENV=dev`, `EMAIL_BACKEND=console`, o banco em `imago-dev.db`, `APP_URL` no nginx de desenvolvimento (`http://localhost:8080/imago`) e o ethos no `IMAGO_APPS` com um token só de dev, que vai também no `INTERNAL_API_TOKEN` do `.env` do ethos. Os nomes do `.env.example` são exatamente os da config e os do `infra/apps/imago/app.env` + `smtp.env` + `IMAGO_APP_TOKENS` (`tests/test_env_files.py` confere). Variável nova entra no `app/config.py`, no `.env.example` e no `infra/apps/imago/app.env` (ou no `smtp.env`, se for credencial), com a mudança no `app.env` num PR anterior ao do código que a exige.
 
 ### Banco, erros e logs
 
@@ -394,3 +394,4 @@ O workflow [imago.yaml](../../.github/workflows/imago.yaml) roda em PRs e em pus
 
 - backend: `check-python-version.sh`, `uv lock --check`, `uv sync --frozen`, `ruff check`, `ruff format --check`, `pytest --cov` (85%) e 100% de cobertura nos módulos de `FULL_COVERAGE`;
 - frontend: `npm ci`, `npm run lint`, `npm run build` e `npm test`.
+- consistência com a infra: `.github/scripts/check-imago-apps.sh` (o `IMAGO_APPS` do `infra/apps/imago/app.env` tem toda aplicação de `infra/apps/`, com a porta do `app.conf` dela, e cada uma tem os textos da tela de conta em pt e en). O backend compara o `.env.example` com o `app.env`, o `smtp.env` e o `IMAGO_APP_TOKENS` (`tests/test_env_files.py`).

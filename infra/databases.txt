@@ -3,3 +3,4 @@
 # Remover uma linha NÃO apaga os dados: o banco só deixa de ter backup (o provision avisa no log).
 
 ethos
+imago

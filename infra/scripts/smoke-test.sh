@@ -23,11 +23,13 @@ check() {
 }
 
 owner_is() { [[ $(stat -c %U "$1") == "$2" ]]; }
+secret_file_ok() { [[ -f $1 && ! -L $1 && $(stat -c '%U:%G %a' "$1") == "root:root 600" ]]; }
 sql_is() { [[ $(runuser -u "$1" -- sqlite3 "$2" "$3") == "$4" ]]; }
 site_get() { curl -fsS --max-time 10 --resolve "$SITE_DOMAIN:443:127.0.0.1" "$@"; }
 app_serves_index() { [[ $(site_get "https://$SITE_DOMAIN/$1/") == "$(cat "/var/www/$1/index.html")" ]]; }
 app_health_ok() {
-  [[ $(site_get -o /dev/null -w '%{content_type}' "https://$SITE_DOMAIN/api/$1/health") == application/json* ]]
+  [[ $(site_get -o /dev/null -w '%{http_code} %{content_type}' "https://$SITE_DOMAIN/api/$1/health") \
+    == "200 application/json"* ]]
 }
 uv_is() {
   local v
@@ -61,15 +63,24 @@ for name in "${DATABASES[@]}"; do
   done
 done
 
-# Aplicações publicadas (rotas no nginx e frontend no ar). O location / do site devolve o index.html
-# com 200 para qualquer caminho, então não basta o status: o frontend tem de ser o da aplicação e o
-# health tem de responder JSON
+# Aplicações publicadas (rotas no nginx e frontend no ar), o imago inclusive. O location / do site
+# devolve o index.html com 200 para qualquer caminho, então não basta o status: o frontend tem de
+# ser o da aplicação e o health tem de responder 200 com JSON
 for manifest in "$INFRA_STATE_DIR"/apps/*.units; do
   [[ -f $manifest ]] || continue
   name=$(basename "$manifest" .units)
   [[ -f /etc/nginx/apps.d/$name.conf && -f /var/www/$name/index.html ]] || continue
   check "$name: /$name/ serve o frontend da aplicação" app_serves_index "$name"
-  check "$name: /api/$name/health responde JSON" app_health_ok "$name"
+  check "$name: /api/$name/health responde 200 com JSON" app_health_ok "$name"
+done
+
+# Tokens da API interna: só o root lê (os valores nunca são lidos aqui)
+if [[ -f $INFRA_STATE_DIR/apps/$IMAGO_APP.units ]]; then
+  check "$INTERNAL_DIR/$IMAGO_APP.env existe" test -f "$INTERNAL_DIR/$IMAGO_APP.env"
+fi
+for token_file in "$INTERNAL_DIR"/*.env; do
+  [[ -e $token_file ]] || continue
+  check "$token_file: root 600" secret_file_ok "$token_file"
 done
 
 log "memória: $(free -m | awk '/^Mem:/ {print $7 " MiB disponíveis de " $2}'), swap em uso: $(free -m | awk '/^Swap:/ {print $3}') MiB"

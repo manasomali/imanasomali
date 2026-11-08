@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LANGUAGES } from '../i18n';
-import { frontendFileExists, readFrontendFile } from '../test/files';
+import { readFrontendFile } from '../test/files';
 import { translations } from '../test/i18n';
 import {
   LEGAL_DOCUMENTS,
@@ -22,7 +22,7 @@ for (const [path, content] of Object.entries(FILES)) {
 
 const MARK = '{{supportEmail}}';
 
-// A config de produção do imago (infra/apps/imago/app.env) entra pelo PR de infra (ETH-57)
+// A config de produção do imago, instalada pelo provision
 const IMAGO_APP_ENV = '../../../infra/apps/imago/app.env';
 
 /** Valor de `NOME = "valor"` (Python) ou `NOME=valor` (env) no começo de uma linha. */
@@ -63,7 +63,7 @@ describe('legal texts versus the other areas', () => {
     expect(new Date(`${TERMS_VERSION}T00:00:00Z`).toISOString().slice(0, 10)).toBe(TERMS_VERSION);
   });
 
-  it.skipIf(!frontendFileExists(IMAGO_APP_ENV))('the support email is the SUPPORT_EMAIL of production', () => {
+  it('the support email is the SUPPORT_EMAIL of production', () => {
     expect(SUPPORT_EMAIL).toBe(assignment(readFrontendFile(IMAGO_APP_ENV), 'SUPPORT_EMAIL'));
   });
 
