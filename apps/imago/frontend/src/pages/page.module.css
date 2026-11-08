@@ -1,0 +1,14 @@
+/* Estilos comuns das telas simples */
+.page {
+  display: grid;
+  gap: 1rem;
+  max-width: var(--content-width);
+}
+
+.title {
+  font-size: var(--text-2xl);
+}
+
+.muted {
+  color: var(--muted);
+}

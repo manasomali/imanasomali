@@ -1,0 +1,55 @@
+{
+  "a11y": {
+    "skip_to_content": "Pular para o conteúdo",
+    "main_navigation": "Navegação principal",
+    "language": "Idioma",
+    "light_theme": "Usar tema claro",
+    "dark_theme": "Usar tema escuro"
+  },
+  "menu": {
+    "account": "Conta",
+    "admin": "Admin",
+    "back_to_site": "manasomali.com"
+  },
+  "footer": {
+    "tagline": "imago: uma conta para todas as aplicações do manasomali.com",
+    "legal": "Textos legais",
+    "terms": "Termos de uso",
+    "privacy": "Política de privacidade"
+  },
+  "common": {
+    "loading": "Carregando…",
+    "retry": "Tentar de novo",
+    "redirecting": "Voltando…"
+  },
+  "pages": {
+    "not_found": {
+      "title": "Página não encontrada",
+      "text": "Este endereço não existe ou mudou.",
+      "back_home": "Voltar para a sua conta"
+    }
+  },
+  "errors": {
+    "bad_request": "Não foi possível entender o pedido. Recarregue a página e tente de novo.",
+    "unauthorized": "A sua sessão acabou. Entre de novo.",
+    "forbidden": "Você não tem permissão para fazer isso.",
+    "not_found": "Não encontrado. Pode ter sido apagado.",
+    "method_not_allowed": "Esta ação não é permitida.",
+    "conflict": "Isto conflita com outra mudança. Recarregue a página e tente de novo.",
+    "validation_error": "Algum campo é inválido. Confira e tente de novo.",
+    "rate_limited": "Muitas tentativas. Tente mais tarde.",
+    "internal_error": "Algo deu errado do nosso lado. Tente de novo daqui a pouco.",
+    "service_unavailable": "O serviço está indisponível agora. Tente mais tarde.",
+    "database_unavailable": "O serviço está indisponível agora. Tente mais tarde.",
+    "invalid_code": "Código inválido ou vencido. Confira o código ou peça um novo.",
+    "invalid_timezone": "Fuso horário desconhecido. Escolha outro.",
+    "terms_not_accepted": "Aceite a nova versão dos termos de uso para continuar.",
+    "last_admin": "Esta é a última conta de administrador ativa: não pode ser bloqueada nem excluída. Antes, torne outra conta administradora.",
+    "email_in_use": "Este email já tem uma conta. Escolha outro.",
+    "cannot_block_self": "Você não pode bloquear a própria conta.",
+    "mail_quota": "O limite de envio de emails foi atingido. Tente mais tarde.",
+    "network_error": "Sem conexão com o servidor. Confira a internet e tente de novo.",
+    "session_not_saved": "O código foi aceito, mas este navegador não guardou a sessão. Permita cookies para o manasomali.com e entre de novo.",
+    "unknown": "Algo deu errado. Tente de novo."
+  }
+}
