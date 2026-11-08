@@ -1,7 +1,16 @@
 """API interna do imago: só entre os serviços, direto em 127.0.0.1:3003, nunca pelo nginx.
 
-O nginx responde 404 para `/api/imago/internal/` de fora.
+O nginx responde 404 para `/api/imago/internal/` de fora. Estas rotas não passam pela checagem
+de `Origin` (`app/auth/origin.py`): não vêm do navegador.
 
+- `session_router`, sem token: `GET /internal/session`, chamado pelo `auth_request` do nginx em
+  cada request de `/api/<app>/`. Sempre 200, corpo vazio. Com cookie de sessão válido, conta ativa
+  (`is_active` e `status=active`) e a versão atual dos termos aceita, devolve o usuário nos headers
+  `X-User-Id` (decimal), `X-User-Email` (ASCII, minúsculo), `X-User-Locale` (`pt`|`en`),
+  `X-User-Timezone` (IANA) e `X-User-Admin: 1` (só para admin). Em qualquer outro caso, nenhum
+  deles: as aplicações decidem quais rotas exigem login. Renova a sessão com a regra de uma
+  escrita por dia (`app/auth/deps.py`), então usar qualquer aplicação mantém a sessão viva. Só lê
+  o cookie que veio no request e devolve o que o próprio dono do cookie já vê em `GET /me`;
 - `router`, com o token de cada aplicação (`app/internal/deps.py`) em todas as rotas:
   `POST /internal/mail` (notificação de uma aplicação para um usuário). A ETH-59 acrescenta aqui
   `POST /internal/users/lookup` e `GET /internal/users/{id}`.
@@ -19,11 +28,15 @@ atingido (`app/mail/quota.py`); 401 sem token ou com token errado; 422 na valida
 import unicodedata
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from app.auth.deps import authenticate, session_token, terms_pending
+from app.auth.security import hash_secret
+from app.auth.service import can_sign_in
 from app.config import SettingsDep
 from app.db import SessionDep, write_transaction
 from app.errors import ApiError, ErrorCode
@@ -31,16 +44,66 @@ from app.internal.deps import CallerApp, caller_app
 from app.mail import quota
 from app.mail.kinds import MailKind
 from app.mail.sender import MailerDep, Notification, schedule
-from app.models import MAX_ACCOUNT_ID, User, UserStatus, utcnow
+from app.models import MAX_ACCOUNT_ID, User, utcnow
 
-# Rotas que exigem o token da aplicação: todas as de /internal/
+# Rotas que exigem o token da aplicação: todas as de /internal/ menos /internal/session
 router = APIRouter(prefix="/internal", tags=["interna"], dependencies=[Depends(caller_app)])
+session_router = APIRouter(prefix="/internal", tags=["interna"])
+
+# Headers que o /internal/session devolve e que o nginx repassa às aplicações
+USER_ID_HEADER = "X-User-Id"
+USER_EMAIL_HEADER = "X-User-Email"
+USER_LOCALE_HEADER = "X-User-Locale"
+USER_TIMEZONE_HEADER = "X-User-Timezone"
+USER_ADMIN_HEADER = "X-User-Admin"
+USER_HEADERS = (
+    USER_ID_HEADER,
+    USER_EMAIL_HEADER,
+    USER_LOCALE_HEADER,
+    USER_TIMEZONE_HEADER,
+    USER_ADMIN_HEADER,
+)
 
 # Assunto de uma notificação: até 200 caracteres, numa linha só. Categorias Unicode recusadas:
 # controle (Cc), separador de linha (Zl) e de parágrafo (Zp)
 SUBJECT_MAX_LENGTH = 200
 _NOT_IN_SUBJECT = frozenset({"Cc", "Zl", "Zp"})
 MAIL_ACCEPTED = {"status": "accepted"}
+
+
+# O nginx manda o subrequest do auth_request como GET; os outros métodos só garantem que um
+# nginx que repasse o método do request original (POST, PATCH...) não derrube as aplicações. Fora
+# do OpenAPI: uma rota com vários métodos repetiria o operationId
+@session_router.api_route(
+    "/session",
+    methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
+    include_in_schema=False,
+)
+def internal_session(request: Request, session: SessionDep) -> Response:
+    return Response(status_code=200, headers=session_headers(request, session))
+
+
+def session_headers(request: Request, session: Session) -> dict[str, str]:
+    """Os headers `X-User-*` do dono do cookie, ou nenhum (ver o docstring do módulo)."""
+    token = session_token(request)
+    if token is None:
+        return {}
+    try:
+        authenticated, _ = authenticate(session, hash_secret(token), renew=True)
+    except ApiError:
+        return {}
+    user = authenticated.user
+    if terms_pending(user):
+        return {}
+    headers = {
+        USER_ID_HEADER: str(user.id),
+        USER_EMAIL_HEADER: user.email,
+        USER_LOCALE_HEADER: user.locale,
+        USER_TIMEZONE_HEADER: user.timezone,
+    }
+    if user.is_admin:
+        headers[USER_ADMIN_HEADER] = "1"
+    return headers
 
 
 Subject = Annotated[str, StringConstraints(min_length=1, max_length=SUBJECT_MAX_LENGTH)]
@@ -87,7 +150,7 @@ def send_mail(
         )
         if user is None:
             raise ApiError(404, ErrorCode.NOT_FOUND)
-        if not user.is_active or user.status != UserStatus.ACTIVE.value:
+        if not can_sign_in(user):
             return Response(status_code=204)
         refusal = quota.reserve(session, settings, app=app, kind=MailKind.NOTIFICATION, now=now)
         if refusal is not None:

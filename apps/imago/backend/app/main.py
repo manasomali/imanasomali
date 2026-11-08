@@ -8,12 +8,14 @@ from fastapi import APIRouter, FastAPI
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.auth.origin import OriginCheckMiddleware
 from app.auth.router import router as auth_router
 from app.body_limit import BodyLimitMiddleware
 from app.config import Settings, load_settings
 from app.db import SessionDep, create_db_engine, create_session_factory
 from app.errors import ApiError, ErrorCode, install_error_handlers
 from app.internal.router import router as internal_router
+from app.internal.router import session_router as internal_session_router
 from app.logs import RequestLogMiddleware, configure_logging
 from app.mail.backends import MailBackend
 from app.mail.sender import Mailer, build_backend
@@ -66,12 +68,15 @@ def create_app(
     # parâmetro root_path do FastAPI() está obsoleto desde o FastAPI 0.162. A API interna
     # (/internal/*) é chamada direto em 127.0.0.1:3003, sem o nginx
     api = FastAPI(title="imago", lifespan=lifespan)
-    # O último adicionado fica por fora: o log registra também o 422 do tamanho do corpo
+    # O último adicionado fica por fora: o log registra também o 422 do tamanho do corpo e o 403
+    # da checagem de Origin
+    api.add_middleware(OriginCheckMiddleware)
     api.add_middleware(BodyLimitMiddleware)
     api.add_middleware(RequestLogMiddleware)
     install_error_handlers(api)
     api.include_router(router)
     api.include_router(auth_router)
+    api.include_router(internal_session_router)
     api.include_router(internal_router)
     return api
 
