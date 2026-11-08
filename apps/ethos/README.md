@@ -24,7 +24,7 @@ uv run --env-file .env alembic upgrade head   # cria ou atualiza o banco (DATABA
 uv run --env-file .env uvicorn app.main:app --reload --port 8000 --root-path /api/ethos
 ```
 
-A API sobe em `http://127.0.0.1:8000`. Como em produção, as rotas ficam na raiz (`http://127.0.0.1:8000/health`) e o prefixo público entra pelo `--root-path`: em produção o nginx tira o `/api/ethos` antes de repassar a request, e em dev o proxy do Vite faz o mesmo. A documentação interativa abre pelo proxy, com o front rodando, em `http://localhost:5174/api/ethos/docs`. Direto na porta 8000 ela não carrega, porque busca o `openapi.json` no caminho com prefixo.
+A API sobe em `http://127.0.0.1:8000`. Como em produção, as rotas ficam na raiz (`http://127.0.0.1:8000/health`) e o prefixo público entra pelo `--root-path`: em produção o nginx tira o `/api/ethos` antes de repassar a request, e em dev o proxy do Vite faz o mesmo. A documentação interativa abre pelo proxy, com o front rodando, em `http://localhost:5174/api/ethos/docs`. Direto na porta 8000 ela não carrega, porque busca o `openapi.json` no caminho com prefixo. Ela (`/docs`, `/redoc` e o schema em `/openapi.json`) só existe com `APP_ENV=dev`, como no `.env.example`: fora de dev os três respondem 404, porque o schema listaria para qualquer um todas as rotas, inclusive as de admin.
 
 No Git Bash (Windows), o MSYS converte `/api/ethos` num caminho do Windows. Rode o comando no PowerShell ou prefixe com `MSYS_NO_PATHCONV=1`.
 
