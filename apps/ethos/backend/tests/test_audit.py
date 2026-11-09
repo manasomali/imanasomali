@@ -57,8 +57,6 @@ def test_event_is_saved_with_every_field(db_session, ana, habit):
     assert saved.user_id == ana.id
     assert saved.habit_id == habit.id
     assert saved.event == "mark_created"
-    # O ethos não grava IP: a coluna legada fica vazia
-    assert saved.ip is None
     assert saved.created_at == NOW
     assert saved.details == {
         "mark_id": 12,
@@ -69,7 +67,7 @@ def test_event_is_saved_with_every_field(db_session, ana, habit):
 def test_optional_fields_default_to_empty(db_session):
     record(db_session, AuditEvent.BANNER_ENDED)
     (saved,) = all_events(db_session)
-    assert (saved.user_id, saved.habit_id, saved.ip, saved.details) == (None, None, None, {})
+    assert (saved.user_id, saved.habit_id, saved.details) == (None, None, {})
 
 
 def test_event_name_as_text_is_accepted(db_session):

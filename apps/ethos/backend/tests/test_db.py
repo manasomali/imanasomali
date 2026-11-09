@@ -244,15 +244,14 @@ def test_migration_connection_is_discarded_after_an_error(engine):
 
 def test_check_foreign_keys_reports_tables_without_values(engine):
     orphan = text(
-        "INSERT INTO sessions (token_hash, user_id, created_at, expires_at, last_seen_at) "
-        "VALUES (:hash, 4242, '2026-01-01', '2026-01-01', '2026-01-01')"
+        "INSERT INTO habit_pauses (habit_id, started_at) VALUES (:habit_id, '2026-01-01')"
     )
     with migration_connection(engine) as connection, connection.begin() as transaction:
         check_foreign_keys(connection)
         # Com as chaves desligadas, a linha órfã entra; a conferência no fim acha
-        connection.execute(orphan, {"hash": "a" * 64})
+        connection.execute(orphan, {"habit_id": 4242})
 
-        with pytest.raises(RuntimeError, match=r"nas tabelas: sessions$") as error:
+        with pytest.raises(RuntimeError, match=r"nas tabelas: habit_pauses$") as error:
             check_foreign_keys(connection)
         assert "4242" not in str(error.value)
         transaction.rollback()

@@ -1,9 +1,12 @@
+import re
 from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Any
 
 import pytest
 import time_machine
 from sqlalchemy import delete, select, text, update
+from sqlalchemy import event as sa_event
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.exc import IntegrityError, StatementError
 from sqlalchemy.orm import Session
 
@@ -18,14 +21,11 @@ from app.models import (
     HabitInvite,
     HabitMember,
     HabitPause,
-    LoginCode,
     Mark,
-    UserSession,
 )
 from tests.factories import count, new_habit, new_user, save
 
 NOW = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
-HASH = "a" * 64
 
 
 @pytest.fixture
@@ -56,14 +56,6 @@ def test_deleting_user_cascades_to_everything_that_is_theirs(db_session, ana, bi
     save(db_session, habit)
     save(
         db_session,
-        UserSession(token_hash=HASH, user_id=ana.id, expires_at=NOW),
-        LoginCode(
-            email=ana.email,
-            user_id=ana.id,
-            purpose="delete_account",
-            code_hash=HASH,
-            expires_at=NOW,
-        ),
         Mark(habit_id=habit.id, user_id=ana.id, marked_at=NOW),
         Mark(habit_id=habit.id, user_id=bia.id, marked_at=NOW),
         HabitPause(habit_id=habit.id, started_at=NOW),
@@ -78,8 +70,6 @@ def test_deleting_user_cascades_to_everything_that_is_theirs(db_session, ana, bi
 
     for model in (
         AppUser,
-        UserSession,
-        LoginCode,
         Habit,
         Mark,
         HabitPause,
@@ -160,7 +150,7 @@ def test_foreign_key_to_missing_row_is_refused(db_session):
     with pytest.raises(IntegrityError, match="FOREIGN KEY constraint failed"):
         save(db_session, new_habit(new_user(id=999)))
     with pytest.raises(IntegrityError, match="FOREIGN KEY constraint failed"):
-        save(db_session, UserSession(token_hash=HASH, user_id=999, expires_at=NOW))
+        save(db_session, HabitPause(habit_id=999, started_at=NOW))
 
 
 def test_invite_to_a_user_unknown_to_ethos_is_accepted(db_session, ana):
@@ -189,7 +179,6 @@ ENUM_CASES = [
     ("ck_habit_members_role", "habit_members", "role", "owner"),
     ("ck_habit_invites_role", "habit_invites", "role", "owner"),
     ("ck_alerts_frequency", "alerts", "frequency", "monthly"),
-    ("ck_login_codes_purpose", "login_codes", "purpose", "change_email"),
 ]
 
 
@@ -204,9 +193,6 @@ def full_rows(db_session, ana, bia) -> dict[str, Any]:
         "habit_members": HabitMember(habit_id=habit.id, user_id=bia.id, role="viewer"),
         "habit_invites": HabitInvite(habit_id=habit.id, email="caio@example.com", role="viewer"),
         "alerts": Alert(habit_id=habit.id, user_id=ana.id, hour=8, frequency="daily"),
-        "login_codes": LoginCode(
-            email="caio@example.com", purpose="login", code_hash=HASH, expires_at=NOW
-        ),
     }
 
 
@@ -417,17 +403,28 @@ def test_alert_limits(db_session, ana):
     save(db_session, alert(hour=0, frequency="daily", weekday=6))
 
 
-def test_login_code_attempts_cannot_be_negative(db_session):
-    code = LoginCode(
-        email="ana@example.com", purpose="login", code_hash=HASH, expires_at=NOW, attempts=-1
-    )
-    assert_check_fails(db_session, "ck_login_codes_attempts_not_negative", code)
+def test_legacy_audit_ip_is_not_mapped(db_session, engine):
+    """A coluna `audit_log.ip` sai na migração 0007, e o rollback daquele deploy volta para este
+    código: nenhum SQL do ORM pode citar a coluna (senão a auditoria quebraria sem ela)."""
+    statements: list[str] = []
 
+    def record(_conn, _cursor, statement, _params, _context, _executemany):
+        statements.append(statement)
 
-@pytest.mark.parametrize("token_hash", ["a" * 63, "a" * 65])
-def test_session_token_hash_is_a_sha256(db_session, ana, token_hash):
-    session = UserSession(token_hash=token_hash, user_id=ana.id, expires_at=NOW)
-    assert_check_fails(db_session, "ck_sessions_token_hash_length", session)
+    sa_event.listen(engine, "before_cursor_execute", record)
+    try:
+        save(db_session, AuditLog(event="habit_created", details={"x": 1}))
+        db_session.expunge_all()
+        entry = db_session.scalars(select(AuditLog)).one()
+    finally:
+        sa_event.remove(engine, "before_cursor_execute", record)
+
+    assert any("audit_log" in statement for statement in statements)
+    assert not [s for s in statements if re.search(r"\bip\b", s)]
+    assert entry.details == {"x": 1}
+    # Na tabela (o teste de drift a compara com a migração), fora do mapeamento
+    assert "ip" in AuditLog.__table__.c
+    assert "ip" not in sa_inspect(AuditLog).attrs
 
 
 def test_audit_details_must_be_json(engine, ana):
@@ -448,14 +445,12 @@ def test_orm_defaults(db_session):
     ana = new_user()
     save(db_session, ana)
     habit = new_habit(ana)
-    code = LoginCode(email=ana.email, purpose="login", code_hash=HASH, expires_at=NOW)
     event = AuditLog(event="habit_created")
-    save(db_session, habit, code, event)
+    save(db_session, habit, event)
     alert = Alert(habit_id=habit.id, user_id=ana.id, hour=8, frequency="daily")
     save(db_session, alert)
 
     assert (ana.first_seen_at, ana.updated_at) == (NOW, NOW)
-    assert event.ip is None
     assert habit.score_threshold == 70
     assert habit.status == "active"
     assert habit.cost_level == "habit"
@@ -468,7 +463,6 @@ def test_orm_defaults(db_session):
             habit.cost_enabled,
         )
     )
-    assert code.attempts == 0
     assert event.details == {}
     assert (alert.goal_enabled, alert.cost_enabled) == (False, False)
 

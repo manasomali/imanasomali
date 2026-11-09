@@ -93,7 +93,6 @@ def log(
     by: Account | None,
     at: datetime = NOW,
     details: dict[str, Any] | None = None,
-    ip: str | None = None,
 ) -> int:
     """Grava um evento direto no `audit_log`, com a data `at`; devolve o id."""
     entry = AuditLog(
@@ -102,8 +101,6 @@ def log(
         habit_id=None if model is None else model.id,
         created_at=at,
         details=details or {},
-        # Coluna legada (o ethos não grava IP): só para conferir que nunca sai
-        ip=ip,
     )
     save(db_session, entry)
     return entry.id
@@ -277,9 +274,7 @@ def test_entry_format(client, db_session, ana):
         "cost_cents": None,
         "has_note": True,
     }
-    event = log(
-        db_session, model, AuditEvent.MARK_CREATED, by=ana, details=details, ip="203.0.113.9"
-    )
+    event = log(db_session, model, AuditEvent.MARK_CREATED, by=ana, details=details)
 
     response = history(client, ana)
 
@@ -296,9 +291,6 @@ def test_entry_format(client, db_session, ana):
         ],
         "next_cursor": None,
     }
-    # O IP nunca sai
-    assert "203.0.113.9" not in response.text
-    assert '"ip"' not in response.text
 
 
 def test_label_is_the_name_without_code(client, db_session, ana):

@@ -6,9 +6,9 @@ versionado em infra/apps/ethos/app.env). Em dev, as variáveis vêm de um .env p
 `uv run --env-file .env` (modelo em .env.example). Domínio, caminhos e endereços vêm sempre daqui,
 nunca fixos no código.
 
-Só as variáveis de `Settings` são lidas. As do login próprio de antes do imago (`EMAIL_BACKEND`,
-`MAIL_FROM`, `SUPPORT_EMAIL`, `SMTP_*`, `MAX_CODE_EMAILS_*`) são ignoradas se ainda estiverem no
-ambiente: o `infra/apps/ethos/app.env` só as perde no PR de infra B da ETH-64.
+Só as variáveis de `Settings` são lidas; as outras do ambiente são ignoradas, inclusive as do login
+próprio de antes do imago (`EMAIL_BACKEND`, `MAIL_FROM`, `SUPPORT_EMAIL`, `SMTP_*`,
+`MAX_CODE_EMAILS_*`), se sobrarem num `.env` antigo.
 """
 
 import os

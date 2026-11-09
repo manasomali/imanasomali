@@ -103,10 +103,9 @@ def test_create_with_defaults(client, ana, db_session):
     habit = stored(db_session, body["id"])
     assert habit.owner_id == ana.user.id
     [entry] = events(db_session, AuditEvent.HABIT_CREATED)
-    assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
+    assert (entry.user_id, entry.habit_id, entry.details) == (
         ana.user.id,
         body["id"],
-        None,
         {},
     )
 
@@ -561,7 +560,7 @@ def test_owner_updates_and_audit_records_changes(client, ana, db_session, clock)
     assert body["updated_at"] == "2026-03-25T13:00:00Z"
     assert body["created_at"] == habit["created_at"]
     [entry] = events(db_session, AuditEvent.HABIT_UPDATED)
-    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], None)
+    assert (entry.user_id, entry.habit_id) == (ana.user.id, habit["id"])
     # goal_count não mudou (3 -> 3): não aparece
     assert entry.details == {
         "changes": [
@@ -844,9 +843,8 @@ def test_owner_deletes_habit_with_everything(client, ana, bia, caio, imago, db_s
     assert count(db_session, AuditLog, AuditLog.habit_id == habit["id"]) == 0
     assert count(db_session, AuditLog, AuditLog.habit_id == keep["id"]) == 2
     [entry] = events(db_session, AuditEvent.HABIT_DELETED)
-    assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
+    assert (entry.user_id, entry.habit_id, entry.details) == (
         ana.user.id,
-        None,
         None,
         {"habit_id": habit["id"]},
     )

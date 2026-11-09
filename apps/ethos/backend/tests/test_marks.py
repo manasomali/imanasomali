@@ -176,7 +176,7 @@ def test_toggle_marks_and_unmarks_the_day(client, ana, db_session):
         "has_note": False,
     }
     for entry in (created_event, deleted_event):
-        assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], None)
+        assert (entry.user_id, entry.habit_id) == (ana.user.id, habit["id"])
         assert entry.details == snapshot
 
 
@@ -739,7 +739,7 @@ def test_patch_changes_note_duration_and_cost(client, ana, db_session, clock):
     assert body["created_at"] == mark["created_at"]
     assert body["updated_at"] == "2026-03-25T15:05:00Z"
     [entry] = events(db_session, AuditEvent.MARK_UPDATED)
-    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], None)
+    assert (entry.user_id, entry.habit_id) == (ana.user.id, habit["id"])
     assert entry.details == {
         "mark_id": mark["id"],
         "changes": [
@@ -866,7 +866,7 @@ def test_delete_mark(client, ana, db_session):
     assert response.status_code == 204
     assert [m.id for m in stored_marks(db_session, habit["id"])] == [kept["id"]]
     [entry] = events(db_session, AuditEvent.MARK_DELETED)
-    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], None)
+    assert (entry.user_id, entry.habit_id) == (ana.user.id, habit["id"])
     assert entry.details["mark_id"] == gone["id"]
     assert remove(client, ana, habit["id"], gone["id"]).status_code == 404
 
