@@ -6,12 +6,13 @@
 #
 #   sudo bash packages/deploy/test-vm.sh ethos apps/ethos/backend/tests/vm-restore.sh
 #
-# Com o banco populado pelo seed: backup, uma exclusão de verdade com a linha no journald, o ensaio
-# numa cópia, o restore do pre-deploy-<sha>.db e o reapply-deletions pelo systemd-run, duas vezes.
+# Com o banco populado pelo seed: backup, uma exclusão de verdade (delete_user_data) com a linha no
+# journald, o ensaio numa cópia, o restore do pre-deploy-<sha>.db e o reapply-deletions pelo
+# systemd-run, com linhas do login antigo, duas vezes.
 # Fica em tests/ porque ensaia o CLI do backend; o rsync do deploy não leva tests/ para a VM.
 
-# O ambiente da unit app-ethos: o .env.example (dev, email no console) com o banco do teste, lido
-# pelo systemd como EnvironmentFile=, como o /etc/infra/apps/ethos.env
+# O ambiente da unit app-ethos: o .env.example (dev) com o banco do teste, lido pelo systemd como
+# EnvironmentFile=, como o /etc/infra/apps/ethos.env
 env_file=$TEST_ROOT/etc/ethos.env
 sed "s|^DATABASE_PATH=.*|DATABASE_PATH=$DB|" "$BACKEND/.env.example" > "$env_file"
 chmod 0644 "$env_file"
@@ -22,44 +23,45 @@ ethos_unit=(systemd-run --quiet --wait --collect --uid="$APP_USER" --gid="$APP_U
 ethos_cli=("${ethos_unit[@]}" --pipe)
 python_bin=$APP_DIR/.venv/bin/python
 sql() { as_app sqlite3 "$1" "$2"; }
-user_id() { sql "$1" "SELECT id FROM users WHERE email = '$2';"; }
-reapplied_events() {
-  sql "$1" "SELECT count(*) FROM audit_log WHERE event = 'account_deleted'
-    AND json_extract(details, '\$.account_id') = $2 AND json_extract(details, '\$.reapplied') = 1;"
-}
+user_id() { sql "$1" "SELECT user_id FROM app_users WHERE email = '$2';"; }
 
 echo "--- banco populado (seed) pelo systemd-run, como app-ethos"
 "${ethos_cli[@]}" "$python_bin" -m app.cli seed | tee "$OUT"
-grep -q "seed: 3 contas" "$OUT" || fail "seed não criou as contas"
+grep -q "seed: 3 usuários" "$OUT" || fail "seed não criou os usuários"
 bia=$(user_id "$DB" bia@example.com)
-[[ $bia =~ ^[0-9]+$ ]] || fail "bia@example.com não está no banco"
+# O id fixo da Bia no seed do imago
+[[ $bia == 102 ]] || fail "bia@example.com não está no banco com o id 102: '$bia'"
 
-echo "--- backup antigo (pre-deploy) e, depois dele, a exclusão da Bia com a linha no journald"
+echo "--- backup antigo (pre-deploy) e, depois dele, a exclusão dos dados da Bia, com o log no journald"
 old_sha=fedcba9876543210fedcba9876543210fedcba98
 vm backup "$old_sha"
 old_backup=$BACKUP_DIR/pre-deploy-$old_sha.db
 delete_unit=ethos-exclusao-teste-$$
 since=$(date '+%Y-%m-%d %H:%M:%S')
-# A exclusão de verdade (app/auth/deletion.py), com o log configurado como no servidor
+# A exclusão de verdade (app/internal/service.py, a do POST /internal/users/{id}/delete), com o
+# log configurado como no servidor
 "${ethos_unit[@]}" --unit="$delete_unit" "$python_bin" -c '
 import sys
-from app.auth.deletion import delete_account
 from app.config import load_settings
 from app.db import create_db_engine, create_session_factory
+from app.internal.service import delete_user_data
 from app.logs import configure_logging
 settings = load_settings()
 configure_logging(settings.app_env)
 with create_session_factory(create_db_engine(settings.database_path))() as session:
-    account_id = int(sys.argv[1])
-    delete_account(session, account_id=account_id, actor_id=account_id, ip=None)
+    delete_user_data(session, user_id=int(sys.argv[1]))
 ' "$bia"
 [[ -z $(user_id "$DB" bia@example.com) ]] || fail "a Bia não foi apagada"
-journal() { journalctl -u "$delete_unit" --since "$since" -o cat --no-pager; }
+deletion_log() { journalctl -u "$delete_unit" --since "$since" -o cat --no-pager; }
 for _ in $(seq 1 20); do
-  journal | grep -q "conta $bia excluída" && break
+  deletion_log | grep -q "conta $bia apagados" && break
   sleep 0.5
 done
-journal | grep -x "INFO app.auth.deletion: conta $bia excluída" || fail "a linha da exclusão não chegou ao journald"
+deletion_log | grep -x "INFO app.internal.service: dados da conta $bia apagados" \
+  || fail "a linha da exclusão não chegou ao journald"
+# O reapply-deletions do ethos lê as linhas das exclusões de antes do imago (o login próprio, que
+# gravava esta linha); as de depois são do reapply-deletions do imago
+journal() { printf 'Started app-ethos.service\nINFO app.auth.deletion: conta %s excluída\n' "$bia"; }
 
 echo "--- ensaio numa cópia, com o DATABASE_PATH trocado pelo env (o EnvironmentFile= venceria o -E)"
 ensaio_dir=$TEST_ROOT/ensaio
@@ -69,7 +71,7 @@ as_app cp "$old_backup" "$ensaio_dir/app.db"
 db_before=$(sha256sum < "$DB")
 journal | "${ethos_cli[@]}" /usr/bin/env DATABASE_PATH="$ensaio_dir/app.db" \
   "$python_bin" -m app.cli reapply-deletions | tee "$OUT"
-grep -q "1 contas apagadas, 0 ignoradas" "$OUT" || fail "o ensaio não apagou a Bia na cópia"
+grep -q "1 contas apagadas, 0 sem linha" "$OUT" || fail "o ensaio não apagou a Bia na cópia"
 [[ -z $(user_id "$ensaio_dir/app.db" bia@example.com) ]] || fail "a Bia continua na cópia"
 [[ $(sha256sum < "$DB") == "$db_before" ]] || fail "o ensaio mexeu no banco em uso"
 
@@ -84,13 +86,13 @@ chown "$APP_USER:$APP_USER" "$DB"
 "${ethos_cli[@]}" "$APP_DIR/.venv/bin/alembic" upgrade head
 # As linhas do journald e um id solto de uma conta que não existe
 { journal; echo 99999; } | "${ethos_cli[@]}" "$python_bin" -m app.cli reapply-deletions | tee "$OUT"
-grep -q "1 contas apagadas, 1 ignoradas" "$OUT" || fail "reapply-deletions não apagou a Bia"
+grep -q "1 contas apagadas, 1 sem linha" "$OUT" || fail "reapply-deletions não apagou a Bia"
 [[ -z $(user_id "$DB" bia@example.com) ]] || fail "a Bia voltou depois do reapply-deletions"
-[[ $(reapplied_events "$DB" "$bia") == 1 ]] || fail "account_deleted reaplicado ausente ou repetido"
+[[ -z $(sql "$DB" 'PRAGMA foreign_key_check;') ]] || fail "foreign_key_check depois do reapply"
 
 echo "--- reapply-deletions de novo: nada muda"
 events=$(sql "$DB" 'SELECT count(*) FROM audit_log;')
 { journal; echo 99999; } | "${ethos_cli[@]}" "$python_bin" -m app.cli reapply-deletions | tee "$OUT"
-grep -q "0 contas apagadas, 2 ignoradas" "$OUT" || fail "a segunda execução mudou algo"
+grep -q "0 contas apagadas, 2 sem linha" "$OUT" || fail "a segunda execução mudou algo"
 [[ $(sql "$DB" 'SELECT count(*) FROM audit_log;') == "$events" ]] || fail "a segunda execução gravou evento"
 expect_failure "entrada vazia" "${ethos_cli[@]}" "$python_bin" -m app.cli reapply-deletions < /dev/null

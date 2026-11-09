@@ -64,6 +64,7 @@ from app.habits.access import (
 from app.habits.schemas import CONFIG_FIELDS
 from app.mail.language import Locale, pick_locale
 from app.models import (
+    AppUser,
     CostLevel,
     GoalType,
     Habit,
@@ -71,7 +72,6 @@ from app.models import (
     HabitPause,
     HabitStatus,
     Period,
-    User,
     utcnow,
 )
 from app.sharing.quota import RECENT_INVITES_KEY, habit_recent_invites
@@ -157,7 +157,6 @@ def create_habit(
     *,
     owner_id: int,
     values: Mapping[str, Any],
-    ip: str | None,
 ) -> Habit:
     """Cria o hábito com a configuração `values` (todos os `CONFIG_FIELDS`, em valores simples).
 
@@ -171,7 +170,7 @@ def create_habit(
         habit = Habit(owner_id=owner_id, **config)
         session.add(habit)
         session.flush()
-        audit.record(session, AuditEvent.HABIT_CREATED, user_id=owner_id, ip=ip, habit_id=habit.id)
+        audit.record(session, AuditEvent.HABIT_CREATED, user_id=owner_id, habit_id=habit.id)
     return habit
 
 
@@ -182,7 +181,6 @@ def update_habit(
     user_id: int,
     habit_id: int,
     values: Mapping[str, Any],
-    ip: str | None,
 ) -> HabitAccess:
     """Aplica a mudança parcial `values` (só os campos enviados, em valores simples).
 
@@ -205,7 +203,6 @@ def update_habit(
                 session,
                 AuditEvent.HABIT_UPDATED,
                 user_id=user_id,
-                ip=ip,
                 habit_id=habit_id,
                 details={"changes": changes},
             )
@@ -214,9 +211,9 @@ def update_habit(
 
 @dataclass(frozen=True, slots=True)
 class Recipient:
-    """Destino de um email, já com o idioma escolhido."""
+    """Destino de um email (o id no imago), já com o idioma escolhido."""
 
-    email: str
+    user_id: int
     locale: Locale
 
 
@@ -227,16 +224,16 @@ class DeletedHabit:
     members: tuple[Recipient, ...]
 
 
-def delete_habit(session: Session, *, user_id: int, habit_id: int, ip: str | None) -> DeletedHabit:
+def delete_habit(session: Session, *, user_id: int, habit_id: int) -> DeletedHabit:
     """Apaga o hábito e tudo o que é dele. Levanta 404 (sem acesso) ou 403 (não é o dono)."""
     with write_transaction(session):
         habit = require_owner(get_habit_access(session, habit_id, user_id))
         name = habit.name
         rows = session.execute(
-            select(User.email, User.locale)
-            .join(HabitMember, HabitMember.user_id == User.id)
+            select(AppUser.id, AppUser.locale)
+            .join(HabitMember, HabitMember.user_id == AppUser.id)
             .where(HabitMember.habit_id == habit_id)
-            .order_by(User.id)
+            .order_by(AppUser.id)
         ).all()
         details: dict[str, int] = {"habit_id": habit_id}
         # Os invite_created do hábito somem no CASCADE: a conta do limite de convites passa
@@ -249,14 +246,8 @@ def delete_habit(session: Session, *, user_id: int, habit_id: int, ip: str | Non
             execution_options={"synchronize_session": False},
         )
         session.expunge(habit)
-        audit.record(
-            session,
-            AuditEvent.HABIT_DELETED,
-            user_id=user_id,
-            ip=ip,
-            details=details,
-        )
-    members = tuple(Recipient(email, pick_locale(locale)) for email, locale in rows)
+        audit.record(session, AuditEvent.HABIT_DELETED, user_id=user_id, details=details)
+    members = tuple(Recipient(member_id, pick_locale(locale)) for member_id, locale in rows)
     return DeletedHabit(name=name, members=members)
 
 
@@ -294,13 +285,11 @@ def _open_pause(session: Session, habit_id: int) -> HabitPause | None:
     )
 
 
-def _record(
-    session: Session, event: AuditEvent, *, user_id: int, habit_id: int, ip: str | None
-) -> None:
-    audit.record(session, event, user_id=user_id, ip=ip, habit_id=habit_id)
+def _record(session: Session, event: AuditEvent, *, user_id: int, habit_id: int) -> None:
+    audit.record(session, event, user_id=user_id, habit_id=habit_id)
 
 
-def pause_habit(session: Session, *, user_id: int, habit_id: int, ip: str | None) -> HabitAccess:
+def pause_habit(session: Session, *, user_id: int, habit_id: int) -> HabitAccess:
     """Pausa o hábito ativo (já pausado: nada muda). Levanta 404, 403 ou 409 `habit_archived`."""
     with write_transaction(session):
         access = get_habit_access(session, habit_id, user_id)
@@ -309,11 +298,11 @@ def pause_habit(session: Session, *, user_id: int, habit_id: int, ip: str | None
         if habit.status != HabitStatus.PAUSED:
             session.add(HabitPause(habit_id=habit_id, started_at=utcnow()))
             habit.status = HabitStatus.PAUSED.value
-            _record(session, AuditEvent.HABIT_PAUSED, user_id=user_id, habit_id=habit_id, ip=ip)
+            _record(session, AuditEvent.HABIT_PAUSED, user_id=user_id, habit_id=habit_id)
     return access
 
 
-def resume_habit(session: Session, *, user_id: int, habit_id: int, ip: str | None) -> HabitAccess:
+def resume_habit(session: Session, *, user_id: int, habit_id: int) -> HabitAccess:
     """Retoma o hábito pausado (já ativo: nada muda). Levanta 404, 403 ou 409 `habit_archived`."""
     with write_transaction(session):
         access = get_habit_access(session, habit_id, user_id)
@@ -325,11 +314,11 @@ def resume_habit(session: Session, *, user_id: int, habit_id: int, ip: str | Non
                 # Relógio que voltou não pode gerar intervalo negativo (CHECK no banco)
                 pause.ended_at = max(utcnow(), pause.started_at)
             habit.status = HabitStatus.ACTIVE.value
-            _record(session, AuditEvent.HABIT_RESUMED, user_id=user_id, habit_id=habit_id, ip=ip)
+            _record(session, AuditEvent.HABIT_RESUMED, user_id=user_id, habit_id=habit_id)
     return access
 
 
-def archive_habit(session: Session, *, user_id: int, habit_id: int, ip: str | None) -> HabitAccess:
+def archive_habit(session: Session, *, user_id: int, habit_id: int) -> HabitAccess:
     """Arquiva o hábito (já arquivado: nada muda, `archived_at` fica). Levanta 404 ou 403."""
     with write_transaction(session):
         access = get_habit_access(session, habit_id, user_id)
@@ -337,12 +326,12 @@ def archive_habit(session: Session, *, user_id: int, habit_id: int, ip: str | No
         if habit.status != HabitStatus.ARCHIVED:
             habit.status = HabitStatus.ARCHIVED.value
             habit.archived_at = utcnow()
-            _record(session, AuditEvent.HABIT_ARCHIVED, user_id=user_id, habit_id=habit_id, ip=ip)
+            _record(session, AuditEvent.HABIT_ARCHIVED, user_id=user_id, habit_id=habit_id)
     return access
 
 
 def unarchive_habit(
-    session: Session, settings: Settings, *, user_id: int, habit_id: int, ip: str | None
+    session: Session, settings: Settings, *, user_id: int, habit_id: int
 ) -> HabitAccess:
     """Desarquiva o hábito, de volta ao status de antes (não arquivado: nada muda).
 
@@ -364,5 +353,5 @@ def unarchive_habit(
                 if now > archived_at:
                     session.add(HabitPause(habit_id=habit_id, started_at=archived_at, ended_at=now))
             habit.archived_at = None
-            _record(session, AuditEvent.HABIT_UNARCHIVED, user_id=user_id, habit_id=habit_id, ip=ip)
+            _record(session, AuditEvent.HABIT_UNARCHIVED, user_id=user_id, habit_id=habit_id)
     return access

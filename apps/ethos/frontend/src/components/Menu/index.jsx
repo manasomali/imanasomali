@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiHelpCircle, FiLogOut, FiMenu, FiMoon, FiSun, FiX } from 'react-icons/fi';
-import { useCachedMe, useLogout } from '../../api/auth';
+import { FiArrowLeft, FiHelpCircle, FiMenu, FiMoon, FiSun, FiUser, FiX } from 'react-icons/fi';
+import { useCachedMe } from '../../api/me';
 import { useReceivedInvites } from '../../api/sharing';
 import useTheme from '../../hooks/useTheme';
 import { LANGUAGES } from '../../i18n';
-import { PATHS } from '../../paths';
+import { IMAGO_PATHS, PATHS } from '../../paths';
 import styles from './styles.module.css';
 
 const ICON_SIZE = 20;
@@ -16,7 +16,6 @@ const links = [
   { to: PATHS.report, i18nKey: 'menu.report' },
   { to: PATHS.history, i18nKey: 'menu.history' },
   { to: PATHS.invites, i18nKey: 'menu.invites', pending: true },
-  { to: PATHS.account, i18nKey: 'menu.account' },
 ];
 
 // Só para admin. Esconder o link é conveniência: a rota redireciona e o backend recusa (403)
@@ -27,11 +26,10 @@ export default function Menu() {
   const { theme, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const me = useCachedMe();
-  const signOut = useLogout();
   const visibleLinks = me?.is_admin ? [...links, adminLink] : links;
-  // Convites pendentes: só com a sessão carregada e os termos aceitos (senão a API recusa). Falha
-  // ao buscar não mostra nada; a tela de convites mostra o erro. Cache em src/api/sharing.js
-  const received = useReceivedInvites({ enabled: Boolean(me) && !me.terms_pending });
+  // Convites pendentes: só com o usuário carregado (senão a API recusa). Falha ao buscar não mostra
+  // nada; a tela de convites mostra o erro. Cache em src/api/sharing.js
+  const received = useReceivedInvites({ enabled: Boolean(me) });
   const pending = received.data?.length ?? 0;
 
   useEffect(() => {
@@ -82,24 +80,14 @@ export default function Menu() {
                   </NavLink>
                 </li>
               ))}
-              {/* Só com sessão (o menu aparece também no login e nas páginas legais) */}
-              {me && (
-                <li>
-                  <button
-                    type="button"
-                    className={`${styles.navLink} ${styles.signOut}`}
-                    disabled={signOut.isPending}
-                    onClick={() => signOut.mutate(undefined, { onSuccess: close })}
-                  >
-                    <FiLogOut aria-hidden size={16} />
-                    {signOut.isError ? t('menu.sign_out_retry') : t('menu.sign_out')}
-                  </button>
-                  {/* O erro é anunciado; na tela, o rótulo do botão muda */}
-                  <span className="visually-hidden" role="status">
-                    {signOut.isError ? t('menu.sign_out_failed') : ''}
-                  </span>
-                </li>
-              )}
+              <li>
+                {/* A conta (idioma, fuso, sair, exclusão) é a do manasomali.com, no imago: link
+                    comum, fora do basename */}
+                <a href={IMAGO_PATHS.account} className={`${styles.navLink} ${styles.site}`}>
+                  <FiUser aria-hidden size={16} />
+                  {t('menu.account')}
+                </a>
+              </li>
               <li>
                 {/* Fora do basename: link comum, recarrega a página no site */}
                 <a href="/" className={`${styles.navLink} ${styles.site}`}>

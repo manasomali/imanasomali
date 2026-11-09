@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { FiPlus } from 'react-icons/fi';
-import { useMe } from '../../api/auth';
+import { useMe } from '../../api/me';
 import { useHabits } from '../../api/habits';
 import { useMarksOfHabits } from '../../api/marks';
 import Calendar from '../../components/Calendar';

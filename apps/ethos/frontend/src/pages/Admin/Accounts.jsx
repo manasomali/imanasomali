@@ -1,56 +1,52 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useAccounts } from '../../api/admin';
-import { useMe } from '../../api/auth';
+import { useAppUsers } from '../../api/admin';
+import { useMe } from '../../api/me';
 import ErrorMessage from '../../components/ErrorMessage';
 import PageTitle from '../../components/PageTitle';
-import { ACCOUNT_STATUSES, EMPTY_ACCOUNT_FILTERS, accountQuery } from '../../lib/admin';
-import AccountCard from './AccountCard';
+import { EMPTY_USER_FILTERS, USER_DATE_FILTERS, userQuery } from '../../lib/admin';
+import { formatDateTime } from '../../lib/datetime';
+import { IMAGO_PATHS, adminUserPath } from '../../paths';
 import AdminNav from './AdminNav';
 import styles from './admin.module.css';
 
-const DATE_FILTERS = ['created_from', 'created_to', 'last_login_from', 'last_login_to'];
-
-// Painel de admin: busca de contas (email, status, datas de cadastro e de último login, no fuso
-// do admin) e as ações de cada conta
+// Painel de admin: quem usa o ethos (app_users), com busca por email e pelo primeiro acesso (no fuso
+// do admin), as contagens e o link para o conteúdo dos hábitos. As contas (bloquear, trocar o
+// email, excluir) ficam no painel do imago (/imago/admin), linkado aqui
 export default function AdminAccounts() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const me = useMe().data;
   const id = useId();
-  const [draft, setDraft] = useState(EMPTY_ACCOUNT_FILTERS);
-  const [filters, setFilters] = useState(EMPTY_ACCOUNT_FILTERS);
-  const [notice, setNotice] = useState(null);
-  const statusRef = useRef(null);
-  const query = useMemo(() => accountQuery(filters), [filters]);
-  const accounts = useAccounts(query);
+  const [draft, setDraft] = useState(EMPTY_USER_FILTERS);
+  const [filters, setFilters] = useState(EMPTY_USER_FILTERS);
+  const query = useMemo(() => userQuery(filters), [filters]);
+  const users = useAppUsers(query);
   const title = t('admin.accounts.title');
-
-  // O resultado de uma ação recebe o foco: o botão que a disparou pode ter sumido
-  useEffect(() => {
-    if (notice) statusRef.current?.focus();
-  }, [notice]);
+  const date = (value) => formatDateTime(value, me.timezone, i18n.resolvedLanguage);
 
   const change = (name) => (event) => setDraft((value) => ({ ...value, [name]: event.target.value }));
 
   const search = (event) => {
     event.preventDefault();
-    setNotice(null);
     setFilters(draft);
   };
 
   const clear = () => {
-    setNotice(null);
-    setDraft(EMPTY_ACCOUNT_FILTERS);
-    setFilters(EMPTY_ACCOUNT_FILTERS);
+    setDraft(EMPTY_USER_FILTERS);
+    setFilters(EMPTY_USER_FILTERS);
   };
 
-  const users = accounts.data?.pages.flatMap((page) => page.users) ?? [];
+  const list = users.data?.pages.flatMap((page) => page.users) ?? [];
 
   return (
     <>
       <PageTitle title={title} />
       <AdminNav />
       <h1 className={styles.title}>{title}</h1>
+      <p className={styles.hint}>
+        {t('admin.accounts.intro')} <a href={IMAGO_PATHS.admin}>{t('admin.accounts.imago_admin')}</a>
+      </p>
 
       <form className={styles.form} aria-label={t('admin.accounts.filters')} onSubmit={search}>
         <div className={styles.fields}>
@@ -69,20 +65,7 @@ export default function AdminAccounts() {
               onChange={change('email')}
             />
           </div>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor={`${id}-status`}>
-              {t('admin.accounts.status')}
-            </label>
-            <select id={`${id}-status`} className={styles.input} value={draft.status} onChange={change('status')}>
-              <option value="">{t('admin.accounts.status_any')}</option>
-              {ACCOUNT_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {t(`admin.accounts.status_${status}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          {DATE_FILTERS.map((name) => (
+          {USER_DATE_FILTERS.map((name) => (
             <div key={name} className={styles.field}>
               <label className={styles.label} htmlFor={`${id}-${name}`}>
                 {t(`admin.accounts.${name}`)}
@@ -117,36 +100,51 @@ export default function AdminAccounts() {
         <h2 id={`${id}-results`} className={styles.subtitle}>
           {t('admin.accounts.results')}
         </h2>
-        <p ref={statusRef} role="status" tabIndex={-1} className={styles.status}>
-          {notice?.text}
-        </p>
 
-        {accounts.isPending && <p role="status">{t('common.loading')}</p>}
-        {accounts.isError && <ErrorMessage error={accounts.error} onRetry={() => accounts.refetch()} />}
-        {accounts.isSuccess && users.length === 0 && <p className={styles.muted}>{t('admin.accounts.empty')}</p>}
+        {users.isPending && <p role="status">{t('common.loading')}</p>}
+        {users.isError && <ErrorMessage error={users.error} onRetry={() => users.refetch()} />}
+        {users.isSuccess && list.length === 0 && <p className={styles.muted}>{t('admin.accounts.empty')}</p>}
 
-        {users.length > 0 && (
+        {list.length > 0 && (
           <ul className={styles.list}>
-            {users.map((account) => (
-              <AccountCard
-                key={account.id}
-                account={account}
-                isSelf={account.id === me.id}
-                timeZone={me.timezone}
-                onDone={(text) => setNotice({ text })}
-              />
+            {list.map((user) => (
+              <li key={user.id} className={styles.card}>
+                <h3 className={styles.cardTitle}>
+                  <span className="user-text">{user.email}</span>
+                  {user.id === me.id && <> <span className={styles.badge}>{t('admin.accounts.you')}</span></>}
+                </h3>
+                <dl className={styles.details}>
+                  <div>
+                    <dt>{t('admin.accounts.first_seen')}</dt>
+                    <dd>{date(user.first_seen_at)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('admin.accounts.habit_count')}</dt>
+                    <dd>{user.habit_count}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('admin.accounts.mark_count')}</dt>
+                    <dd>{user.mark_count}</dd>
+                  </div>
+                </dl>
+                <div className={styles.buttons} role="group" aria-label={t('admin.accounts.actions', { email: user.email })}>
+                  <Link to={adminUserPath(user.id)} className={styles.button}>
+                    {t('admin.accounts.view_habits')}
+                  </Link>
+                </div>
+              </li>
             ))}
           </ul>
         )}
 
-        {accounts.hasNextPage && (
+        {users.hasNextPage && (
           <button
             type="button"
             className={`${styles.button} ${styles.more}`}
-            disabled={accounts.isFetchingNextPage}
-            onClick={() => accounts.fetchNextPage()}
+            disabled={users.isFetchingNextPage}
+            onClick={() => users.fetchNextPage()}
           >
-            {accounts.isFetchingNextPage ? t('common.loading') : t('admin.load_more')}
+            {users.isFetchingNextPage ? t('common.loading') : t('admin.load_more')}
           </button>
         )}
       </section>

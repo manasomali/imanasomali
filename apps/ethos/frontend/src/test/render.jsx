@@ -4,7 +4,7 @@ import App from '../App';
 import { createApp } from '../bootstrap';
 import { BASENAME } from '../paths';
 
-/** Monta o app inteiro (rotas, QueryClient e tratamento do 401) em `path` (ex.: "/conta"). */
+/** Monta o app inteiro (rotas, QueryClient e tratamento do 401) em `path` (ex.: "/relatorio"). */
 export function renderApp(path = '/') {
   const { router, queryClient } = createApp({
     createRouter: createMemoryRouter,
@@ -14,7 +14,7 @@ export function renderApp(path = '/') {
   return { router, queryClient, ...result };
 }
 
-/** Resposta do GET /auth/me. */
+/** Resposta do GET /me (o usuário que o imago mandou nos headers). */
 export function meFixture(overrides = {}) {
   return {
     id: 1,
@@ -22,9 +22,6 @@ export function meFixture(overrides = {}) {
     timezone: 'America/Sao_Paulo',
     locale: 'pt',
     is_admin: false,
-    terms_version: '2026-10-24',
-    current_terms_version: '2026-10-24',
-    terms_pending: false,
     ...overrides,
   };
 }

@@ -101,16 +101,6 @@ export function browserTimezone() {
   }
 }
 
-export function isValidTimezone(timeZone) {
-  if (typeof timeZone !== 'string' || timeZone === '') return false;
-  try {
-    partsFormatter(timeZone);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function canonicalTimezone(timeZone) {
   try {
     return new Intl.DateTimeFormat('en-US', { timeZone }).resolvedOptions().timeZone;

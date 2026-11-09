@@ -14,7 +14,7 @@ vi.setConfig({ testTimeout: 15_000 });
 configure({ asyncUtilTimeout: 5_000 });
 
 function signedIn() {
-  server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture())));
+  server.use(http.get(api('/me'), () => HttpResponse.json(meFixture())));
 }
 
 /** Tela de criar com a API falsa; `habits` é a lista que a API devolve (e que a criação muda). */

@@ -1,20 +1,7 @@
 import { createHabit, expect, expectAccessible, login, test, todayCell, toggleToday, uniqueEmail } from './support.js';
 
-test('entra pelo código do email, cria um hábito, marca e desmarca hoje', async ({ page, request }, testInfo) => {
-  const email = uniqueEmail(testInfo, 'habits');
-  await login(page, request, email);
-  // O cookie da sessão como em produção (o Chromium trata http://127.0.0.1 como origem segura)
-  const cookies = await page.context().cookies();
-  expect(cookies).toEqual([
-    expect.objectContaining({
-      name: '__Host-ethos_session',
-      domain: '127.0.0.1',
-      path: '/',
-      httpOnly: true,
-      secure: true,
-      sameSite: 'Lax',
-    }),
-  ]);
+test('entra pelo código do email do imago, cria um hábito, marca e desmarca hoje', async ({ page, request }, testInfo) => {
+  await login(page, request, uniqueEmail(testInfo, 'habits'));
   await expect(page.getByText('Você ainda não tem hábitos.')).toBeVisible();
   await expectAccessible(page);
 

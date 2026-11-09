@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { configure, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
-import { accountFixture, signedIn as adminSignedIn } from '../test/admin';
+import { appUserFixture, signedIn as adminSignedIn } from '../test/admin';
 import { axe } from '../test/axe';
 import { readFrontendFile } from '../test/files';
 import { habitFixture, markFixture, mockHabitsApi } from '../test/habits';
@@ -79,33 +79,8 @@ describe('wrapping rule', () => {
 });
 
 describe('long user text', () => {
-  it('wraps the email in the account page', async () => {
-    server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture({ email: LONG_EMAIL }))));
-    const { container } = renderApp('/conta');
-
-    expectWraps(await screen.findByText(LONG_EMAIL));
-    expect(await axe(container)).toHaveNoViolations();
-  });
-
-  it('wraps the typed email in the login code step', async () => {
-    server.use(
-      http.get(api('/auth/me'), () => HttpResponse.json({ error: 'unauthorized', field: null }, { status: 401 })),
-      http.post(api('/auth/code/request'), () => HttpResponse.json({ status: 'accepted' }, { status: 202 })),
-    );
-    const user = userEvent.setup();
-    const { container } = renderApp('/entrar');
-
-    await user.click(await screen.findByLabelText('Email'));
-    await user.paste(LONG_EMAIL);
-    await user.click(screen.getByRole('button', { name: 'Send code' }));
-    await screen.findByLabelText('6-digit code');
-
-    expectWraps(textContaining(`We sent a 6-digit code to ${LONG_EMAIL}.`));
-    expect(await axe(container)).toHaveNoViolations();
-  });
-
   it('wraps the author and the note of a mark, and cuts the habit name in the tabs', async () => {
-    server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture())));
+    server.use(http.get(api('/me'), () => HttpResponse.json(meFixture())));
     const habit = habitFixture({ role: 'viewer', notes_enabled: true, code: null, name: LONG_NAME });
     const mark = markFixture({
       author: { id: 2, email: LONG_EMAIL },
@@ -128,7 +103,7 @@ describe('long user text', () => {
   });
 
   it('wraps members, sent invites and the removal question in the sharing tab', async () => {
-    server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture())));
+    server.use(http.get(api('/me'), () => HttpResponse.json(meFixture())));
     const habits = [habitFixture()];
     mockHabitsApi({ habits });
     mockSharingApi({
@@ -155,7 +130,7 @@ describe('long user text', () => {
 
   it('wraps the sender and the habit name of a received invite', async () => {
     server.use(
-      http.get(api('/auth/me'), () => HttpResponse.json(meFixture())),
+      http.get(api('/me'), () => HttpResponse.json(meFixture())),
       receivedInvites([
         receivedInviteFixture({
           habit: { id: 9, name: LONG_NAME, color: 'indigo' },
@@ -172,7 +147,7 @@ describe('long user text', () => {
   });
 
   it('wraps the author and the habit of a history event', async () => {
-    server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture())));
+    server.use(http.get(api('/me'), () => HttpResponse.json(meFixture())));
     const habit = habitFixture({ code: null, name: LONG_NAME });
     mockHabitsApi({ habits: [habit] });
     server.use(
@@ -217,21 +192,16 @@ describe('long user text', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('wraps the email in the admin account list and in the typed confirmation', async () => {
+  it('wraps the email in the admin list of users', async () => {
     adminSignedIn();
     server.use(
       http.get(api('/admin/users'), () =>
-        HttpResponse.json({ users: [accountFixture({ email: LONG_EMAIL })], next_cursor: null }),
+        HttpResponse.json({ users: [appUserFixture({ email: LONG_EMAIL })], next_cursor: null }),
       ),
     );
-    const user = userEvent.setup();
     const { container } = renderApp('/admin');
 
-    const email = await screen.findByText(LONG_EMAIL);
-    expectWraps(email);
-
-    await user.click(within(email.closest('li')).getByRole('button', { name: 'Delete' }));
-    expectWraps(textContaining(`To confirm, type the account email: ${LONG_EMAIL}`));
+    expectWraps(await screen.findByText(LONG_EMAIL));
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -241,7 +211,7 @@ describe('long user text', () => {
     server.use(
       http.get(api('/admin/users/2/habits'), () =>
         HttpResponse.json({
-          user: accountFixture({ email: LONG_EMAIL }),
+          user: appUserFixture({ email: LONG_EMAIL }),
           habits: [habit],
           marks: [markFixture({ habit_id: 10, author: { id: 2, email: LONG_EMAIL }, note: LONG_NOTE })],
           next_cursor: null,

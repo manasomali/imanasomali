@@ -8,7 +8,6 @@ import { MIN_COLOR_CONTRAST } from './customColor';
 import { weekdayNames } from './format';
 import { DEFAULT_SCORE_THRESHOLD, MAX_MARKS_PER_DAY, PERIOD_DAYS } from './habitForm';
 import { HELP_FALLBACK_LANGUAGE, HELP_LINKS, HELP_SECTIONS, loadHelp } from './help';
-import { SUPPORT_EMAIL } from './legal';
 import { HABIT_COLORS } from './palette';
 
 // Os JSON como estão no repo, por idioma: { pt: {...}, en: {...} }
@@ -19,7 +18,8 @@ for (const [path, content] of Object.entries(FILES)) {
   RAW[language] = content;
 }
 
-const MARK = '{{supportEmail}}';
+// A conta única, onde ficam o login, o fuso, a exclusão e o email do suporte
+const ACCOUNT_URL = 'manasomali.com/imago/';
 const WEEK_SECONDS = 7 * 24 * 60 * 60;
 
 /** O texto de um bloco: o parágrafo, os itens da lista ou o rótulo do link. */
@@ -143,10 +143,10 @@ describe('help texts', () => {
     }
   });
 
-  it('is plain text, with no markup and no placeholder but the support email', () => {
+  it('is plain text, with no markup and no placeholder', () => {
     for (const language of LANGUAGES) {
       for (const text of texts(RAW[language])) {
-        expect(text.replaceAll(MARK, ''), `${language}: ${text}`).not.toMatch(/[<>{}*`[\]]|https?:/);
+        expect(text, `${language}: ${text}`).not.toMatch(/[<>{}*`[\]]|https?:/);
       }
     }
   });
@@ -158,11 +158,14 @@ describe('help texts', () => {
     }
   });
 
-  it('ends with the support contact', () => {
+  it('ends with the contact, which points to the single account like the account section', () => {
     for (const language of LANGUAGES) {
       expect(RAW[language].sections.at(-1).id).toBe('contact');
-      expect(sectionText(language, 'contact')).toContain(MARK);
-      expect(sectionText(language, 'account')).toContain(MARK);
+      expect(sectionText(language, 'contact')).toContain(ACCOUNT_URL);
+      expect(sectionText(language, 'account')).toContain(ACCOUNT_URL);
+      expect(sectionText(language, 'time-zone')).toContain(ACCOUNT_URL);
+      // O link do menu, com o nome da tela
+      expect(sectionText(language, 'account')).toContain(`“${translations[language].menu.account}”`);
     }
   });
 });
@@ -280,10 +283,9 @@ describe('help texts versus the code', () => {
     }
   });
 
-  // Os mesmos prazos que src/lib/legal.test.js confere na política de privacidade
-  it('the account: code, session and backups as in the code', () => {
+  // Os prazos dos backups, como na política de privacidade (no imago)
+  it('the account deletion: backups as in the code', () => {
     const days = { pt: 'dias', en: 'days' };
-    const minutes = { pt: 'minutos', en: 'minutes' };
     const snapshotDays = Number(
       /^KEEP_DAYS=(\d+)$/m.exec(readFrontendFile('../../../infra/scripts/snapshot.sh'))[1],
     );
@@ -296,25 +298,21 @@ describe('help texts versus the code', () => {
       const account = sectionText(language, 'account');
 
       expect(account).toContain(`${backup} ${days[language]}`);
-      expect(account).toContain(`60 ${days[language]}`);
-      expect(account).toContain(`10 ${minutes[language]}`);
     }
   });
 });
 
 describe('loadHelp', () => {
-  it('loads the language, with the support email filled in', async () => {
+  it('loads the language as a copy of the bundled text', async () => {
     const help = await loadHelp('pt');
 
     expect(help.language).toBe('pt');
     expect(help.title).toBe(RAW.pt.title);
     expect(help.sections.map((section) => section.id)).toEqual([...HELP_SECTIONS]);
-    const all = texts(help).join('\n');
-
-    expect(all).toContain(SUPPORT_EMAIL);
-    expect(all).not.toContain(MARK);
-    // Não muda o JSON do bundle
-    expect(JSON.stringify(RAW.pt)).toContain(MARK);
+    expect(texts(help)).toEqual(texts(RAW.pt));
+    // Mudar a cópia não muda o JSON do bundle
+    help.sections[0].paragraphs[0] = 'mudou';
+    expect(RAW.pt.sections[0].paragraphs[0]).not.toBe('mudou');
   });
 
   it('drops the region of the language', async () => {

@@ -1,15 +1,19 @@
 """Configuração do ethos, lida das variáveis de ambiente e validada na subida.
 
-Em produção, a unit app-ethos lê /etc/infra/smtp.env (credenciais SMTP) e
-/etc/infra/apps/ethos.env (o resto, versionado em infra/apps/ethos/app.env). Em dev, as variáveis
-vêm de um .env passado ao `uv run --env-file .env` (modelo em .env.example). Domínio, caminhos e
-emails vêm sempre daqui, nunca fixos no código.
+Em produção, a unit app-ethos lê /etc/infra/internal/ethos.env (`INTERNAL_API_TOKEN`, o token do
+ethos na API interna, gerado pelo provision na própria VM) e /etc/infra/apps/ethos.env (o resto,
+versionado em infra/apps/ethos/app.env). Em dev, as variáveis vêm de um .env passado ao
+`uv run --env-file .env` (modelo em .env.example). Domínio, caminhos e endereços vêm sempre daqui,
+nunca fixos no código.
+
+Só as variáveis de `Settings` são lidas. As do login próprio de antes do imago (`EMAIL_BACKEND`,
+`MAIL_FROM`, `SUPPORT_EMAIL`, `SMTP_*`, `MAX_CODE_EMAILS_*`) são ignoradas se ainda estiverem no
+ambiente: o `infra/apps/ethos/app.env` só as perde no PR de infra B da ETH-64.
 """
 
 import os
 import re
 from collections.abc import Mapping
-from email.utils import parseaddr
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Self
@@ -32,12 +36,6 @@ class AppEnv(StrEnum):
     PROD = "prod"
 
 
-class EmailBackend(StrEnum):
-    SMTP = "smtp"
-    # Só imprime o email no log; proibido fora de dev
-    CONSOLE = "console"
-
-
 class ConfigError(RuntimeError):
     """Configuração ausente ou inválida. A mensagem lista as variáveis, nunca os valores."""
 
@@ -46,14 +44,16 @@ class ConfigError(RuntimeError):
 Limit = Annotated[int, Field(ge=1)]
 
 # Forma simples de endereço: sem espaço, sem os separadores de cabeçalho e com domínio com ponto.
-# A validação completa é do provedor; aqui só barra erro de digitação e injeção de cabeçalho
+# A validação completa é do imago; aqui só barra erro de digitação e injeção de cabeçalho
 _EMAIL_RE = re.compile(r"[^@\s<>()\[\],;:\"]+@[^@\s<>()\[\],;:\"]+\.[^@\s<>()\[\],;:\"]+")
 _EMAIL_MAX_LENGTH = 254
-_SMTP_FIELDS = ("smtp_host", "smtp_port", "smtp_user", "smtp_password")
+# Token da API interna: o provision gera 32 bytes aleatórios em base64url (43 caracteres). Aqui,
+# pelo menos 32 caracteres do alfabeto base64url
+_TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{32,256}")
 
 
 def is_email(value: str) -> bool:
-    """Forma simples de endereço (até 254 caracteres). Usada também pelo login (app/auth)."""
+    """Forma simples de endereço (até 254 caracteres): convites e o header `X-User-Email`."""
     return len(value) <= _EMAIL_MAX_LENGTH and _EMAIL_RE.fullmatch(value) is not None
 
 
@@ -72,22 +72,11 @@ class Settings(BaseModel):
     # URL pública do front, ex.: https://manasomali.com/ethos (sem barra no fim)
     app_url: str
     database_path: Path
-    # API interna do imago, a conta única (ex.: http://127.0.0.1:3003). Entra no app.env antes da
-    # passagem do login para o imago (ETH-64); este ethos, com login próprio, ainda não a usa
-    imago_internal_url: str | None = None
-    email_backend: EmailBackend
-    mail_from: str
-    support_email: str
-
-    # Credenciais SMTP (/etc/infra/smtp.env): obrigatórias com EMAIL_BACKEND=smtp
-    smtp_host: str | None = None
-    smtp_port: Annotated[int, Field(ge=1, le=65535)] | None = None
-    smtp_user: str | None = None
-    smtp_password: SecretStr | None = None
-
-    # Teto global de envio de códigos, definido pela cota do provedor (sem valor padrão no plano)
-    max_code_emails_per_hour: Limit
-    max_code_emails_per_day: Limit
+    # API interna do imago, direto no loopback (nunca pelo nginx), ex.: http://127.0.0.1:3003
+    imago_internal_url: str
+    # Token do ethos na API interna, nos dois sentidos: vai no `Authorization: Bearer` das
+    # chamadas ao imago e é conferido no /internal/* do ethos
+    internal_api_token: SecretStr
 
     # Limites das decisões de produto, com os valores padrão do plano
     max_habits_per_user: Limit = 10
@@ -131,34 +120,37 @@ class Settings(BaseModel):
             raise ValueError("precisa ser um arquivo")
         return value
 
-    @field_validator("mail_from")
+    @field_validator("imago_internal_url")
     @classmethod
-    def _check_mail_from(cls, value: str) -> str:
-        _, address = parseaddr(value)
-        if "\r" in value or "\n" in value or not is_email(address):
-            raise ValueError('precisa ser um remetente, ex.: "ethos <no-reply@exemplo.com>"')
-        return value
+    def _check_imago_internal_url(cls, value: str) -> str:
+        if any(char.isspace() for char in value):
+            raise ValueError("não pode ter espaços")
+        parts = urlsplit(value)
+        if (
+            parts.scheme not in ("http", "https")
+            or not parts.hostname
+            or parts.path not in ("", "/")
+            or parts.query
+            or parts.fragment
+            or parts.username
+            or parts.password
+        ):
+            raise ValueError("precisa ser só esquema, host e porta, ex.: http://127.0.0.1:3003")
+        # Acessar a porta valida o número (ValueError se não for)
+        _ = parts.port
+        return value.rstrip("/")
 
-    @field_validator("support_email")
+    @field_validator("internal_api_token")
     @classmethod
-    def _check_support_email(cls, value: str) -> str:
-        if not is_email(value):
-            raise ValueError("precisa ser um endereço de email")
+    def _check_internal_api_token(cls, value: SecretStr) -> SecretStr:
+        if _TOKEN_RE.fullmatch(value.get_secret_value()) is None:
+            raise ValueError("precisa ter de 32 a 256 caracteres base64url (A-Z, a-z, 0-9, - e _)")
         return value
 
     @model_validator(mode="after")
     def _check_combinations(self) -> Self:
-        if self.app_env is AppEnv.PROD:
-            if self.email_backend is EmailBackend.CONSOLE:
-                raise ValueError("EMAIL_BACKEND=console só é permitido com APP_ENV=dev")
-            if urlsplit(self.app_url).scheme != "https":
-                raise ValueError("APP_URL precisa ser https com APP_ENV=prod")
-        if self.email_backend is EmailBackend.SMTP:
-            missing = [name.upper() for name in _SMTP_FIELDS if getattr(self, name) is None]
-            if missing:
-                raise ValueError(f"EMAIL_BACKEND=smtp exige {', '.join(missing)}")
-        if self.max_code_emails_per_hour > self.max_code_emails_per_day:
-            raise ValueError("MAX_CODE_EMAILS_PER_HOUR não pode passar de MAX_CODE_EMAILS_PER_DAY")
+        if self.app_env is AppEnv.PROD and urlsplit(self.app_url).scheme != "https":
+            raise ValueError("APP_URL precisa ser https com APP_ENV=prod")
         return self
 
     @property
@@ -177,6 +169,11 @@ class Settings(BaseModel):
             host = f"{host}:{parts.port}"
         return f"{parts.scheme}://{host}"
 
+    @property
+    def account_url(self) -> str:
+        """A tela de conta do imago (`/imago/`), na mesma origem do ethos (link dos emails)."""
+        return f"{self.app_origin}/imago/"
+
 
 # Nomes das variáveis de ambiente lidas, na ordem dos campos
 ENV_VARS = tuple(name.upper() for name in Settings.model_fields)
@@ -186,10 +183,10 @@ def load_settings(environ: Mapping[str, str] | None = None) -> Settings:
     """Lê e valida a configuração (por padrão, de os.environ).
 
     Levanta ConfigError com uma linha por variável problemática. A mensagem nunca traz o valor
-    recebido (pode ser a senha do SMTP), e o ValidationError original não vai junto.
+    recebido (pode ser o token da API interna), e o ValidationError original não vai junto.
     """
     source = os.environ if environ is None else environ
-    # Só os nomes em maiúsculas: "smtp_password" no ambiente não vira SMTP_PASSWORD
+    # Só os nomes em maiúsculas: "internal_api_token" no ambiente não vira INTERNAL_API_TOKEN
     data = {name: source[name] for name in ENV_VARS if name in source}
     try:
         return Settings.model_validate(data)

@@ -101,7 +101,7 @@
           "visualização: só vê."
         ],
         "Todos os membros veem as marcações, as observações, o custo, a recompensa, a punição e o histórico do hábito.",
-        "Só dá para convidar um email que já tem conta no ethos. Para não revelar quem tem conta, a resposta é sempre “convite enviado”. O convite para um email sem conta nunca é entregue, nem se a conta for criada depois.",
+        "Só dá para convidar um email que já tem conta no manasomali.com. Para não revelar quem tem conta, a resposta é sempre “convite enviado”. O convite para um email sem conta nunca é entregue, nem se a conta for criada depois.",
         "O convidado recebe um email e aceita ou recusa em “Convites”, no menu. O convite não expira, e o dono pode cancelar um convite pendente.",
         "O convidado pode sair sozinho, e o dono pode removê-lo. Nos dois casos, as marcações da pessoa continuam no hábito, e os alertas dela nesse hábito são apagados. Passar alguém de edição para visualização também apaga os alertas dela nesse hábito.",
         "Limites: até 5 convidados por hábito (membros e convites pendentes), até 20 convites por dia somando todos os seus hábitos e até 20 hábitos de outras pessoas por conta. O hábito compartilhado conta só no limite de hábitos do dono."
@@ -111,7 +111,7 @@
       "id": "time-zone",
       "title": "Fuso horário",
       "paragraphs": [
-        "Tudo é guardado em UTC e mostrado no fuso salvo na sua conta: o calendário, a pontuação e a hora dos alertas. O fuso nasce com o do navegador no primeiro acesso e só muda na tela de conta. Quando o fuso do navegador fica diferente do salvo (numa viagem, por exemplo), o app sugere a troca.",
+        "Tudo é guardado em UTC e mostrado no fuso salvo na sua conta: o calendário, a pontuação e a hora dos alertas. O fuso nasce com o do navegador no primeiro acesso e só muda na tela da sua conta (manasomali.com/imago/). Quando o fuso do navegador fica diferente do salvo (numa viagem, por exemplo), o app sugere a troca.",
         "Num hábito compartilhado, cada membro vê o calendário e a pontuação no próprio fuso. Entre fusos distantes, uma marcação pode cair no dia vizinho para outra pessoa: feita às 22:00 em São Paulo, ela aparece no dia seguinte para quem está em Lisboa. Por isso dois membros podem ver pontuações um pouco diferentes.",
         "Marcar um dia passado grava 12:00 daquele dia, longe da virada, o que diminui esse efeito."
       ]
@@ -179,17 +179,15 @@
       "id": "account",
       "title": "Conta",
       "paragraphs": [
-        "Não há senha. Para entrar, você digita o email e recebe um código de 6 dígitos, que vale por 10 minutos e uma vez só. A conta é criada quando você confirma o primeiro código. A sessão dura 60 dias e se renova enquanto você usa o app.",
-        "Na tela de conta você escolhe o idioma dos emails (que vira também o da tela) e o fuso, sai deste aparelho ou de todos (útil se perder um aparelho) e exclui a conta.",
-        "O email não muda pela tela: peça a troca a {{supportEmail}}, escrevendo do email atual da conta. O suporte confirma o email novo antes de trocar, e depois você entra de novo em todos os aparelhos.",
-        "Excluir a conta pede um código enviado por email e é imediato. Somem a conta, os hábitos dos quais você é dono, com todas as marcações (também as dos convidados, que recebem um email), sua participação em hábitos de outras pessoas, seus convites e seus alertas. Suas marcações em hábitos de outras pessoas ficam, como de “usuário removido”. Os dados saem das cópias de segurança em até 8 dias. Antes de excluir, você pode exportar tudo."
+        "A conta é a do manasomali.com, a mesma de todas as aplicações do site. Não há senha: para entrar, você digita o email e recebe um código. Entrar, sair, o idioma dos emails, o fuso, a troca de email e a exclusão da conta ficam na tela da sua conta, em manasomali.com/imago/ (o link “Conta”, no menu).",
+        "Excluir a conta apaga, no ethos, os hábitos dos quais você é dono, com todas as marcações (também as dos convidados, que recebem um email), sua participação em hábitos de outras pessoas, seus convites e seus alertas. Suas marcações em hábitos de outras pessoas ficam, como de “usuário removido”. Os dados saem das cópias de segurança em até 8 dias. Antes de excluir, você pode exportar tudo no relatório."
       ]
     },
     {
       "id": "contact",
       "title": "Dúvidas",
       "paragraphs": [
-        "Dúvidas, problemas ou sugestões: escreva para {{supportEmail}}."
+        "Dúvidas, problemas ou sugestões: o email do suporte está na tela da sua conta, em manasomali.com/imago/."
       ]
     }
   ]

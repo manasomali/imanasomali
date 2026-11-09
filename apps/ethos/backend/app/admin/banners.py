@@ -13,10 +13,10 @@
   `ends_at` > `starts_at`; os horários de antes ficam na auditoria. Banner já encerrado: nada
   muda. Editar continua possível depois (inclusive para reabrir a janela).
 
-Escritas só por admin (a rota usa `AdminUser`, e `ensure_admin` confere de novo dentro da
-transação). Auditoria, com `user_id` = o admin: `banner_created` com `{banner_id, text_pt,
-text_en, starts_at, ends_at}`; `banner_updated` e `banner_ended` com `{banner_id, changes:
-[{field, old, new}]}` (datas em ISO 8601). Editar sem mudar nada não grava.
+Escritas só por admin (a rota usa `AdminUser`, pelo `X-User-Admin` do imago). Auditoria, com
+`user_id` = o admin: `banner_created` com `{banner_id, text_pt, text_en, starts_at, ends_at}`;
+`banner_updated` e `banner_ended` com `{banner_id, changes: [{field, old, new}]}` (datas em ISO
+8601). Editar sem mudar nada não grava.
 """
 
 from collections.abc import Mapping
@@ -28,7 +28,6 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app import audit
-from app.admin.accounts import ensure_admin
 from app.audit import AuditEvent
 from app.db import write_transaction
 from app.errors import ApiError, ErrorCode
@@ -94,7 +93,6 @@ def create_banner(
     session: Session,
     *,
     admin_id: int,
-    ip: str | None,
     text_pt: str,
     text_en: str,
     starts_at: datetime,
@@ -103,7 +101,6 @@ def create_banner(
     """Cria o banner (textos já validados). `ends_at` não depois de `starts_at`: 422 `ends_at`."""
     _check_window(starts_at, ends_at)
     with write_transaction(session):
-        ensure_admin(session, admin_id)
         banner = Banner(
             text_pt=text_pt,
             text_en=text_en,
@@ -117,7 +114,6 @@ def create_banner(
             session,
             AuditEvent.BANNER_CREATED,
             user_id=admin_id,
-            ip=ip,
             details={
                 "banner_id": banner.id,
                 **{name: _audit_value(getattr(banner, name)) for name in BANNER_FIELDS},
@@ -145,14 +141,12 @@ def update_banner(
     admin_id: int,
     banner_id: int,
     values: Mapping[str, Any],
-    ip: str | None,
 ) -> Banner:
     """Muda os campos de `values` (os de `BANNER_FIELDS`, já validados; ausente não muda).
 
     404 se não existe; a janela resultante com o fim não depois do início: 422 `ends_at`.
     """
     with write_transaction(session):
-        ensure_admin(session, admin_id)
         banner = _banner(session, banner_id)
         _check_window(
             values.get("starts_at", banner.starts_at), values.get("ends_at", banner.ends_at)
@@ -163,16 +157,14 @@ def update_banner(
                 session,
                 AuditEvent.BANNER_UPDATED,
                 user_id=admin_id,
-                ip=ip,
                 details={"banner_id": banner_id, "changes": changes},
             )
     return banner
 
 
-def end_banner(session: Session, *, admin_id: int, banner_id: int, ip: str | None) -> Banner:
+def end_banner(session: Session, *, admin_id: int, banner_id: int) -> Banner:
     """Fecha a janela agora (ver o docstring do módulo). 404 se não existe."""
     with write_transaction(session):
-        ensure_admin(session, admin_id)
         banner = _banner(session, banner_id)
         now = utcnow()
         if banner.ends_at > now:
@@ -183,7 +175,6 @@ def end_banner(session: Session, *, admin_id: int, banner_id: int, ip: str | Non
                 session,
                 AuditEvent.BANNER_ENDED,
                 user_id=admin_id,
-                ip=ip,
                 details={"banner_id": banner_id, "changes": _apply(banner, values)},
             )
     return banner

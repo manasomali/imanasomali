@@ -18,7 +18,7 @@ configure({ asyncUtilTimeout: 5_000 });
 const NOW = new Date('2026-03-10T15:00:00Z');
 
 function signedIn(overrides = {}) {
-  server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture(overrides))));
+  server.use(http.get(api('/me'), () => HttpResponse.json(meFixture(overrides))));
 }
 
 /** Botão do dia no calendário, pelo começo do aria-label ("Wednesday, March 4, 2026"). */

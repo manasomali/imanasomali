@@ -28,10 +28,10 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Query
 
-from app.auth.deps import CurrentUser
 from app.db import SessionDep
 from app.habits.routes import habit_out
 from app.habits.schemas import HabitScore
+from app.identity import CurrentUser
 from app.models import utcnow
 from app.progress import service
 from app.progress.schemas import (

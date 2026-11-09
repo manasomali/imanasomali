@@ -5,8 +5,9 @@ Do hábito (sem acesso ao hábito: 404 `not_found`; com acesso, mas sem o papel:
 
 - `POST /habits/{id}/invites` com `{email, role}` (só o dono): 202 `{"status": "sent"}`, sempre
   igual (com ou sem conta, a si mesmo, a quem já é membro). Limites: 409 `invite_limit_reached`
-  e `guest_limit_reached`. Arquivado: 409 `habit_archived`. O convidado com conta recebe o email
-  depois da resposta.
+  e `guest_limit_reached`. Arquivado: 409 `habit_archived`. O imago diz se o email tem conta
+  ativa (`lookup`); sem resposta dele, 503 `service_unavailable` e nada é gravado. O convidado com
+  conta recebe o email pelo imago depois da resposta.
 - `GET /habits/{id}/invites` (só o dono): `{"invites": [{id, email, role, created_at}]}`, os
   pendentes.
 - `DELETE /habits/{id}/invites/{invite_id}` (só o dono): 204, cancela o pendente.
@@ -28,17 +29,18 @@ Do convidado (convite que não é dele, sem conta no convite ou que não existe:
 
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Path, Request
+from fastapi import APIRouter, BackgroundTasks, Path
 
-from app.auth.deps import CurrentUser
 from app.config import SettingsDep
 from app.db import SessionDep
+from app.errors import ApiError, ErrorCode
 from app.habits.access import MAX_ID, HabitId
 from app.habits.routes import present
 from app.habits.schemas import HabitOut
+from app.identity import CurrentUser
+from app.imago_client import ImagoDep, ImagoUnavailableError
 from app.mail.catalog import Invite
 from app.mail.sender import MailerDep, schedule_email
-from app.request_info import client_ip
 from app.sharing import service
 from app.sharing.schemas import (
     InviteCreate,
@@ -75,33 +77,37 @@ def create_invite(
     habit_id: HabitId,
     body: InviteCreate,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
     settings: SettingsDep,
+    imago: ImagoDep,
     mailer: MailerDep,
     background_tasks: BackgroundTasks,
 ) -> InviteSent:
-    # O write_transaction expira o usuário: os valores dele são lidos antes
-    owner_id, owner_email = user.id, user.email
+    # Antes de perguntar ao imago: quem não pode convidar não gera uma busca
+    service.check_invite(session, settings, owner_id=user.id, habit_id=habit_id)
+    try:
+        invitee = imago.lookup_user(body.email)
+    except ImagoUnavailableError:
+        raise ApiError(503, ErrorCode.SERVICE_UNAVAILABLE) from None
     delivery = service.invite(
         session,
         settings,
-        owner_id=owner_id,
+        owner_id=user.id,
         habit_id=habit_id,
         email=body.email,
         role=body.role,
-        ip=client_ip(request),
+        invitee=invitee,
     )
     # A transação já fechou: o email sai depois da resposta, que é igual em todos os casos
     if delivery is not None:
         schedule_email(
             background_tasks,
             mailer,
-            delivery.to,
+            delivery.user_id,
             delivery.locale,
             Invite(
                 habit_name=delivery.habit_name,
-                inviter_email=owner_email,
+                inviter_email=user.email,
                 role=delivery.role.value,
             ),
         )
@@ -126,12 +132,9 @@ def cancel_invite(
     habit_id: HabitId,
     invite_id: InviteId,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
 ) -> None:
-    service.cancel_invite(
-        session, owner_id=user.id, habit_id=habit_id, invite_id=invite_id, ip=client_ip(request)
-    )
+    service.cancel_invite(session, owner_id=user.id, habit_id=habit_id, invite_id=invite_id)
 
 
 @router.get("/habits/{habit_id}/members")
@@ -151,7 +154,6 @@ def change_role(
     user_id: UserId,
     body: RoleUpdate,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
 ) -> MemberOut:
     entry = service.change_role(
@@ -160,7 +162,6 @@ def change_role(
         habit_id=habit_id,
         member_id=user_id,
         role=body.role,
-        ip=client_ip(request),
     )
     return member_out(entry)
 
@@ -170,19 +171,14 @@ def remove_member(
     habit_id: HabitId,
     user_id: UserId,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
 ) -> None:
-    service.remove_member(
-        session, owner_id=user.id, habit_id=habit_id, member_id=user_id, ip=client_ip(request)
-    )
+    service.remove_member(session, owner_id=user.id, habit_id=habit_id, member_id=user_id)
 
 
 @router.post("/habits/{habit_id}/leave", status_code=204)
-def leave_habit(
-    habit_id: HabitId, user: CurrentUser, request: Request, session: SessionDep
-) -> None:
-    service.leave_habit(session, user_id=user.id, habit_id=habit_id, ip=client_ip(request))
+def leave_habit(habit_id: HabitId, user: CurrentUser, session: SessionDep) -> None:
+    service.leave_habit(session, user_id=user.id, habit_id=habit_id)
 
 
 @router.get("/invites")
@@ -208,21 +204,15 @@ def list_received_invites(user: CurrentUser, session: SessionDep) -> ReceivedInv
 def accept_invite(
     invite_id: InviteId,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
     settings: SettingsDep,
 ) -> HabitOut:
-    # O write_transaction expira o usuário: os valores dele são lidos antes
     user_id, timezone = user.id, user.timezone
-    access = service.accept_invite(
-        session, settings, user_id=user_id, invite_id=invite_id, ip=client_ip(request)
-    )
+    access = service.accept_invite(session, settings, user_id=user_id, invite_id=invite_id)
     [out] = present(session, [access], timezone)
     return out
 
 
 @router.post("/invites/{invite_id}/decline", status_code=204)
-def decline_invite(
-    invite_id: InviteId, user: CurrentUser, request: Request, session: SessionDep
-) -> None:
-    service.decline_invite(session, user_id=user.id, invite_id=invite_id, ip=client_ip(request))
+def decline_invite(invite_id: InviteId, user: CurrentUser, session: SessionDep) -> None:
+    service.decline_invite(session, user_id=user.id, invite_id=invite_id)

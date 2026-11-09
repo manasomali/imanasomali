@@ -9,16 +9,16 @@ import time_machine
 from sqlalchemy import delete, select
 
 from app import audit
-from app.audit import AUTH_EVENTS, MAX_DETAILS_DEPTH, MAX_DETAILS_LENGTH, AuditError, AuditEvent
+from app.audit import MAX_DETAILS_DEPTH, MAX_DETAILS_LENGTH, AuditError, AuditEvent
 from app.db import write_transaction
-from app.models import EVENT_MAX_LENGTH, AuditLog, Habit, User
+from app.models import EVENT_MAX_LENGTH, AppUser, AuditLog, Habit
 from tests.factories import count, new_habit, new_user, save
 
 NOW = datetime(2026, 3, 10, 9, 30, tzinfo=UTC)
 
 
 @pytest.fixture
-def ana(db_session) -> User:
+def ana(db_session) -> AppUser:
     user = new_user()
     save(db_session, user)
     return user
@@ -31,7 +31,7 @@ def habit(db_session, ana) -> Habit:
     return habit
 
 
-def record(session, event: Any = AuditEvent.LOGIN, **kwargs: Any) -> AuditLog:
+def record(session, event: Any = AuditEvent.HABIT_CREATED, **kwargs: Any) -> AuditLog:
     """Grava um evento numa transação própria (user_id=None se não vier)."""
     kwargs.setdefault("user_id", None)
     with write_transaction(session):
@@ -48,7 +48,6 @@ def test_event_is_saved_with_every_field(db_session, ana, habit):
         db_session,
         AuditEvent.MARK_CREATED,
         user_id=ana.id,
-        ip="203.0.113.7",
         habit_id=habit.id,
         details={"mark_id": 12, "changes": [{"field": "note", "old": None, "new": "ok"}]},
     )
@@ -58,7 +57,8 @@ def test_event_is_saved_with_every_field(db_session, ana, habit):
     assert saved.user_id == ana.id
     assert saved.habit_id == habit.id
     assert saved.event == "mark_created"
-    assert saved.ip == "203.0.113.7"
+    # O ethos não grava IP: a coluna legada fica vazia
+    assert saved.ip is None
     assert saved.created_at == NOW
     assert saved.details == {
         "mark_id": 12,
@@ -67,20 +67,20 @@ def test_event_is_saved_with_every_field(db_session, ana, habit):
 
 
 def test_optional_fields_default_to_empty(db_session):
-    record(db_session, AuditEvent.LOGOUT)
+    record(db_session, AuditEvent.BANNER_ENDED)
     (saved,) = all_events(db_session)
     assert (saved.user_id, saved.habit_id, saved.ip, saved.details) == (None, None, None, {})
 
 
 def test_event_name_as_text_is_accepted(db_session):
-    record(db_session, "logout_all")
-    assert [entry.event for entry in all_events(db_session)] == ["logout_all"]
+    record(db_session, "banner_created")
+    assert [entry.event for entry in all_events(db_session)] == ["banner_created"]
 
 
 def test_rollback_also_discards_the_event(db_session, ana):
     def fail_after_event() -> None:
         with write_transaction(db_session):
-            audit.record(db_session, AuditEvent.LOGIN, user_id=ana.id, ip="203.0.113.7")
+            audit.record(db_session, AuditEvent.HABIT_UPDATED, user_id=ana.id)
             db_session.flush()
             raise RuntimeError("falhou depois do evento")
 
@@ -101,11 +101,15 @@ def test_event_and_change_are_committed_together(db_session, ana):
 
 def test_record_outside_write_transaction_is_refused(db_session):
     with pytest.raises(RuntimeError, match="fora de write_transaction"):
-        audit.record(db_session, AuditEvent.LOGIN, user_id=None)
+        audit.record(db_session, AuditEvent.HABIT_UPDATED, user_id=None)
     assert not db_session.new
 
 
-@pytest.mark.parametrize("event", ["login_ok", "LOGIN", "", "mark created", 3, None])
+@pytest.mark.parametrize(
+    "event",
+    # Os do login próprio, de antes do imago, também saíram da lista
+    ["login", "logout", "account_deleted", "MARK_CREATED", "", "mark created", 3, None],
+)
 def test_unknown_event_is_refused(db_session, event):
     with pytest.raises(AuditError, match="evento de auditoria desconhecido"):
         record(db_session, event)
@@ -219,37 +223,9 @@ def test_details_are_copied_as_json(db_session):
     assert all_events(db_session)[0].details == entry.details
 
 
-@pytest.mark.parametrize(
-    ("ip", "saved"),
-    [
-        ("203.0.113.7", "203.0.113.7"),
-        ("2001:DB8:0:0:0:0:0:1", "2001:db8::1"),
-        ("::ffff:203.0.113.7", "::ffff:203.0.113.7"),
-        (None, None),
-    ],
-)
-def test_ip_is_normalized(db_session, ip, saved):
-    record(db_session, ip=ip)
-    assert all_events(db_session)[0].ip == saved
-
-
-@pytest.mark.parametrize(
-    ("ip", "message"),
-    [
-        ("", "ip inválido"),
-        ("999.1.1.1", "ip inválido"),
-        ("203.0.113.7:443", "ip inválido"),
-        ("localhost", "ip inválido"),
-        ("fe80::1%" + "x" * 50, "ip longo demais"),
-        (3405803783, "ip precisa ser texto"),
-    ],
-)
-def test_invalid_ip_is_refused(db_session, ip, message):
-    with pytest.raises(AuditError, match=message) as raised:
-        record(db_session, ip=ip)
-    # O valor recebido não vai para a mensagem
-    if ip:
-        assert str(ip) not in str(raised.value)
+def test_ip_is_not_a_parameter(db_session):
+    with write_transaction(db_session), pytest.raises(TypeError, match="ip"):
+        audit.record(db_session, AuditEvent.HABIT_CREATED, user_id=None, ip="203.0.113.7")
 
 
 @pytest.mark.parametrize(
@@ -280,8 +256,7 @@ def test_event_list_is_well_formed():
     for event in AuditEvent:
         assert re.fullmatch(r"[a-z]+(_[a-z]+)*", event.value), event
         assert len(event.value) <= EVENT_MAX_LENGTH, event
-    assert {AuditEvent.LOGIN, AuditEvent.LOGOUT, AuditEvent.LOGOUT_ALL} <= AUTH_EVENTS
-    # Auditoria de marcações e de configuração não é de auth (fica enquanto o hábito existir)
-    kept = {"mark_", "habit_", "invite_", "member_", "alert_", "admin_", "account_", "email_"}
-    for event in AUTH_EVENTS:
-        assert not any(event.value.startswith(prefix) for prefix in kept), event
+    # Só hábitos, marcações, compartilhamento, alertas, admin e banners: login e conta são do imago
+    kept = ("mark_", "habit_", "invite_", "member_", "alert_", "admin_", "banner_")
+    for event in AuditEvent:
+        assert event.value.startswith(kept), event

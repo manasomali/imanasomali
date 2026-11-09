@@ -21,7 +21,7 @@ const YEAR_2025 = { from: '2025-01-01T03:00:00.000Z', to: '2026-01-01T03:00:00.0
 const YEAR_2026 = { from: '2026-01-01T03:00:00.000Z', to: '2027-01-01T03:00:00.000Z' };
 
 function signedIn() {
-  server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture())));
+  server.use(http.get(api('/me'), () => HttpResponse.json(meFixture())));
 }
 
 /** Nomes dos meses na tela, na ordem. */

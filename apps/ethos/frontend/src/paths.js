@@ -6,16 +6,12 @@ export const BASENAME = '/ethos';
 
 export const PATHS = Object.freeze({
   home: '/',
-  login: '/entrar',
-  account: '/conta',
   // Caixa de convites recebidos (ETH-34)
   invites: '/convites',
   admin: '/admin',
   adminUser: '/admin/contas/:userId',
   adminBanners: '/admin/banners',
-  terms: '/termos',
-  privacy: '/privacidade',
-  // Ajuda (ETH-40), pública como os termos; cada seção é uma âncora (helpPath)
+  // Ajuda (ETH-40), pública; cada seção é uma âncora (helpPath)
   help: '/ajuda',
   // Criar um hábito. Caminho fixo antes de `/habits/:habitId` (a rota fixa ganha da dinâmica, e
   // "new" nunca é um id)
@@ -27,6 +23,30 @@ export const PATHS = Object.freeze({
   habit: '/habits/:habitId',
   // Relatório e export (ETH-36), de vários hábitos: período e hábitos na query (reportPath)
   report: '/relatorio',
+});
+
+/**
+ * Telas do imago, a conta única do manasomali.com (outra aplicação na mesma origem, fora do
+ * basename): links comuns (<a href>), que recarregam a página. Login, conta (idioma, fuso, sair,
+ * exclusão), termos, privacidade e o admin de contas ficam lá.
+ */
+export const IMAGO_PATHS = Object.freeze({
+  login: '/imago/entrar',
+  account: '/imago/',
+  terms: '/imago/termos',
+  privacy: '/imago/privacidade',
+  admin: '/imago/admin',
+});
+
+/**
+ * Rotas do login próprio de antes do imago, que agora levam ao equivalente no imago (links antigos,
+ * favoritos, o link dos emails de antes da passagem).
+ */
+export const LEGACY_REDIRECTS = Object.freeze({
+  '/entrar': IMAGO_PATHS.login,
+  '/termos': IMAGO_PATHS.terms,
+  '/privacidade': IMAGO_PATHS.privacy,
+  '/conta': IMAGO_PATHS.account,
 });
 
 /**

@@ -18,7 +18,7 @@ const YOGA = receivedInviteFixture({
 });
 
 function signedIn(overrides = {}) {
-  server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture(overrides))));
+  server.use(http.get(api('/me'), () => HttpResponse.json(meFixture(overrides))));
 }
 
 function inviteCard(name) {
@@ -60,16 +60,6 @@ describe('pending invites in the menu', () => {
     expect(invitesLink().textContent).toBe('Invites');
   });
 
-  it('does not look for invites while the terms are pending', async () => {
-    signedIn({ terms_version: null, terms_pending: true });
-    mockHabitsApi({ habits: [] });
-    const { requests } = mockSharingApi({ received: [READING] });
-    renderApp('/');
-
-    await screen.findByRole('navigation', { name: 'Main navigation' });
-    await waitFor(() => expect(screen.queryByText('Loading…')).toBeNull());
-    expect(requests.some((r) => r.path === '/invites')).toBe(false);
-  });
 });
 
 describe('invite inbox', () => {

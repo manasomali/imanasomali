@@ -1,6 +1,6 @@
 import { Outlet, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useMe } from '../../api/auth';
+import { useMe } from '../../api/me';
 import { useHabit } from '../../api/habits';
 import ErrorMessage from '../../components/ErrorMessage';
 import HabitNav from '../../components/HabitNav';

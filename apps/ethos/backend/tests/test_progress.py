@@ -39,8 +39,8 @@ def clock() -> Iterator[time_machine.Traveller]:
 
 
 @pytest.fixture
-def client(settings, database, make_client, outbox):
-    return make_client(create_app(settings, mail_backend=outbox))
+def client(settings, database, make_client, imago):
+    return make_client(create_app(settings, imago_transport=imago.transport))
 
 
 @pytest.fixture

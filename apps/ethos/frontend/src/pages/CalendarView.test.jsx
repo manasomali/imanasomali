@@ -16,7 +16,7 @@ configure({ asyncUtilTimeout: 5_000 });
 const NOW = new Date('2026-03-10T15:00:00Z');
 
 function signedIn() {
-  server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture())));
+  server.use(http.get(api('/me'), () => HttpResponse.json(meFixture())));
 }
 
 function calendarGroup() {

@@ -2,7 +2,8 @@
 
 Funções puras: não abrem banco nem leem o relógio por conta própria. Quem chama
 monta as estruturas abaixo a partir dos modelos e passa o fuso de quem vê
-(`users.timezone`) e, se quiser, o instante "agora" (padrão: `datetime.now(UTC)`).
+(o `X-User-Timezone`, ou o `app_users.timezone` nos alertas) e, se quiser, o instante
+"agora" (padrão: `datetime.now(UTC)`).
 
 Entrada (dataclasses imutáveis, todos os instantes com fuso, de preferência UTC;
 instante sem fuso é recusado com `ValueError`):

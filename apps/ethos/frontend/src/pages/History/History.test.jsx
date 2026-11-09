@@ -18,7 +18,7 @@ const RUN = habitFixture();
 const READ = habitFixture({ id: 2, name: 'Reading', code: null, color: 'violet', status: 'archived' });
 
 function signedIn(overrides = {}) {
-  server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture(overrides))));
+  server.use(http.get(api('/me'), () => HttpResponse.json(meFixture(overrides))));
 }
 
 /** Um evento como no GET /history (por padrão, ana criou uma marcação no RUN). */

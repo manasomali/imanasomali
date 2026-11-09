@@ -3,6 +3,7 @@
 A matriz de permissões de todos os endpoints de hábito fica em `tests/test_permissions.py`.
 """
 
+import logging
 import statistics
 import threading
 import time
@@ -11,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import httpx2
 import pytest
 import time_machine
 from sqlalchemy import Engine, event, select
@@ -18,6 +20,8 @@ from sqlalchemy import Engine, event, select
 from app.audit import AuditEvent
 from app.db import create_session_factory
 from app.errors import ApiError
+from app.imago_client import ImagoUser
+from app.mail.language import Locale
 from app.main import create_app
 from app.models import Alert, AuditLog, HabitInvite, HabitMember, Mark, MemberRole
 from app.sharing import service
@@ -42,7 +46,6 @@ from tests.habit_helpers import (
     stored,
 )
 
-IP = "203.0.113.7"
 NOW = datetime(2026, 3, 25, 15, 0, tzinfo=UTC)
 SENT = {"status": "sent"}
 ARCHIVED = {"error": "habit_archived", "field": None}
@@ -58,10 +61,10 @@ def clock() -> Iterator[time_machine.Traveller]:
 
 
 @pytest.fixture
-def make_app_client(settings, make_settings, database, make_client, outbox):
+def make_app_client(settings, make_settings, database, make_client, imago):
     def build(**overrides: Any):
         current = make_settings(**overrides) if overrides else settings
-        return make_client(create_app(current, mail_backend=outbox), client=(IP, 50000))
+        return make_client(create_app(current, imago_transport=imago.transport))
 
     return build
 
@@ -148,8 +151,8 @@ def owned_habit(db_session, owner: Account, **fields) -> int:
 # --- convidar ---
 
 
-def test_invite_with_account(client, ana, bia, habit_id, outbox, db_session):
-    outbox.messages.clear()
+def test_invite_with_account(client, ana, bia, habit_id, imago, db_session):
+    imago.add_account(bia.user.id, "bia@example.com", "en")
 
     response = invite(client, ana, habit_id, "  BIA@example.com ", "viewer")
 
@@ -165,40 +168,107 @@ def test_invite_with_account(client, ana, bia, habit_id, outbox, db_session):
     assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
         ana.user.id,
         habit_id,
-        IP,
+        None,
         {"invite_id": row.id, "role": "viewer"},
     )
-    # O email vai no idioma do convidado, com quem convidou e o papel
-    [message] = outbox.to("bia@example.com")
-    assert message["Subject"] == "You've been invited on ethos"
-    text = message.get_body(preferencelist=("plain",)).get_content()
-    assert "ana@example.com" in text
-    assert "Exercício" in text
+    # O imago foi perguntado pelo email normalizado, no corpo
+    [lookup] = [request for request in imago.requests if request.url.path.endswith("/lookup")]
+    assert lookup.read() == b'{"email":"bia@example.com"}'
+    # O email sai pelo imago, para o id da convidada, no idioma dela (o do lookup), com quem
+    # convidou e o papel
+    [mail] = imago.mails
+    assert (mail.user_id, mail.subject) == (bia.user.id, "You've been invited on ethos")
+    assert "ana@example.com" in mail.text
+    assert "Exercício" in mail.text
 
 
-def test_invite_without_account(client, ana, habit_id, outbox, db_session):
-    outbox.messages.clear()
-
+def test_invite_without_account(client, ana, habit_id, imago, db_session):
     response = invite(client, ana, habit_id, "ninguem@example.com")
 
     assert (response.status_code, response.json()) == (202, SENT)
     [row] = pending(db_session, habit_id)
     assert (row.email, row.invited_user_id, row.role) == ("ninguem@example.com", None, "editor")
     assert len(events(db_session, AuditEvent.INVITE_CREATED)) == 1
-    assert outbox.messages == []
+    assert imago.mails == []
 
 
-def test_invite_to_blocked_account_stays_pending_without_email(
-    client, ana, habit_id, outbox, make_account, db_session
+def test_invite_to_inactive_account_stays_pending_without_email(
+    client, ana, habit_id, imago, make_account, db_session
 ):
-    blocked = make_account("bloq@example.com", is_active=False)
-    outbox.messages.clear()
+    # Bloqueada ou em exclusão: o lookup do imago responde 404, como sem conta
+    make_account("bloq@example.com")
+    del imago.accounts["bloq@example.com"]
 
     invited(client, ana, habit_id, "bloq@example.com")
 
     [row] = pending(db_session, habit_id)
-    assert row.invited_user_id == blocked.user.id
-    assert outbox.messages == []
+    assert row.invited_user_id is None
+    assert imago.mails == []
+
+
+def test_invite_to_someone_who_never_opened_ethos(client, ana, habit_id, imago, db_session):
+    # Conta do imago sem linha em app_users: o convite fica ligado ao id do imago
+    imago.add_account(987654, "nova@example.com")
+
+    invited(client, ana, habit_id, "nova@example.com")
+
+    [row] = pending(db_session, habit_id)
+    assert row.invited_user_id == 987654
+    assert [mail.user_id for mail in imago.mails] == [987654]
+
+
+@pytest.mark.parametrize("failure", ["status", "network"])
+def test_imago_unavailable_is_503_and_nothing_changes(
+    client, ana, habit_id, imago, db_session, failure
+):
+    if failure == "status":
+        imago.lookup_status = 500
+    else:
+        imago.error = httpx2.ConnectError
+
+    response = invite(client, ana, habit_id, "bia@example.com")
+
+    assert (response.status_code, response.json()) == (
+        503,
+        {"error": "service_unavailable", "field": None},
+    )
+    assert pending(db_session, habit_id) == []
+    assert events(db_session, AuditEvent.INVITE_CREATED) == []
+
+
+def test_refused_invite_does_not_ask_the_imago(client, ana, bia, habit_id, imago, db_session):
+    share(db_session, habit_id, bia, "editor")
+
+    # Não é dono (403), hábito de outra pessoa (404), arquivado (409): nada de lookup
+    assert invite(client, bia, habit_id, "x@example.com").status_code == 403
+    assert invite(client, ana, owned_habit(db_session, bia), "x@example.com").status_code == 404
+    archived = owned_habit(db_session, ana, status="archived", archived_at=NOW)
+    assert invite(client, ana, archived, "x@example.com").status_code == 409
+
+    assert imago.requests == []
+
+
+def test_invite_email_refused_by_the_cap_keeps_the_invite(
+    client, ana, bia, habit_id, imago, db_session, caplog
+):
+    imago.mail_status = 429
+
+    with caplog.at_level(logging.WARNING):
+        invited(client, ana, habit_id, "bia@example.com")
+
+    # O convite fica pendente (aparece para a convidada no app); o log não tem id nem email
+    [row] = pending(db_session, habit_id)
+    assert row.invited_user_id == bia.user.id
+    assert "email invite recusado pelo teto de envio do imago" in caplog.messages
+    assert "bia@example.com" not in caplog.text
+
+
+@pytest.mark.parametrize("email", ["joão@example.com", "ana@exémplo.com"])
+def test_invite_email_must_be_ascii(client, ana, habit_id, imago, email):
+    response = invite(client, ana, habit_id, email)
+
+    assert (response.status_code, response.json()) == (422, invalid("email"))
+    assert imago.requests == []
 
 
 def test_same_response_with_and_without_account(client, ana, bia, db_session):
@@ -232,7 +302,11 @@ def test_same_work_with_and_without_account(make_settings, ana, bia, db_session,
     settings = make_settings()
     habits = [owned_habit(db_session, ana), owned_habit(db_session, ana)]
     executed = []
-    for habit, email in zip(habits, ["bia@example.com", "ninguem@example.com"], strict=True):
+    invitees = [
+        ("bia@example.com", ImagoUser(id=bia.user.id, locale=Locale.PT)),
+        ("ninguem@example.com", None),
+    ]
+    for habit, (email, invitee) in zip(habits, invitees, strict=True):
         statements.clear()
         service.invite(
             db_session,
@@ -241,7 +315,7 @@ def test_same_work_with_and_without_account(make_settings, ana, bia, db_session,
             habit_id=habit,
             email=email,
             role=MemberRole.EDITOR,
-            ip=None,
+            invitee=invitee,
         )
         executed.append(list(statements))
 
@@ -254,10 +328,9 @@ def test_same_time_with_and_without_account(make_settings, make_account, ana, db
     settings = make_settings(max_guests_per_habit=100, max_invites_per_day=1000)
     habit = owned_habit(db_session, ana)
     rounds = 15
-    for index in range(rounds):
-        make_account(f"conta{index}@example.com")
+    accounts = [make_account(f"conta{index}@example.com") for index in range(rounds)]
 
-    def timed(email: str) -> float:
+    def timed(email: str, invitee: ImagoUser | None) -> float:
         start = time.perf_counter()
         service.invite(
             db_session,
@@ -266,15 +339,16 @@ def test_same_time_with_and_without_account(make_settings, make_account, ana, db
             habit_id=habit,
             email=email,
             role=MemberRole.VIEWER,
-            ip=None,
+            invitee=invitee,
         )
         return time.perf_counter() - start
 
     # Alternados, para que ruído do sistema pese igual nos dois
     with_account, without_account = [], []
-    for index in range(rounds):
-        with_account.append(timed(f"conta{index}@example.com"))
-        without_account.append(timed(f"semconta{index}@example.com"))
+    for index, account in enumerate(accounts):
+        invitee = ImagoUser(id=account.user.id, locale=Locale.PT)
+        with_account.append(timed(account.user.email, invitee))
+        without_account.append(timed(f"semconta{index}@example.com", None))
 
     fast, slow = sorted([statistics.median(with_account), statistics.median(without_account)])
     assert slow <= fast * 1.5 + 0.002
@@ -301,11 +375,11 @@ def test_invite_is_never_delivered_to_account_created_later(
 
 
 def test_inviting_self_member_or_pending_changes_nothing(
-    client, ana, bia, caio, habit_id, outbox, db_session
+    client, ana, bia, caio, habit_id, imago, db_session
 ):
     share(db_session, habit_id, bia, "viewer")
     invited(client, ana, habit_id, "caio@example.com", "viewer")
-    outbox.messages.clear()
+    imago.mails.clear()
 
     for email, role in [
         ("ana@example.com", "editor"),
@@ -318,7 +392,7 @@ def test_inviting_self_member_or_pending_changes_nothing(
     assert (row.email, row.role) == ("caio@example.com", "viewer")
     assert members(db_session, habit_id) == {bia.user.id: "viewer"}
     assert len(events(db_session, AuditEvent.INVITE_CREATED)) == 1
-    assert outbox.messages == []
+    assert imago.mails == []
 
 
 @pytest.mark.parametrize(
@@ -465,7 +539,7 @@ def test_parallel_invites_respect_the_limits(make_settings, engine, ana, db_sess
             habit_id=habit,
             email=f"paralelo{index}@example.com",
             role=MemberRole.EDITOR,
-            ip=None,
+            invitee=None,
         )
 
     results = run_parallel(engine, 5, action)
@@ -486,9 +560,7 @@ def test_parallel_accepts_respect_the_shared_limit(make_settings, engine, ana, b
     user_id = bia.user.id
 
     def action(session, index: int) -> Any:
-        access = service.accept_invite(
-            session, settings, user_id=user_id, invite_id=invites[index], ip=None
-        )
+        access = service.accept_invite(session, settings, user_id=user_id, invite_id=invites[index])
         return access.role.value
 
     results = run_parallel(engine, 4, action)
@@ -564,7 +636,7 @@ def test_accept_makes_member_and_removes_invite(client, ana, bia, habit_id, db_s
     assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
         bia.user.id,
         habit_id,
-        IP,
+        None,
         {"invite_id": invite_id, "role": "viewer"},
     )
     habits = client.get("/habits", headers=bia.headers).json()["habits"]
@@ -607,7 +679,7 @@ def test_cancel_removes_invite(client, ana, bia, habit_id, db_session):
     assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
         ana.user.id,
         habit_id,
-        IP,
+        None,
         {"invite_id": invite_id, "role": "editor"},
     )
     assert accept(client, bia, invite_id).json() == NOT_FOUND
@@ -782,7 +854,7 @@ def test_leave_keeps_marks_and_drops_alerts(client, ana, bia, habit_id, busy, db
     assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
         bia.user.id,
         habit_id,
-        IP,
+        None,
         {"role": "editor"},
     )
     assert client.get(f"/habits/{habit_id}", headers=bia.headers).json() == NOT_FOUND
@@ -807,7 +879,7 @@ def test_remove_member_keeps_marks_and_drops_alerts(client, ana, bia, habit_id, 
     assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
         ana.user.id,
         habit_id,
-        IP,
+        None,
         {"member_id": bia.user.id, "role": "editor"},
     )
     again = client.delete(f"/habits/{habit_id}/members/{bia.user.id}", headers=ana.headers)
@@ -843,7 +915,7 @@ def test_demote_editor_drops_alerts(client, ana, bia, habit_id, busy, db_session
     assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
         ana.user.id,
         habit_id,
-        IP,
+        None,
         {
             "member_id": bia.user.id,
             "changes": [{"field": "role", "old": "editor", "new": "viewer"}],

@@ -14,8 +14,9 @@ Configuração (`get_alert` / `save_alert`, endpoints `GET/PUT /habits/{id}/aler
 Avaliação (`run_alerts`, `python -m app.cli run-alerts`, de hora em hora pelo
 `ethos-alerts.timer`):
 
-- Quando: a hora cheia escolhida, no fuso do usuário (`users.timezone`), todo dia (diário) ou só
-  no dia da semana escolhido (semanal). Cada ocorrência é avaliada uma vez, na primeira execução
+- Quando: a hora cheia escolhida, no fuso do usuário (`app_users.timezone`, a cópia do fuso do
+  imago), todo dia (diário) ou só no dia da semana escolhido (semanal). Cada ocorrência é
+  avaliada uma vez, na primeira execução
   a partir da hora (`is_due`): uma execução atrasada (o timer das 09:00 rodou às 10:05, ou pulou
   horas porque a VM estava fora) ainda avalia o alerta das 09:00, desde que no mesmo dia local; a
   ocorrência de um dia que passou inteiro sem execução se perde. O `last_evaluated_at` guarda a
@@ -31,16 +32,19 @@ Avaliação (`run_alerts`, `python -m app.cli run-alerts`, de hora em hora pelo
   `Pace.alert` do `score.evaluate` (`min` atrasado no ritmo; `max` atingiu ou passou; `exact`
   passou ou atrasado) e custo pelo `score.check_cost` (aviso em 80% do limite, alerta ao passar).
   O `score.py` devolve "não avaliar" no período da criação do hábito, com pausa no período e com
-  o hábito arquivado. Hábito pausado ou arquivado, conta bloqueada (`is_active=false`) e quem não
-  é mais dono nem editor não são avaliados.
-- Envio sem email duplicado: dentro de um `write_transaction` (BEGIN IMMEDIATE), o alerta é relido
-  e reavaliado, e o `last_evaluated_at` e o `last_sent_at` são gravados antes do envio. Duas
-  execuções ao mesmo tempo não mandam dois emails: a segunda lê o alerta já marcado. O envio
-  acontece depois do commit, fora da trava de escrita. Se ele falha, uma segunda transação
-  desfaz a marcação (se ninguém mudou o alerta nesse meio-tempo), e a próxima execução tenta de
-  novo. Se o processo morre entre o commit e o envio, o email daquela ocorrência se perde: melhor
-  um alerta a menos que um repetido.
-- Falha num alerta (SMTP, fuso inválido, banco ocupado, dado inconsistente) vira uma linha de log
+  o hábito arquivado. Hábito pausado ou arquivado e quem não é mais dono nem editor não são
+  avaliados. Conta bloqueada ou em exclusão no imago é avaliada, mas o imago não manda nada (204).
+- Envio pelo imago (`POST /internal/mail`, `notification`), sem email duplicado: dentro de um
+  `write_transaction` (BEGIN IMMEDIATE), o alerta é relido e reavaliado, e o `last_evaluated_at` e
+  o `last_sent_at` são gravados antes do envio. Duas execuções ao mesmo tempo não mandam dois
+  emails: a segunda lê o alerta já marcado. O envio acontece depois do commit, fora da trava de
+  escrita. Se o imago recusa pelo teto compartilhado (429) ou o envio falha (rede, timeout, 5xx),
+  uma segunda transação desfaz a marcação (se ninguém mudou o alerta nesse meio-tempo): o
+  `last_sent_at` não fica gravado, e a próxima execução (a hora seguinte) tenta de novo.
+  Destinatário inativo ou em exclusão no imago (204): a marcação fica, sem nova tentativa. Se o
+  processo morre entre o commit e o envio, o email daquela ocorrência se perde: melhor um alerta a
+  menos que um repetido.
+- Falha num alerta (imago, fuso inválido, banco ocupado, dado inconsistente) vira uma linha de log
   com os ids do hábito e do usuário e o tipo do erro, nunca email, nome do hábito nem mensagem da
   exceção, e não impede os outros. Ela entra na contagem `failed` do resultado, mas não muda o
   código de saída do comando: o `OnFailure=` do timer fica para erro geral (config, banco
@@ -64,6 +68,7 @@ from app.db import write_transaction
 from app.errors import ApiError, ErrorCode
 from app.habits.access import HabitAccess, HabitRole, get_habit_access, require_writable, role_of
 from app.habits.scoring import load_marks, load_pauses, to_score_habit
+from app.imago_client import MailOutcome
 from app.mail.catalog import Alert as AlertEmail
 from app.mail.catalog import CostAlert, GoalAlert, GoalStatus
 from app.mail.language import Locale, pick_locale
@@ -71,11 +76,11 @@ from app.mail.sender import Mailer
 from app.models import (
     Alert,
     AlertFrequency,
+    AppUser,
     GoalType,
     Habit,
     HabitMember,
     HabitStatus,
-    User,
 )
 
 logger = logging.getLogger(__name__)
@@ -146,7 +151,6 @@ def save_alert(
     user_id: int,
     habit_id: int,
     values: Mapping[str, Any],
-    ip: str | None,
     now: datetime,
 ) -> AlertSettings:
     """Troca a configuração inteira por `values` (os `CONFIG_FIELDS`, já validados).
@@ -179,7 +183,6 @@ def save_alert(
                 session,
                 AuditEvent.ALERT_UPDATED,
                 user_id=user_id,
-                ip=ip,
                 habit_id=habit_id,
                 details={"changes": changes},
             )
@@ -203,6 +206,8 @@ class Outcome(StrEnum):
     # Avaliado, sem nada a avisar
     EVALUATED = "evaluated"
     SENT = "sent"
+    # Recusado pelo teto de envio do imago (429); tentado de novo na próxima execução
+    REFUSED = "refused"
     # Falhou (envio ou erro inesperado); o envio é tentado de novo na próxima execução
     FAILED = "failed"
 
@@ -213,6 +218,7 @@ class RunResult:
 
     evaluated: int
     sent: int
+    refused: int
     failed: int
 
 
@@ -220,7 +226,6 @@ class RunResult:
 class _Delivery:
     """Email a enviar depois do commit, com o que desfazer se o envio falhar."""
 
-    to: str
     locale: Locale
     email: AlertEmail
     previous_sent_at: datetime | None
@@ -305,9 +310,9 @@ def _claim(
     """Dentro do `write_transaction`: relê, confere e avalia o alerta e marca a avaliação (e o
     envio, se houver email). Devolve (avaliou, email a enviar)."""
     row = session.execute(
-        select(Alert, Habit, User, HabitMember.role)
+        select(Alert, Habit, AppUser, HabitMember.role)
         .join(Habit, Habit.id == Alert.habit_id)
-        .join(User, User.id == Alert.user_id)
+        .join(AppUser, AppUser.id == Alert.user_id)
         .outerjoin(
             HabitMember,
             and_(HabitMember.habit_id == Alert.habit_id, HabitMember.user_id == Alert.user_id),
@@ -321,7 +326,6 @@ def _claim(
     role = role_of(habit, user_id, member_role)
     if (
         habit.status != HabitStatus.ACTIVE
-        or not user.is_active
         or role not in (HabitRole.OWNER, HabitRole.EDITOR)
         or not (alert.goal_enabled or alert.cost_enabled)
     ):
@@ -345,7 +349,6 @@ def _claim(
         return True, None
     alert.last_sent_at = now
     delivery = _Delivery(
-        to=user.email,
         locale=pick_locale(user.locale),
         email=email,
         previous_sent_at=previous_sent_at,
@@ -381,21 +384,25 @@ def _process(
         if delivery is None:
             return Outcome.EVALUATED if evaluated else Outcome.SKIPPED
         # Fora da transação: o envio (até alguns segundos) não segura a trava de escrita
-        if mailer.send(delivery.to, delivery.locale, delivery.email):
+        outcome = mailer.send(user_id, delivery.locale, delivery.email)
+        if outcome is MailOutcome.ACCEPTED:
             return Outcome.SENT
+        if outcome is MailOutcome.SKIPPED:
+            # Conta inativa ou em exclusão no imago: avaliado, e nada a tentar de novo
+            return Outcome.EVALUATED
         with write_transaction(session):
             _release(session, habit_id, user_id, now, delivery)
-    # O Mailer já logou o tipo do erro; aqui, qual alerta
+    # O imago_client já logou o tipo do erro; aqui, qual alerta (ids, nunca email)
     logger.warning(
         "alerta do hábito %d (usuário %d) não enviado; nova tentativa na próxima execução",
         habit_id,
         user_id,
     )
-    return Outcome.FAILED
+    return Outcome.REFUSED if outcome is MailOutcome.REFUSED else Outcome.FAILED
 
 
 def _candidates(session: Session) -> list[Row[Any]]:
-    """Os alertas ligados de hábitos ativos de contas ativas, com o que decide a hora.
+    """Os alertas ligados de hábitos ativos, com o que decide a hora.
 
     Uma leitura só, sem trava: quem decide de verdade é o `_claim`, dentro da escrita.
     """
@@ -408,14 +415,13 @@ def _candidates(session: Session) -> list[Row[Any]]:
             Alert.weekday,
             Alert.last_sent_at,
             Alert.last_evaluated_at,
-            User.timezone,
+            AppUser.timezone,
         )
         .join(Habit, Habit.id == Alert.habit_id)
-        .join(User, User.id == Alert.user_id)
+        .join(AppUser, AppUser.id == Alert.user_id)
         .where(
             or_(Alert.goal_enabled, Alert.cost_enabled),
             Habit.status == HabitStatus.ACTIVE,
-            User.is_active,
         )
         .order_by(Alert.habit_id, Alert.user_id)
     )
@@ -449,7 +455,7 @@ def run_alerts(
     now = now.astimezone(UTC)
     with session_factory() as session:
         rows = _candidates(session)
-    evaluated = sent = failed = 0
+    evaluated = sent = refused = failed = 0
     for row in rows:
         try:
             outcome = _run_one(session_factory, mailer, row, now)
@@ -464,5 +470,6 @@ def run_alerts(
             outcome = Outcome.FAILED
         evaluated += outcome in (Outcome.EVALUATED, Outcome.SENT)
         sent += outcome is Outcome.SENT
+        refused += outcome is Outcome.REFUSED
         failed += outcome is Outcome.FAILED
-    return RunResult(evaluated=evaluated, sent=sent, failed=failed)
+    return RunResult(evaluated=evaluated, sent=sent, refused=refused, failed=failed)

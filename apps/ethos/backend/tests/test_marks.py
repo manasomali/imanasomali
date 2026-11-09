@@ -19,7 +19,7 @@ from app.habits.access import MAX_ID
 from app.main import create_app
 from app.marks import service
 from app.marks.service import day_bounds, decode_cursor, encode_cursor
-from app.models import Mark, User
+from app.models import AppUser, Mark
 from tests.factories import new_habit, new_mark, save
 from tests.habit_helpers import (
     FORBIDDEN,
@@ -32,7 +32,6 @@ from tests.habit_helpers import (
     stored,
 )
 
-IP = "203.0.113.7"
 SP = ZoneInfo("America/Sao_Paulo")
 # 12:00 em São Paulo, quarta-feira
 NOW = datetime(2026, 3, 25, 15, 0, tzinfo=UTC)
@@ -50,10 +49,10 @@ def clock() -> Iterator[time_machine.Traveller]:
 
 
 @pytest.fixture
-def make_app_client(settings, make_settings, database, make_client, outbox):
+def make_app_client(settings, make_settings, database, make_client, imago):
     def build(**overrides: Any):
         current = make_settings(**overrides) if overrides else settings
-        return make_client(create_app(current, mail_backend=outbox), client=(IP, 50000))
+        return make_client(create_app(current, imago_transport=imago.transport))
 
     return build
 
@@ -177,7 +176,7 @@ def test_toggle_marks_and_unmarks_the_day(client, ana, db_session):
         "has_note": False,
     }
     for entry in (created_event, deleted_event):
-        assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], IP)
+        assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], None)
         assert entry.details == snapshot
 
 
@@ -694,7 +693,7 @@ def test_without_session_is_401(client, method, path):
     response = client.request(method, path, json={})
 
     assert response.status_code == 401
-    assert response.json() == {"error": "unauthorized", "field": None}
+    assert response.json() == {"error": "not_authenticated", "field": None}
 
 
 @pytest.mark.parametrize("mark_id", [0, -1, MAX_ID + 1, "x"])
@@ -740,7 +739,7 @@ def test_patch_changes_note_duration_and_cost(client, ana, db_session, clock):
     assert body["created_at"] == mark["created_at"]
     assert body["updated_at"] == "2026-03-25T15:05:00Z"
     [entry] = events(db_session, AuditEvent.MARK_UPDATED)
-    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], IP)
+    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], None)
     assert entry.details == {
         "mark_id": mark["id"],
         "changes": [
@@ -867,7 +866,7 @@ def test_delete_mark(client, ana, db_session):
     assert response.status_code == 204
     assert [m.id for m in stored_marks(db_session, habit["id"])] == [kept["id"]]
     [entry] = events(db_session, AuditEvent.MARK_DELETED)
-    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], IP)
+    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], None)
     assert entry.details["mark_id"] == gone["id"]
     assert remove(client, ana, habit["id"], gone["id"]).status_code == 404
 
@@ -898,7 +897,7 @@ def test_deleted_author_shows_as_removed_user(client, ana, bia, db_session):
     share(db_session, habit["id"], bia, "editor")
     mark = added(client, bia, habit["id"])
     with write_transaction(db_session):
-        db_session.execute(delete(User).where(User.id == bia.user.id))
+        db_session.execute(delete(AppUser).where(AppUser.id == bia.user.id))
 
     [listed_mark] = listed(client, ana, habit["id"]).json()["marks"]
     edited = patch(client, ana, habit["id"], mark["id"], {"note": "ainda aqui"})
@@ -1062,7 +1061,6 @@ def toggle_today(session, user_id: int, habit_id: int):
         day_start=start,
         day_end=end,
         marked_at=NOW,
-        ip=None,
     )
 
 
@@ -1123,7 +1121,6 @@ def test_parallel_marks_never_pass_the_daily_limit(engine, db_session, make_sett
             note=None,
             duration_minutes=None,
             cost_cents=None,
-            ip=None,
         )
         return "created"
 
@@ -1141,7 +1138,7 @@ def test_toggle_and_archive_in_parallel(engine, db_session, ana):
 
     def action(session, index: int) -> str:
         if index == 0:
-            habits_service.archive_habit(session, user_id=user_id, habit_id=habit_id, ip=None)
+            habits_service.archive_habit(session, user_id=user_id, habit_id=habit_id)
             return "archived"
         toggle_today(session, user_id, habit_id)
         return "marked"

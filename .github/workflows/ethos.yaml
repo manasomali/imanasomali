@@ -9,19 +9,21 @@ on:
       - "apps/ethos/**"
       - "packages/**"
       - ".github/workflows/ethos.yaml"
-      - "infra/apps/ethos/app.conf"
-      # Lido pelos testes: nomes do .env.example = app.env + smtp.env (backend) e SUPPORT_EMAIL
-      # dos textos legais (frontend)
+      # O E2E sobe também o imago (backend e front) e o nginx de dev (apps/imago/dev/), com as
+      # rotas de produção e o PORT de toda pasta de infra/apps/ (o nginx.sh lê todas)
+      - "apps/imago/**"
+      - "infra/apps/*/app.conf"
+      - "infra/apps/*/nginx.conf"
+      - "infra/apps/*/nginx-http.conf"
+      # Lido pelos testes: nomes do .env.example = app.env + internal/ethos.env (backend) e o
+      # MAX_MARKS_PER_DAY da ajuda (frontend)
       - "infra/apps/ethos/app.env"
-      # Headers de segurança (CSP) que o vite preview do E2E copia
-      - "infra/apps/ethos/nginx.conf"
-      # Prazos dos backups, conferidos contra a política de privacidade (frontend)
-      - "infra/scripts/snapshot.sh"
+      # Prazos dos backups, conferidos contra a ajuda (frontend)
       - "infra/lib/backups.sh"
-      - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
       # Usados pelo packages/deploy/test-vm.sh (uv e Python como o provision instala; o
-      # restore-test.sh do backup-verify.yaml com o banco do ethos populado)
+      # snapshot.sh e o restore-test.sh do backup-verify.yaml com o banco do ethos populado)
+      - "infra/scripts/snapshot.sh"
       - "infra/config.env"
       - "infra/lib/common.sh"
       - "infra/lib/packages.sh"
@@ -31,19 +33,21 @@ on:
       - "apps/ethos/**"
       - "packages/**"
       - ".github/workflows/ethos.yaml"
-      - "infra/apps/ethos/app.conf"
-      # Lido pelos testes: nomes do .env.example = app.env + smtp.env (backend) e SUPPORT_EMAIL
-      # dos textos legais (frontend)
+      # O E2E sobe também o imago (backend e front) e o nginx de dev (apps/imago/dev/), com as
+      # rotas de produção e o PORT de toda pasta de infra/apps/ (o nginx.sh lê todas)
+      - "apps/imago/**"
+      - "infra/apps/*/app.conf"
+      - "infra/apps/*/nginx.conf"
+      - "infra/apps/*/nginx-http.conf"
+      # Lido pelos testes: nomes do .env.example = app.env + internal/ethos.env (backend) e o
+      # MAX_MARKS_PER_DAY da ajuda (frontend)
       - "infra/apps/ethos/app.env"
-      # Headers de segurança (CSP) que o vite preview do E2E copia
-      - "infra/apps/ethos/nginx.conf"
-      # Prazos dos backups, conferidos contra a política de privacidade (frontend)
-      - "infra/scripts/snapshot.sh"
+      # Prazos dos backups, conferidos contra a ajuda (frontend)
       - "infra/lib/backups.sh"
-      - "infra/provision.sh"
       - ".github/scripts/check-python-version.sh"
       # Usados pelo packages/deploy/test-vm.sh (uv e Python como o provision instala; o
-      # restore-test.sh do backup-verify.yaml com o banco do ethos populado)
+      # snapshot.sh e o restore-test.sh do backup-verify.yaml com o banco do ethos populado)
+      - "infra/scripts/snapshot.sh"
       - "infra/config.env"
       - "infra/lib/common.sh"
       - "infra/lib/packages.sh"
@@ -200,21 +204,18 @@ jobs:
             app/admin/banners.py
             app/alerts/service.py
             app/audit.py
-            app/auth/deletion.py
-            app/auth/deps.py
-            app/auth/origin.py
-            app/auth/reapply.py
-            app/auth/security.py
-            app/auth/service.py
             app/habits/access.py
             app/habits/scoring.py
             app/habits/service.py
             app/history/service.py
+            app/identity.py
+            app/imago_client.py
+            app/internal/reapply.py
+            app/internal/service.py
             app/marks/schemas.py
             app/marks/service.py
             app/pagination.py
             app/progress/service.py
-            app/retention.py
             app/score.py
             app/sharing/quota.py
             app/sharing/service.py
@@ -265,9 +266,10 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # E2E (Playwright, só Chromium) contra o stack local: backend com banco novo e SMTP falso
-  # (backend/tests/e2e_stack.py) e o build de produção no vite preview. Como funciona: seção "E2E"
-  # do apps/ethos/README.md
+  # E2E (Playwright, só Chromium) contra o stack local, como em produção: o nginx da VM em container
+  # (apps/imago/dev/nginx.sh) como origem única, na frente dos backends do imago e do ethos, com o
+  # build de produção dos dois fronts e um SMTP falso (backend/tests/e2e_stack.py). Como funciona:
+  # seção "E2E" do apps/ethos/README.md. O docker já vem no runner
   e2e:
     name: 🎭 E2E
     runs-on: ubuntu-latest
@@ -280,28 +282,39 @@ jobs:
         with:
           ref: ${{ inputs.commit }}
 
-      # No rollback (workflow_dispatch), um commit anterior ao E2E não tem a suíte: o job passa
+      # No rollback (workflow_dispatch), um commit sem a suíte, ou da passagem do login para o imago
+      # (a suíte de antes, desligada até ser refeita), não roda o E2E: o job passa
       - name: Suíte E2E no commit
         id: suite
         run: |
-          if [[ -f playwright.config.js ]]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
+          if [[ ! -f playwright.config.js ]]; then
             echo "::notice::o commit não tem o E2E (apps/ethos/frontend/playwright.config.js)"
             echo "present=false" >> "$GITHUB_OUTPUT"
+          elif grep -q 'PENDENTE (ETH-64)' ../backend/tests/e2e_stack.py; then
+            echo "::notice::o commit é da passagem do login para o imago, com o E2E desligado"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # O stack roda os backends do ethos e do imago, cada um com o seu uv.lock
       - uses: astral-sh/setup-uv@v10.3.2
         if: steps.suite.outputs.present == 'true'
         with:
-          working-directory: apps/ethos/backend
           enable-cache: true
-          cache-dependency-glob: uv.lock
+          # Relativo à raiz do repositório
+          cache-dependency-glob: apps/*/backend/uv.lock
 
-      # O stack do E2E roda com as dependências de dev do backend (aiosmtpd, trustme)
+      # O stack roda com as dependências de dev do backend do ethos (aiosmtpd, trustme)
       - name: Dependências do backend
         if: steps.suite.outputs.present == 'true'
         working-directory: apps/ethos/backend
+        run: uv sync --frozen
+
+      # Num rollback para antes do imago, o E2E não usa o imago (e a pasta não existe)
+      - name: Dependências do backend do imago
+        if: steps.suite.outputs.present == 'true' && hashFiles('apps/imago/backend/uv.lock') != ''
+        working-directory: apps/imago/backend
         run: uv sync --frozen
 
       - uses: actions/setup-node@v4
@@ -309,10 +322,15 @@ jobs:
         with:
           node-version: 22
           cache: "npm"
-          cache-dependency-path: apps/ethos/frontend/package-lock.json
+          cache-dependency-path: apps/*/frontend/package-lock.json
 
       - name: Dependências do frontend
         if: steps.suite.outputs.present == 'true'
+        run: npm ci
+
+      - name: Dependências do frontend do imago
+        if: steps.suite.outputs.present == 'true' && hashFiles('apps/imago/frontend/package-lock.json') != ''
+        working-directory: apps/imago/frontend
         run: npm ci
 
       # O navegador fica em cache por versão do Playwright; as bibliotecas do sistema (apt) não
@@ -337,9 +355,22 @@ jobs:
         if: steps.suite.outputs.present == 'true' && steps.browser-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
+      # Os builds dos dois fronts, o stack (com o container do nginx na rede do runner) e a suíte
       - name: E2E
         if: steps.suite.outputs.present == 'true'
         run: npm run e2e
+
+      # O stack derruba o container no fim, também quando a suíte falha (o Playwright manda SIGTERM).
+      # Um que sobrou é um defeito do stack: falha aqui, mesmo com a suíte verde. O nome é o
+      # NGINX_CONTAINER de backend/tests/e2e_stack.py
+      - name: Container do nginx derrubado
+        if: always() && steps.suite.outputs.present == 'true'
+        run: |
+          if [[ -n $(docker ps --all --quiet --filter 'name=^ethos-e2e-nginx$') ]]; then
+            docker rm --force ethos-e2e-nginx > /dev/null
+            echo "::error::o stack do E2E deixou o container ethos-e2e-nginx para trás"
+            exit 1
+          fi
 
       # Relatório HTML e traces (abrir com npx playwright show-report / show-trace)
       - name: Guardar o relatório do Playwright

@@ -9,16 +9,15 @@ Ambos exigem `CurrentUser`; sem acesso ao hábito, 404 `not_found`; viewer, 403 
 As regras ficam em `service.py`.
 """
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 
 from app.alerts import service
 from app.alerts.schemas import AlertConfig, AlertOut
 from app.alerts.service import AlertSettings
-from app.auth.deps import CurrentUser
 from app.db import SessionDep
 from app.habits.access import HabitId
+from app.identity import CurrentUser
 from app.models import utcnow
-from app.request_info import client_ip
 
 router = APIRouter(prefix="/habits", tags=["alerts"])
 
@@ -44,7 +43,6 @@ def save_alert(
     habit_id: HabitId,
     body: AlertConfig,
     user: CurrentUser,
-    request: Request,
     session: SessionDep,
 ) -> AlertOut:
     settings = service.save_alert(
@@ -52,7 +50,6 @@ def save_alert(
         user_id=user.id,
         habit_id=habit_id,
         values=body.model_dump(),
-        ip=client_ip(request),
         now=utcnow(),
     )
     return alert_out(settings)

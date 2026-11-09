@@ -15,7 +15,7 @@ const CAIO = memberFixture(3, 'caio@example.com', 'viewer', '2026-02-10T12:00:00
 const DORA = pendingInviteFixture({ id: 50, email: 'dora@example.com', role: 'viewer' });
 
 function signedIn(me = meFixture()) {
-  server.use(http.get(api('/auth/me'), () => HttpResponse.json(me)));
+  server.use(http.get(api('/me'), () => HttpResponse.json(me)));
 }
 
 /** A aba de compartilhamento do hábito 1, vista por `me` com o papel `role`. */

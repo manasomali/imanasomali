@@ -29,14 +29,9 @@ class ErrorCode(StrEnum):
     SERVICE_UNAVAILABLE = "service_unavailable"
     # Específicos
     DATABASE_UNAVAILABLE = "database_unavailable"
-    # Código de login errado, vencido, já usado, esgotado (5 tentativas) ou de conta bloqueada:
-    # uma resposta só, para não dizer qual foi o caso nem se a conta existe
-    INVALID_CODE = "invalid_code"
-    # Fuso IANA desconhecido no primeiro acesso (conta existente ignora o fuso do verify)
-    INVALID_TIMEZONE = "invalid_timezone"
-    # Sessão válida, mas a versão atual dos termos não foi aceita: o front mostra os termos e
-    # chama POST /auth/me/terms (403 nos endpoints do app; /auth/me e o logout funcionam)
-    TERMS_NOT_ACCEPTED = "terms_not_accepted"
+    # Request sem o usuário do imago (sem `X-User-Id`, ou com um header `X-User-*` malformado)
+    # numa rota que exige login: 401, e o front manda para /imago/entrar?next=<caminho>
+    NOT_AUTHENTICATED = "not_authenticated"
     # Criar outro hábito passaria do MAX_HABITS_PER_USER (ativos + pausados do dono): 409
     HABIT_LIMIT_REACHED = "habit_limit_reached"
     # Escrita num hábito arquivado, que é só leitura (desarquivar e apagar continuam): 409
@@ -54,14 +49,6 @@ class ErrorCode(StrEnum):
     # Aceitar passaria do MAX_SHARED_HABITS_PER_USER (hábitos de outras pessoas dos quais o
     # usuário participa); o convite continua pendente: 409
     SHARED_HABIT_LIMIT_REACHED = "shared_habit_limit_reached"
-    # Excluir a conta deixaria o serviço sem nenhum admin ativo (pelo DELETE /auth/me ou pelo
-    # admin): 409. Antes, outro admin precisa existir (cli.py create-admin)
-    LAST_ADMIN = "last_admin"
-    # Troca de email pelo admin para um email que já tem conta (inclusive o atual da própria
-    # conta): 409 com field `new_email`, sem mudar nada
-    EMAIL_IN_USE = "email_in_use"
-    # Admin tentando bloquear a própria conta (ficaria sem acesso ao painel): 409
-    CANNOT_BLOCK_SELF = "cannot_block_self"
 
 
 # Código de uma HTTPException pelo status. Status fora da tabela cai no genérico da faixa

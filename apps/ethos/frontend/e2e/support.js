@@ -15,7 +15,7 @@ const CONTEXT_OPTIONS = [
 ];
 
 /** Junta as violações da CSP de produção e os erros de JavaScript não tratados da página. */
-function watchProblems(page) {
+export function watchProblems(page) {
   const problems = [];
   page.on('console', (message) => {
     if (message.type() === 'error' && /Content Security Policy/i.test(message.text())) {
@@ -27,9 +27,9 @@ function watchProblems(page) {
 }
 
 /**
- * `page` falha o teste com qualquer violação da CSP de produção (os headers do nginx.conf vão no
- * vite preview) ou erro de JavaScript não tratado. `otherPage` é uma segunda pessoa: outro
- * contexto do navegador (cookies e localStorage próprios), com as mesmas opções do projeto.
+ * `page` falha o teste com qualquer violação da CSP de produção (os headers vêm do nginx, com os
+ * snippets de infra/apps/) ou erro de JavaScript não tratado. `otherPage` é uma segunda pessoa:
+ * outro contexto do navegador (cookies e localStorage próprios), com as mesmas opções do projeto.
  */
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -70,7 +70,8 @@ export async function inbox(request, address) {
 
 /**
  * Espera o email número `count` (1 = o primeiro) para `address` e devolve o código dele. O envio
- * sai depois da resposta da API (BackgroundTasks), então a caixa é consultada até ele chegar.
+ * sai depois da resposta da API (BackgroundTasks do imago), então a caixa é consultada até ele
+ * chegar.
  */
 export async function codeFromEmail(request, address, { count = 1, subject } = {}) {
   let message;
@@ -87,7 +88,51 @@ export async function codeFromEmail(request, address, { count = 1, subject } = {
   return code;
 }
 
-/** Abre o menu no celular (no desktop os links já estão à vista). */
+/** O endereço da tela de entrar do imago que volta para `next`, como o ethos monta no 401. */
+export function loginPath(next) {
+  return `/imago/entrar?${new URLSearchParams({ next })}`;
+}
+
+/** Espera a página chegar a `path` (caminho e query, sem a origem). */
+export async function waitForPath(page, path) {
+  await page.waitForURL((url) => `${url.pathname}${url.search}` === path);
+}
+
+/**
+ * Na tela de entrar do imago: email, o código lido no SMTP falso e "Entrar". Devolve a resposta do
+ * POST /api/imago/auth/code/verify (a que grava o cookie).
+ */
+export async function enterCode(page, request, email) {
+  await expect(page.getByRole('heading', { level: 1, name: 'Entrar' })).toBeVisible();
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByRole('button', { name: 'Enviar código' }).click();
+  const code = await codeFromEmail(request, email, { subject: /código de acesso/ });
+  await page.getByLabel('Código de 6 dígitos').fill(code);
+  const verified = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === '/api/imago/auth/code/verify',
+  );
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  const response = await verified;
+  expect(response.status()).toBe(200);
+  return response;
+}
+
+/**
+ * Entra com `email` (uma conta nova, já com os termos atuais aceitos) pela tela de entrar do imago
+ * e volta para `next`. Termina na tela inicial do ethos, se `next` for ela.
+ */
+export async function login(page, request, email, { next = '/ethos/' } = {}) {
+  await page.goto(loginPath(next));
+  await enterCode(page, request, email);
+  await waitForPath(page, next);
+  if (next === '/ethos/') {
+    await expect(page.getByRole('heading', { level: 1, name: 'Hábitos' })).toBeVisible();
+  }
+}
+
+/** Abre o menu do ethos no celular (no desktop os links já estão à vista). */
 export async function openMenu(page) {
   // O cabeçalho já desenhado: só então a visibilidade do botão do menu diz se é celular
   await expect(page.getByRole('banner').getByRole('link', { name: 'ethos', exact: true })).toBeVisible();
@@ -96,34 +141,10 @@ export async function openMenu(page) {
   return page.getByRole('navigation', { name: 'Navegação principal' });
 }
 
-/** Vai para uma tela pelo menu principal, como a pessoa faria. */
+/** Vai para uma tela pelo menu principal do ethos, como a pessoa faria. */
 export async function goByMenu(page, name) {
   const nav = await openMenu(page);
   await nav.getByRole('link', { name, exact: true }).click();
-}
-
-/**
- * Entra com `email` (uma conta nova) pela tela de login, lendo o código no SMTP falso, e aceita os
- * termos se o modal aparecer. Termina na tela inicial.
- */
-export async function login(page, request, email) {
-  await page.goto('/ethos/entrar');
-  await expect(page.getByRole('heading', { level: 1, name: 'Entrar' })).toBeVisible();
-  await page.getByLabel('Email').fill(email);
-  await page.getByRole('button', { name: 'Enviar código' }).click();
-  const code = await codeFromEmail(request, email, { subject: /código de acesso/ });
-  await page.getByLabel('Código de 6 dígitos').fill(code);
-  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-
-  const home = page.getByRole('heading', { level: 1, name: 'Hábitos' });
-  const terms = page.getByRole('dialog', { name: 'Novos termos de uso' });
-  await expect(home.or(terms)).toBeVisible();
-  // Conta nova nasce com os termos atuais aceitos; o modal só aparece quando a versão muda
-  if (await terms.isVisible()) {
-    await terms.getByRole('button', { name: 'Aceitar e continuar' }).click();
-    await expect(terms).toBeHidden();
-  }
-  await expect(home).toBeVisible();
 }
 
 /** Cria um hábito toggle (o padrão do formulário) e termina na aba dele. */
@@ -178,6 +199,31 @@ export async function toggleToday(page, { marked }) {
   await expect(cell).not.toHaveAttribute('data-pending');
   await expect(page.getByRole('button', { name: marked ? 'Desmarcar este dia' : 'Marcar este dia' })).toBeVisible();
   return cell;
+}
+
+/**
+ * Na aba do hábito: convida `guestEmail` com "Pode marcar" pela seção de compartilhamento. A
+ * convidada precisa já ter conta no imago (o ethos procura o email lá).
+ */
+export async function inviteToHabit(page, guestEmail) {
+  await page.getByRole('navigation', { name: 'Seções do hábito' }).getByRole('link', { name: 'Compartilhamento' }).click();
+  await expect(page.getByRole('heading', { level: 2, name: 'Compartilhamento' })).toBeVisible();
+  const form = page.getByRole('form', { name: 'Convidar alguém' });
+  await form.getByLabel('Email').fill(guestEmail);
+  await form.getByRole('radio', { name: /^Pode marcar/ }).check();
+  await form.getByRole('button', { name: 'Enviar convite' }).click();
+  await expect(page.getByText('Convite enviado.')).toBeVisible();
+}
+
+/** Aceita, em Convites, o convite para o hábito `habitName` (conferindo o axe na tela). */
+export async function acceptInvite(page, habitName) {
+  await goByMenu(page, /^Convites/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Convites' })).toBeVisible();
+  const invite = page.getByRole('group', { name: `Responder ao convite para ${habitName}` });
+  await expect(invite).toBeVisible();
+  await expectAccessible(page);
+  await invite.getByRole('button', { name: 'Aceitar' }).click();
+  await expect(page.getByText(`Você entrou em “${habitName}”.`)).toBeVisible();
 }
 
 /**

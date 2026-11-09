@@ -1,8 +1,8 @@
 """Corpo e resposta da configuração de alerta (`GET/PUT /habits/{id}/alerts`).
 
 - `goal_enabled` e `cost_enabled`: as duas chaves, independentes. Booleanos estritos.
-- `hour`: hora cheia de 0 a 23, no fuso do usuário (`users.timezone`). Inteiro estrito: `"9"`,
-  `9.0` e `9.5` são recusados.
+- `hour`: hora cheia de 0 a 23, no fuso do usuário (`app_users.timezone`, a cópia do fuso do
+  imago). Inteiro estrito: `"9"`, `9.0` e `9.5` são recusados.
 - `frequency`: `daily` ou `weekly`.
 - `weekday`: 0 = segunda ... 6 = domingo (semana ISO, como `date.weekday()`). Obrigatório no
   semanal e proibido no diário (422 com `field: "weekday"` nos dois casos).

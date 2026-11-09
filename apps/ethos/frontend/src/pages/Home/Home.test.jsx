@@ -19,7 +19,7 @@ const COLORS = ['red', 'orange', 'amber', 'green', 'blue', 'violet'];
 const CODES = ['RUN', 'READ', 'GYM', 'MED', 'H2O', 'SLP'];
 
 function signedIn() {
-  server.use(http.get(api('/auth/me'), () => HttpResponse.json(meFixture())));
+  server.use(http.get(api('/me'), () => HttpResponse.json(meFixture())));
 }
 
 /** Seis hábitos, todos marcados em 4 de março; RUN e READ também em 2 de março. */

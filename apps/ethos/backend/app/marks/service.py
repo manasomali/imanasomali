@@ -17,7 +17,7 @@ Regras (ethos-plan.md, "marcações e fuso horário", "custo", "compartilhamento
   duplo ou dois membros clicando juntos: a segunda request vê o resultado da primeira, então o dia
   fica com uma marcação ou nenhuma, nunca duas.
 - Várias por dia (`multi_mark` ligado): `MAX_MARKS_PER_DAY` conta as marcações do hábito (de
-  todos os membros) no dia de `marked_at` no fuso salvo de quem marca (`users.timezone`), na mesma
+  todos os membros) no dia de `marked_at` no fuso de quem marca (o `X-User-Timezone`), na mesma
   transação da inserção.
 - `marked_at`: no máximo `FUTURE_TOLERANCE` (1 min) no futuro, pela diferença de relógio. Dias
   antes da criação do hábito são aceitos (histórico; a pontuação os ignora).
@@ -48,7 +48,7 @@ from app.config import Settings
 from app.db import write_transaction
 from app.errors import ApiError, ErrorCode
 from app.habits.access import get_habit_access, require_writable
-from app.models import CostLevel, Habit, Mark, User, utcnow
+from app.models import AppUser, CostLevel, Habit, Mark, utcnow
 
 # Tolerância para o relógio de quem marca estar adiantado
 FUTURE_TOLERANCE = timedelta(minutes=1)
@@ -169,7 +169,7 @@ def _snapshot(mark: Mark) -> dict[str, Any]:
 def _entry(session: Session, mark: Mark) -> MarkEntry:
     email = None
     if mark.user_id is not None:
-        email = session.scalar(select(User.email).where(User.id == mark.user_id))
+        email = session.scalar(select(AppUser.email).where(AppUser.id == mark.user_id))
     return MarkEntry(mark, email)
 
 
@@ -182,7 +182,6 @@ def insert_mark(
     note: str | None,
     duration_minutes: int | None,
     cost_cents: int | None,
-    ip: str | None,
 ) -> MarkEntry:
     """Grava a marcação com os valores já resolvidos e o evento `mark_created`.
 
@@ -202,21 +201,19 @@ def insert_mark(
         session,
         AuditEvent.MARK_CREATED,
         user_id=user_id,
-        ip=ip,
         habit_id=habit_id,
         details=_snapshot(mark),
     )
     return _entry(session, mark)
 
 
-def _remove(session: Session, mark: Mark, *, user_id: int, ip: str | None) -> None:
+def _remove(session: Session, mark: Mark, *, user_id: int) -> None:
     details = _snapshot(mark)
     session.delete(mark)
     audit.record(
         session,
         AuditEvent.MARK_DELETED,
         user_id=user_id,
-        ip=ip,
         habit_id=mark.habit_id,
         details=details,
     )
@@ -234,7 +231,6 @@ def toggle_mark(
     day_start: datetime,
     day_end: datetime,
     marked_at: datetime,
-    ip: str | None,
 ) -> MarkEntry | None:
     """Marca ou desmarca o dia `[day_start, day_end)` de um hábito toggle.
 
@@ -257,7 +253,7 @@ def toggle_mark(
         ).all()
         if existing:
             for mark in existing:
-                _remove(session, mark, user_id=user_id, ip=ip)
+                _remove(session, mark, user_id=user_id)
             return None
         return insert_mark(
             session,
@@ -267,7 +263,6 @@ def toggle_mark(
             note=None,
             duration_minutes=mark_duration(habit, None),
             cost_cents=mark_cost(habit, None),
-            ip=ip,
         )
 
 
@@ -282,9 +277,8 @@ def create_mark(
     note: str | None,
     duration_minutes: int | None,
     cost_cents: int | None,
-    ip: str | None,
 ) -> MarkEntry:
-    """Cria uma marcação num hábito com várias por dia. `timezone`: o fuso salvo de quem marca.
+    """Cria uma marcação num hábito com várias por dia. `timezone`: o fuso de quem marca.
 
     Levanta 404, 403, 409 (`habit_archived`, `mark_mode_mismatch`, `mark_limit_reached`) ou 422
     (`marked_at`, `note`, `duration_minutes`, `cost_cents`).
@@ -310,7 +304,6 @@ def create_mark(
             note=note,
             duration_minutes=duration_minutes,
             cost_cents=cost_cents,
-            ip=ip,
         )
 
 
@@ -351,7 +344,6 @@ def update_mark(
     habit_id: int,
     mark_id: int,
     values: Mapping[str, Any],
-    ip: str | None,
 ) -> MarkEntry:
     """Muda `note`, `duration_minutes` e `cost_cents` (só os enviados em `values`).
 
@@ -372,20 +364,17 @@ def update_mark(
                 session,
                 AuditEvent.MARK_UPDATED,
                 user_id=user_id,
-                ip=ip,
                 habit_id=habit_id,
                 details={"mark_id": mark_id, "changes": changes},
             )
         return _entry(session, mark)
 
 
-def delete_mark(
-    session: Session, *, user_id: int, habit_id: int, mark_id: int, ip: str | None
-) -> None:
+def delete_mark(session: Session, *, user_id: int, habit_id: int, mark_id: int) -> None:
     """Apaga a marcação. Levanta 404 (hábito ou marcação), 403 ou 409 `habit_archived`."""
     with write_transaction(session):
         _writable_habit(session, habit_id, user_id)
-        _remove(session, _get_mark(session, habit_id, mark_id), user_id=user_id, ip=ip)
+        _remove(session, _get_mark(session, habit_id, mark_id), user_id=user_id)
 
 
 def list_marks(
@@ -408,8 +397,8 @@ def list_marks(
     after = None if cursor is None else decode_cursor(cursor)
     get_habit_access(session, habit_id, user_id)
     query = (
-        select(Mark, User.email)
-        .outerjoin(User, User.id == Mark.user_id)
+        select(Mark, AppUser.email)
+        .outerjoin(AppUser, AppUser.id == Mark.user_id)
         .where(_marks_between(habit_id, start, end))
     )
     if after is not None:

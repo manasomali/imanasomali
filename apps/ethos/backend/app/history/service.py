@@ -22,15 +22,15 @@ Quem vê (ethos-plan.md, "compartilhamento"):
 O que sai de cada evento: id, evento, quando (`created_at`, UTC), hábito (id e `label`: a sigla
 ou o nome), autor (`user_id` e o email; os dois nulos quando a conta foi apagada, "usuário
 removido") e `details` filtrado por `PUBLIC_DETAILS`, a lista de chaves de cada evento. O JSON
-gravado nunca é repassado inteiro, e o IP nunca sai (nem é lido).
+gravado nunca é repassado inteiro.
 
 Filtros, cada um opcional e combináveis (todos juntos com E):
 
 - `habit_id`; `author_id` (o `user_id` de quem fez); `events` (um ou mais `HistoryEvent`);
 - `mark_id`: os eventos de uma marcação ("detalhes da marcação: quem e quando"), pelo
   `details.mark_id`, que a coluna calculada `audit_log.mark_id` expõe com índice (migração 0002);
-- `first_day` / `last_day`: datas locais inclusivas no fuso de quem pede, como na API de
-  progresso (ETH-23): de `first_day` 00:00 até o fim de `last_day`, no `users.timezone`.
+- `first_day` / `last_day`: datas locais inclusivas no fuso de quem pede (o `X-User-Timezone`),
+  como na API de progresso (ETH-23): de `first_day` 00:00 até o fim de `last_day`.
 
 Paginação por cursor (`app/pagination.py`): ordem `created_at` desc e `id` desc, `limit` por
 página (`DEFAULT_PAGE_SIZE`, no máximo `MAX_PAGE_SIZE`). A página seguinte continua depois do
@@ -52,7 +52,7 @@ from sqlalchemy.orm import Session
 
 from app.audit import AuditEvent
 from app.errors import ApiError, ErrorCode
-from app.models import AuditLog, Habit, HabitMember, User
+from app.models import AppUser, AuditLog, Habit, HabitMember
 from app.pagination import decode_cursor, encode_cursor
 
 # Eventos por página (ethos-plan.md, "paginação de listas")
@@ -232,7 +232,7 @@ def list_history(
 ) -> HistoryPage:
     """Uma página do histórico de `user_id`, do mais recente ao mais antigo.
 
-    `tz`: o fuso de quem pede (`users.timezone`), para as datas do filtro. `limit`: 1 a
+    `tz`: o fuso de quem pede (`X-User-Timezone`), para as datas do filtro. `limit`: 1 a
     `MAX_PAGE_SIZE` (a rota confere). Cursor inválido: 422 `cursor`; `last_day` antes de
     `first_day`: 422 `to`.
     """
@@ -255,10 +255,10 @@ def list_history(
             AuditLog.details,
             Habit.name,
             Habit.code,
-            User.email,
+            AppUser.email,
         )
         .join(Habit, Habit.id == AuditLog.habit_id)
-        .outerjoin(User, User.id == AuditLog.user_id)
+        .outerjoin(AppUser, AppUser.id == AuditLog.user_id)
         .where(*conditions)
         .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
         .limit(limit + 1)

@@ -1,39 +1,26 @@
-// O que fazer quando a API responde 401: ir para o login, guardando onde a pessoa estava. O
-// destino vai no state do histórico (nunca na URL), então a tela de login só volta para um
-// caminho do próprio app
+// O que fazer quando a API responde 401: ir para o login do imago (a conta única do
+// manasomali.com), com o caminho atual em `next`, para voltar para cá depois de entrar. O imago só
+// aceita um `next` da mesma origem (imago-plan.md, "fluxo")
 
-import { BASENAME, PATHS } from '../paths';
+import { BASENAME, IMAGO_PATHS } from '../paths';
+import { page } from './page';
 
-// router.state.location traz o caminho com o basename ("/ethos/conta"); as rotas e o navigate
-// usam sem ("/conta")
-function withoutBasename(pathname) {
-  if (pathname === BASENAME) return '/';
-  return pathname.startsWith(`${BASENAME}/`) ? pathname.slice(BASENAME.length) : pathname;
+/**
+ * O endereço do login do imago que volta para `location` ({pathname, search, hash} do router, com
+ * o basename, ex.: "/ethos/relatorio"). Caminho fora do basename (não acontece no app) volta para
+ * a tela inicial do ethos.
+ */
+export function loginUrl(location) {
+  const { pathname, search = '', hash = '' } = location;
+  const inside = pathname === BASENAME || pathname.startsWith(`${BASENAME}/`);
+  const next = inside ? `${pathname}${search}${hash}` : `${BASENAME}/`;
+  return `${IMAGO_PATHS.login}?${new URLSearchParams({ next })}`;
 }
 
-/** `router` é o data router do app (createApp em src/bootstrap.js, basename /ethos). */
+/**
+ * Vai para o login do imago guardando onde a pessoa estava. `router` é o data router do app
+ * (createApp em src/bootstrap.js, basename /ethos). Sai do app: o login é outra aplicação.
+ */
 export function redirectToLogin(router) {
-  const { search, hash } = router.state.location;
-  const pathname = withoutBasename(router.state.location.pathname);
-  if (pathname === PATHS.login) return;
-  router.navigate(PATHS.login, { replace: true, state: { from: `${pathname}${search}${hash}` } });
-}
-
-/** Caminho para onde voltar depois do login (state.from), ou a tela inicial. */
-export function returnPath(location) {
-  const from = location?.state?.from;
-  // Só caminho interno: começa com uma barra só (o navegador lê "/\" como "//"), e nunca a
-  // própria tela de login
-  if (
-    typeof from !== 'string'
-    || !from.startsWith('/')
-    || from.startsWith('//')
-    || from.includes('\\')
-  ) {
-    return PATHS.home;
-  }
-  if (from === PATHS.login || from.startsWith(`${PATHS.login}?`) || from.startsWith(`${PATHS.login}#`)) {
-    return PATHS.home;
-  }
-  return from;
+  page.assign(loginUrl(router.state.location));
 }

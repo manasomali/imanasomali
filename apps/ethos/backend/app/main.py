@@ -2,6 +2,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx2
 from fastapi import APIRouter, FastAPI
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -9,16 +10,17 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.admin.routes import public_router as banners_router
 from app.admin.routes import router as admin_router
 from app.alerts.routes import router as alerts_router
-from app.auth.origin import OriginCheckMiddleware
-from app.auth.routes import router as auth_router
 from app.config import Settings, load_settings
 from app.db import SessionDep, create_db_engine, create_session_factory
 from app.errors import ApiError, ErrorCode, install_error_handlers
 from app.habits.routes import router as habits_router
 from app.history.routes import router as history_router
+from app.identity import LegacySessionCookieMiddleware, RequestGuardMiddleware
+from app.identity import router as me_router
+from app.imago_client import ImagoClient
+from app.internal.router import router as internal_router
 from app.logs import RequestLogMiddleware, configure_logging
-from app.mail.backends import MailBackend
-from app.mail.sender import Mailer, build_backend
+from app.mail.sender import Mailer
 from app.marks.routes import router as marks_router
 from app.progress.routes import router as progress_router
 from app.sharing.routes import router as sharing_router
@@ -54,12 +56,12 @@ def _enable_docs(api: FastAPI) -> None:
 
 
 def create_app(
-    settings: Settings | None = None, mail_backend: MailBackend | None = None
+    settings: Settings | None = None, imago_transport: httpx2.BaseTransport | None = None
 ) -> FastAPI:
     """Monta o app. Sem `settings`, a configuração é lida do ambiente na subida.
 
-    Sem `mail_backend`, o envio de email segue o `EMAIL_BACKEND` da config; os testes passam um
-    backend apontado para o servidor SMTP falso.
+    `imago_transport`: as chamadas à API interna do imago passam por ele em vez da rede (os
+    testes passam um imago falso, `httpx2.MockTransport`).
 
     A leitura fica no lifespan, não no import: config inválida derruba o servidor na subida com
     a lista das variáveis erradas, e os testes importam o módulo sem precisar do ambiente.
@@ -75,13 +77,17 @@ def create_app(
         if current.is_dev:
             _enable_docs(api)
         engine = create_db_engine(current.database_path)
+        imago = ImagoClient(
+            current.imago_internal_url, current.internal_api_token, transport=imago_transport
+        )
         api.state.settings = current
         api.state.session_factory = create_session_factory(engine)
-        backend = build_backend(current) if mail_backend is None else mail_backend
-        api.state.mailer = Mailer(current, backend)
+        api.state.imago = imago
+        api.state.mailer = Mailer(current, imago)
         try:
             yield
         finally:
+            imago.close()
             engine.dispose()
 
     # O nginx tira o prefixo /api/ethos antes de repassar a request, então as rotas ficam na raiz
@@ -89,12 +95,14 @@ def create_app(
     # parâmetro root_path do FastAPI() está obsoleto desde o FastAPI 0.162. Nasce sem as rotas dos
     # docs e do schema, que só o lifespan liga, em dev, depois de ler a config (`_enable_docs`)
     api = FastAPI(title="ethos", lifespan=lifespan, openapi_url=None, docs_url=None, redoc_url=None)
-    # O último adicionado fica por fora: o log registra também o 403 da checagem de Origin
-    api.add_middleware(OriginCheckMiddleware)
+    # O último adicionado fica por fora: o log registra também o 401 e o 403 do guard, e o cookie
+    # antigo sai apagado em qualquer resposta, inclusive nessas
+    api.add_middleware(RequestGuardMiddleware)
+    api.add_middleware(LegacySessionCookieMiddleware)
     api.add_middleware(RequestLogMiddleware)
     install_error_handlers(api)
     api.include_router(router)
-    api.include_router(auth_router)
+    api.include_router(me_router)
     # Antes do de /habits: lá, /habits/{habit_id} pegaria /habits/progress (e daria 422)
     api.include_router(progress_router)
     api.include_router(habits_router)
@@ -104,6 +112,7 @@ def create_app(
     api.include_router(alerts_router)
     api.include_router(admin_router)
     api.include_router(banners_router)
+    api.include_router(internal_router)
     return api
 
 

@@ -10,23 +10,20 @@ from sqlalchemy import func, select
 
 from app.audit import AuditEvent
 from app.cli import main
-from app.models import AuditLog, Habit, HabitMember, HabitPause, Mark, User
-from app.seed import SEED_EMAILS
-from app.terms import TERMS_VERSION
-from tests.auth_helpers import cookie, open_session
+from app.models import AppUser, AuditLog, Habit, HabitMember, HabitPause, Mark
+from app.seed import SEED_USERS
 from tests.factories import count, new_user, save
+from tests.identity_helpers import identity_headers
 from tests.test_cli import env_for
 
 NOW = datetime(2026, 3, 25, 15, 0, tzinfo=UTC)
-PROD = {
-    "APP_ENV": "prod",
-    "APP_URL": "https://manasomali.com/ethos",
-    "EMAIL_BACKEND": "smtp",
-    "SMTP_HOST": "smtp.example.com",
-    "SMTP_PORT": "587",
-    "SMTP_USER": "usuario",
-    "SMTP_PASSWORD": "senha",
-}
+PROD = {"APP_ENV": "prod", "APP_URL": "https://manasomali.com/ethos"}
+# As contas do seed do imago (contrato): id, email, fuso e idioma
+IMAGO_SEED = [
+    (101, "ana@example.com", "America/Sao_Paulo", "pt"),
+    (102, "bia@example.com", "America/Sao_Paulo", "pt"),
+    (103, "caio@example.com", "Europe/Lisbon", "en"),
+]
 
 
 @pytest.fixture(autouse=True)
@@ -44,7 +41,7 @@ def totals(db_session) -> dict[str, int]:
     db_session.rollback()
     return {
         model.__tablename__: count(db_session, model)
-        for model in (User, Habit, HabitMember, HabitPause, Mark, AuditLog)
+        for model in (AppUser, Habit, HabitMember, HabitPause, Mark, AuditLog)
     }
 
 
@@ -52,11 +49,17 @@ def test_seed_creates_example_data(db_session, env, capsys):
     assert main(["seed"], env) == 0
 
     marks = count(db_session, Mark)
-    assert capsys.readouterr().out == f"seed: 3 contas, 8 hábitos e {marks} marcações criados\n"
+    assert capsys.readouterr().out == (
+        f"seed: 3 usuários, 8 hábitos e {marks} marcações criados "
+        "(entre com as contas do seed do imago)\n"
+    )
     db_session.rollback()
-    users = {user.email: user for user in db_session.scalars(select(User))}
-    assert set(users) == set(SEED_EMAILS)
-    assert {user.terms_version for user in users.values()} == {TERMS_VERSION}
+    users = db_session.execute(
+        select(AppUser.id, AppUser.email, AppUser.timezone, AppUser.locale).order_by(AppUser.id)
+    ).all()
+    # Os mesmos ids, emails, fusos e idiomas das contas do seed do imago
+    assert [tuple(user) for user in users] == IMAGO_SEED
+    assert {email: (user_id, tz, locale) for user_id, email, tz, locale in IMAGO_SEED} == SEED_USERS
     habits = list(db_session.scalars(select(Habit)))
     assert len(habits) == 8
     # Varia os tipos de configuração
@@ -98,7 +101,7 @@ def test_seed_marks_follow_the_habit_rules(db_session, env):
 
     db_session.rollback()
     habits = {habit.id: habit for habit in db_session.scalars(select(Habit))}
-    timezones = dict(db_session.execute(select(User.id, User.timezone)).all())
+    timezones = dict(db_session.execute(select(AppUser.id, AppUser.timezone)).all())
     per_day: dict[tuple[int, object], int] = {}
     for mark in db_session.scalars(select(Mark)):
         habit = habits[mark.habit_id]
@@ -135,7 +138,8 @@ def test_seed_twice_changes_nothing(db_session, env, capsys):
 
 
 def test_seed_with_one_example_account_changes_nothing(db_session, env):
-    save(db_session, new_user(SEED_EMAILS[-1]))
+    # O mesmo id de uma conta de exemplo (o email não importa: o id é o do imago)
+    save(db_session, new_user("outro.email@example.com", id=103))
     before = totals(db_session)
 
     assert main(["seed"], env) == 0
@@ -148,7 +152,7 @@ def test_seed_keeps_other_accounts(db_session, env):
 
     assert main(["seed"], env) == 0
 
-    assert count(db_session, User) == 4
+    assert count(db_session, AppUser) == 4
 
 
 def test_seed_outside_dev_fails_without_writing(db_session, env, capsys):
@@ -165,8 +169,9 @@ def test_seed_outside_dev_fails_without_writing(db_session, env, capsys):
 def test_seeded_accounts_use_the_api(db_session, env, client):
     assert main(["seed"], env) == 0
     db_session.rollback()
-    ana = db_session.scalar(select(User).where(User.email == SEED_EMAILS[0]))
-    headers = cookie(open_session(db_session, ana))
+    ana = db_session.get(AppUser, 101)
+    # Os headers que o nginx põe para a Ana do seed do imago
+    headers = identity_headers(ana)
 
     habits = client.get("/habits", headers=headers).json()["habits"]
     shared = next(h for h in habits if h["role"] == "viewer")
@@ -179,4 +184,4 @@ def test_seeded_accounts_use_the_api(db_session, env, client):
     # Ativos e pausados (o arquivado fica na outra lista), mais o compartilhado da Bia
     assert len(habits) == 7
     assert marks
-    assert {mark["author"]["email"] for mark in marks} == {SEED_EMAILS[1]}
+    assert {mark["author"]["email"] for mark in marks} == {"bia@example.com"}

@@ -1,5 +1,6 @@
-"""Painel de admin (ETH-28): contas, conteúdo dos hábitos, bloqueio, troca de email, exclusão e
-banners (`app/admin/`)."""
+"""Painel de admin (ETH-28): quem usa o ethos, conteúdo dos hábitos e banners (`app/admin/`).
+
+As contas (bloquear, trocar email, excluir) são do imago: o ethos não tem essas rotas."""
 
 import re
 from collections.abc import Iterator
@@ -10,32 +11,22 @@ import pytest
 import time_machine
 from sqlalchemy import select
 
-from app.admin import accounts, banners
+from app.admin import banners
 from app.admin.accounts import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.admin.routes import router as admin_router
 from app.audit import AuditEvent
-from app.auth.routes import CODE_REQUEST_ACCEPTED
-from app.db import write_transaction
-from app.errors import ApiError, ErrorCode
-from app.main import create_app
-from app.models import (
-    AuditLog,
-    Banner,
-    LoginCode,
-    User,
-    UserSession,
-)
-from tests.auth_helpers import code_in, cookie, open_session
-from tests.factories import count, new_habit, new_mark, new_member, save
+from app.models import AuditLog, Banner
+from tests.factories import new_habit, new_mark, new_member, save
+from tests.fake_imago import INTERNAL_TOKEN
 from tests.habit_helpers import FORBIDDEN, NOT_FOUND, Account, events, invalid
+from tests.identity_helpers import identity_headers
 
 # Quarta-feira, 12:00 em São Paulo
 NOW = datetime(2026, 3, 25, 15, 0, tzinfo=UTC)
 ROOT = "root@example.com"
 ANA = "ana@example.com"
 BIA = "bia@example.com"
-UNAUTHORIZED = {"error": "unauthorized", "field": None}
-IP = "203.0.113.9"
+UNAUTHORIZED = {"error": "not_authenticated", "field": None}
 
 # Todas as rotas do router do admin, para os testes de permissão não esquecerem nenhuma
 ADMIN_ROUTES = sorted(
@@ -50,13 +41,13 @@ def clock() -> Iterator[time_machine.Traveller]:
 
 
 @pytest.fixture
-def client(settings, database, make_client, outbox):
-    return make_client(create_app(settings, mail_backend=outbox), client=(IP, 50000))
+def client(app, make_client):
+    return make_client(app)
 
 
 @pytest.fixture
 def root(make_account) -> Account:
-    return make_account(ROOT, is_admin=True)
+    return make_account(ROOT, admin=True, first_seen_at=NOW - timedelta(days=30))
 
 
 @pytest.fixture
@@ -69,24 +60,10 @@ def bia(make_account) -> Account:
     return make_account(BIA)
 
 
-def reload(db_session, model: Any, *where: Any) -> Any:
-    db_session.rollback()
-    query = select(model).where(*where).execution_options(populate_existing=True)
-    return db_session.scalar(query)
-
-
-def user_of(db_session, user_id: int) -> User | None:
-    return reload(db_session, User, User.id == user_id)
-
-
 def admin_events(db_session) -> list[AuditLog]:
     db_session.rollback()
     names = [
         AuditEvent.ADMIN_VIEWED_HABITS,
-        AuditEvent.USER_BLOCKED,
-        AuditEvent.USER_UNBLOCKED,
-        AuditEvent.EMAIL_CHANGED,
-        AuditEvent.ACCOUNT_DELETED,
         AuditEvent.BANNER_CREATED,
         AuditEvent.BANNER_UPDATED,
         AuditEvent.BANNER_ENDED,
@@ -117,10 +94,6 @@ def test_admin_router_has_every_endpoint():
             [
                 ("GET", "/admin/users"),
                 ("GET", "/admin/users/{user_id}/habits"),
-                ("POST", "/admin/users/{user_id}/block"),
-                ("POST", "/admin/users/{user_id}/unblock"),
-                ("PATCH", "/admin/users/{user_id}/email"),
-                ("DELETE", "/admin/users/{user_id}"),
                 ("GET", "/admin/banners"),
                 ("POST", "/admin/banners"),
                 ("PATCH", "/admin/banners/{banner_id}"),
@@ -138,61 +111,24 @@ def test_common_user_gets_403_on_every_endpoint(client, db_session, root, ana, b
     assert response.status_code == 403
     assert response.json() == FORBIDDEN
     # Nada mudou
-    assert user_of(db_session, bia.user.id).is_active
-    assert count(db_session, UserSession, UserSession.user_id == bia.user.id) == 1
     assert admin_events(db_session) == []
 
 
 @pytest.mark.parametrize(("method", "path"), ADMIN_ROUTES)
-def test_without_session_gets_401_on_every_endpoint(client, method, path):
+def test_without_user_gets_401_on_every_endpoint(client, method, path):
     response = call(client, method, concrete(path, 1))
     assert response.status_code == 401
     assert response.json() == UNAUTHORIZED
 
 
-@pytest.mark.parametrize(("method", "path"), ADMIN_ROUTES)
-def test_admin_with_pending_terms_gets_403(client, make_account, ana, method, path):
-    old_terms = make_account(ROOT, is_admin=True, terms_version="2020-01")
-    response = call(client, method, concrete(path, ana.user.id), old_terms.headers)
-    assert response.status_code == 403
-    assert response.json() == {"error": "terms_not_accepted", "field": None}
+def test_admin_comes_only_from_the_header(client, root):
+    # A mesma pessoa, sem o X-User-Admin (o imago tirou o admin): 403 no request seguinte
+    assert client.get("/admin/users", headers=root.headers).status_code == 200
+    plain = identity_headers(root.user)
+    assert client.get("/admin/users", headers=plain).json() == FORBIDDEN
 
 
-def test_blocked_admin_cannot_use_the_panel(client, make_account):
-    blocked = make_account("old.root@example.com", is_admin=True, is_active=False)
-    response = client.get("/admin/users", headers=blocked.headers)
-    assert response.status_code == 401
-
-
-def test_writes_recheck_the_admin_inside_the_transaction(db_session, make_account, ana):
-    # Dois admins que se bloqueiam ao mesmo tempo: o segundo já não é admin ativo
-    first = make_account("first@example.com", is_admin=True)
-    second = make_account("second@example.com", is_admin=True)
-    accounts.block_account(db_session, admin_id=first.user.id, account_id=second.user.id, ip=None)
-    with pytest.raises(ApiError) as caught:
-        accounts.block_account(
-            db_session, admin_id=second.user.id, account_id=first.user.id, ip=None
-        )
-    assert (caught.value.status_code, caught.value.code) == (401, ErrorCode.UNAUTHORIZED)
-    assert user_of(db_session, first.user.id).is_active
-
-
-def test_lost_admin_cannot_write(db_session, make_account, ana):
-    former = make_account("former@example.com", is_admin=False)
-    with pytest.raises(ApiError) as caught:
-        accounts.unblock_account(
-            db_session, admin_id=former.user.id, account_id=ana.user.id, ip=None
-        )
-    assert (caught.value.status_code, caught.value.code) == (403, ErrorCode.FORBIDDEN)
-
-
-def test_ensure_admin_of_missing_account(db_session):
-    with write_transaction(db_session), pytest.raises(ApiError) as caught:
-        accounts.ensure_admin(db_session, 999)
-    assert caught.value.status_code == 401
-
-
-# --- listagem ---
+# --- quem usa o ethos ---
 
 
 def listed(client, root: Account, **params: Any) -> dict:
@@ -205,7 +141,8 @@ def emails(body: dict) -> list[str]:
     return [user["email"] for user in body["users"]]
 
 
-def test_list_shows_accounts_with_counts(client, db_session, root, ana, bia):
+def test_list_shows_app_users_with_counts(client, db_session, root, ana, make_account):
+    bia = make_account(BIA, locale="en", timezone="Europe/Lisbon")
     owned = new_habit(ana.user)
     archived = new_habit(ana.user, status="archived", archived_at=NOW)
     bias = new_habit(bia.user)
@@ -219,32 +156,29 @@ def test_list_shows_accounts_with_counts(client, db_session, root, ana, bia):
         new_mark(bias, NOW, user_id=ana.user.id),
         new_mark(owned, NOW - timedelta(days=2), user_id=bia.user.id),
     )
-    login_at = NOW - timedelta(hours=3)
-    db_session.rollback()
-    with write_transaction(db_session):
-        db_session.get(User, ana.user.id).last_login_at = login_at
 
     body = listed(client, root)
     assert body["next_cursor"] is None
-    # Mesma hora de criação (relógio parado): o id maior, criado depois, vem antes
+    # Mesmo primeiro acesso (relógio parado): o id maior, criado depois, vem antes
     assert emails(body) == [BIA, ANA, ROOT]
-    ana_out = body["users"][1]
-    assert ana_out == {
+    assert body["users"][1] == {
         "id": ana.user.id,
         "email": ANA,
-        "is_active": True,
-        "is_admin": False,
-        "timezone": "America/Sao_Paulo",
         "locale": "pt",
-        "created_at": iso(NOW),
-        "last_login_at": iso(login_at),
+        "timezone": "America/Sao_Paulo",
+        "first_seen_at": iso(NOW),
         "habit_count": 2,
         "mark_count": 3,
     }
-    assert body["users"][0]["habit_count"] == 1
-    assert body["users"][0]["mark_count"] == 1
-    assert body["users"][0]["last_login_at"] is None
-    assert body["users"][2]["is_admin"] is True
+    assert body["users"][0] | {"id": 0} == {
+        "id": 0,
+        "email": BIA,
+        "locale": "en",
+        "timezone": "Europe/Lisbon",
+        "first_seen_at": iso(NOW),
+        "habit_count": 1,
+        "mark_count": 1,
+    }
 
 
 def test_list_has_no_n_plus_one(client, db_session, root, make_account, selects):
@@ -312,56 +246,42 @@ def test_list_search_by_email(client, root, make_account):
     assert len(listed(client, root, email="  ")["users"]) == 5
 
 
-def test_list_filters_by_status(client, root, make_account):
-    make_account("blocked@example.com", is_active=False)
-    make_account("active@example.com")
-    assert emails(listed(client, root, status="blocked")) == ["blocked@example.com"]
-    assert emails(listed(client, root, status="active")) == ["active@example.com", ROOT]
-    response = client.get("/admin/users", params={"status": "x"}, headers=root.headers)
-    assert response.json() == invalid("status")
-
-
-def test_list_filters_by_dates_in_the_admin_timezone(client, root, make_account):
+def test_list_filters_by_first_access_in_the_admin_timezone(client, root, make_account):
     # 23:00 de 19/3 em São Paulo
     late = datetime(2026, 3, 20, 2, 0, tzinfo=UTC)
-    make_account("late@example.com", created_at=late, last_login_at=late)
-    make_account("next@example.com", created_at=late + timedelta(hours=2))
-    make_account("never@example.com", created_at=late - timedelta(days=5))
-    assert emails(listed(client, root, created_from="2026-03-20", created_to="2026-03-20")) == [
-        "next@example.com"
-    ]
-    assert emails(listed(client, root, created_to="2026-03-19")) == [
-        "late@example.com",
-        "never@example.com",
-    ]
-    assert emails(listed(client, root, created_from="2026-03-19", created_to="2026-03-19")) == [
-        "late@example.com"
-    ]
-    # Quem nunca entrou não passa em filtro de login
-    assert emails(listed(client, root, last_login_from="2000-01-01")) == ["late@example.com"]
-    assert emails(listed(client, root, last_login_to="2026-03-19")) == ["late@example.com"]
-    assert emails(listed(client, root, last_login_from="2026-03-20")) == []
+    make_account("late@example.com", first_seen_at=late)
+    make_account("next@example.com", first_seen_at=late + timedelta(hours=2))
+    make_account("old@example.com", first_seen_at=late - timedelta(days=5))
+    only_20 = listed(client, root, first_seen_from="2026-03-20", first_seen_to="2026-03-20")
+    assert emails(only_20) == ["next@example.com"]
+    until_19 = listed(client, root, first_seen_from="2026-03-01", first_seen_to="2026-03-19")
+    assert emails(until_19) == ["late@example.com", "old@example.com"]
+    only_19 = listed(client, root, first_seen_from="2026-03-19", first_seen_to="2026-03-19")
+    assert emails(only_19) == ["late@example.com"]
 
 
-@pytest.mark.parametrize(
-    ("first", "last"), [("created_from", "created_to"), ("last_login_from", "last_login_to")]
-)
-def test_list_refuses_inverted_ranges(client, root, first, last):
-    params = {first: "2026-03-20", last: "2026-03-19"}
+def test_list_refuses_inverted_ranges(client, root):
+    params = {"first_seen_from": "2026-03-20", "first_seen_to": "2026-03-19"}
     response = client.get("/admin/users", params=params, headers=root.headers)
     assert response.status_code == 422
-    assert response.json() == invalid(last)
+    assert response.json() == invalid("first_seen_to")
 
 
 @pytest.mark.parametrize("value", ["2026-3-1", "2026-02-30", "2026-03-01T00:00:00", "1"])
 def test_list_refuses_invalid_dates(client, root, value):
-    response = client.get("/admin/users", params={"created_from": value}, headers=root.headers)
-    assert response.json() == invalid("created_from")
+    response = client.get("/admin/users", params={"first_seen_from": value}, headers=root.headers)
+    assert response.json() == invalid("first_seen_from")
 
 
 def test_list_refuses_long_email_search(client, root):
     response = client.get("/admin/users", params={"email": "a" * 255}, headers=root.headers)
     assert response.json() == invalid("email")
+
+
+def test_list_ignores_removed_filters(client, root, make_account):
+    # status e datas de login eram do login próprio: agora são ignorados como qualquer parâmetro
+    make_account("x@example.com")
+    assert len(listed(client, root, status="blocked", last_login_from="2026-01-01")["users"]) == 2
 
 
 # --- conteúdo dos hábitos ---
@@ -411,8 +331,8 @@ def test_view_habits_records_the_access(client, db_session, root, ana):
     assert view(client, root, ana.user.id, habit_id=habit.id).status_code == 200
     rows = events(db_session, AuditEvent.ADMIN_VIEWED_HABITS)
     assert [(row.user_id, row.habit_id, row.ip, row.details) for row in rows] == [
-        (root.user.id, None, IP, {"target_user_id": ana.user.id}),
-        (root.user.id, None, IP, {"target_user_id": ana.user.id, "habit_id": habit.id}),
+        (root.user.id, None, None, {"target_user_id": ana.user.id}),
+        (root.user.id, None, None, {"target_user_id": ana.user.id, "habit_id": habit.id}),
     ]
 
 
@@ -433,9 +353,10 @@ def test_view_habits_filters_by_habit_and_paginates(client, db_session, root, an
     assert len(view(client, root, ana.user.id).json()["marks"]) == 4
 
 
-def test_view_habits_of_unknown_account_or_foreign_habit(client, db_session, root, ana, bia):
+def test_view_habits_of_unknown_user_or_foreign_habit(client, db_session, root, ana, bia):
     bias = new_habit(bia.user)
     save(db_session, bias)
+    # Quem nunca abriu o ethos (só no imago) também é 404
     response = view(client, root, 999)
     assert response.status_code == 404
     assert response.json() == NOT_FOUND
@@ -448,229 +369,10 @@ def test_view_habits_invalid_params(client, root, ana):
     assert view(client, root, ana.user.id, cursor="x").json() == invalid("cursor")
     assert view(client, root, ana.user.id, habit_id=0).json() == invalid("habit_id")
     assert view(client, root, ana.user.id, limit=MAX_PAGE_SIZE + 1).json() == invalid("limit")
-    response = client.get("/admin/users/0/habits", headers=root.headers)
-    assert response.json() == invalid("user_id")
-
-
-# --- bloquear e desbloquear ---
-
-
-def test_block_deletes_the_sessions(client, db_session, root, ana):
-    open_session(db_session, ana.user)
-    response = client.post(f"/admin/users/{ana.user.id}/block", headers=root.headers)
-    assert response.status_code == 200
-    assert response.json()["is_active"] is False
-    assert user_of(db_session, ana.user.id).is_active is False
-    assert count(db_session, UserSession, UserSession.user_id == ana.user.id) == 0
-    assert client.get("/auth/me", headers=ana.headers).status_code == 401
-    [row] = events(db_session, AuditEvent.USER_BLOCKED)
-    assert (row.user_id, row.ip, row.details) == (
-        root.user.id,
-        IP,
-        {"target_user_id": ana.user.id, "sessions": 2},
-    )
-    # De novo: nada muda e nada é gravado
-    assert client.post(f"/admin/users/{ana.user.id}/block", headers=root.headers).status_code == 200
-    assert len(events(db_session, AuditEvent.USER_BLOCKED)) == 1
-
-
-def test_blocked_gets_no_code_and_cannot_sign_in(client, outbox, clock, db_session, root, ana):
-    # Código pedido antes do bloqueio
-    assert client.post("/auth/code/request", json={"email": ANA}).status_code == 202
-    code = code_in(outbox.to(ANA)[-1])
-    client.post(f"/admin/users/{ana.user.id}/block", headers=root.headers)
-    verify = {"email": ANA, "code": code, "timezone": "America/Sao_Paulo", "locale": "pt"}
-    response = client.post("/auth/code/verify", json=verify)
-    assert response.status_code == 400
-    assert response.json() == {"error": "invalid_code", "field": "code"}
-    # Pedido novo: a mesma resposta de sempre, mas nenhum email
-    clock.shift(timedelta(minutes=2))
-    sent = len(outbox.messages)
-    response = client.post("/auth/code/request", json={"email": ANA})
-    assert (response.status_code, response.json()) == (202, CODE_REQUEST_ACCEPTED)
-    assert len(outbox.messages) == sent
-
-    # Desbloqueada, entra de novo
-    response = client.post(f"/admin/users/{ana.user.id}/unblock", headers=root.headers)
-    assert response.json()["is_active"] is True
-    clock.shift(timedelta(minutes=2))
-    client.post("/auth/code/request", json={"email": ANA})
-    verify["code"] = code_in(outbox.to(ANA)[-1])
-    assert client.post("/auth/code/verify", json=verify).status_code == 200
-    [row] = events(db_session, AuditEvent.USER_UNBLOCKED)
-    assert (row.user_id, row.details) == (root.user.id, {"target_user_id": ana.user.id})
-    # Desbloquear quem está ativo não grava
-    client.post(f"/admin/users/{ana.user.id}/unblock", headers=root.headers)
-    assert len(events(db_session, AuditEvent.USER_UNBLOCKED)) == 1
-
-
-def test_admin_cannot_block_itself(client, db_session, root, make_account):
-    make_account("other.root@example.com", is_admin=True)
-    response = client.post(f"/admin/users/{root.user.id}/block", headers=root.headers)
-    assert response.status_code == 409
-    assert response.json() == {"error": "cannot_block_self", "field": None}
-    assert user_of(db_session, root.user.id).is_active
-
-
-def test_admin_can_block_another_admin(client, db_session, root, make_account):
-    other = make_account("other.root@example.com", is_admin=True)
-    response = client.post(f"/admin/users/{other.user.id}/block", headers=root.headers)
-    assert response.json()["is_active"] is False
-    assert client.get("/admin/users", headers=other.headers).status_code == 401
-
-
-@pytest.mark.parametrize("action", ["block", "unblock"])
-def test_block_unknown_account(client, db_session, root, action):
-    response = client.post(f"/admin/users/999/{action}", headers=root.headers)
-    assert response.status_code == 404
-    assert response.json() == NOT_FOUND
-    assert admin_events(db_session) == []
-
-
-# --- troca de email ---
-
-
-def change(client, root: Account, user_id: int, new_email: Any):
-    return client.patch(
-        f"/admin/users/{user_id}/email", json={"new_email": new_email}, headers=root.headers
-    )
-
-
-def test_change_email_to_existing_email_changes_nothing(client, outbox, db_session, root, ana, bia):
-    for taken in (BIA, " BIA@example.com", ANA):
-        response = change(client, root, ana.user.id, taken)
-        assert response.status_code == 409
-        assert response.json() == {"error": "email_in_use", "field": "new_email"}
-    assert user_of(db_session, ana.user.id).email == ANA
-    assert count(db_session, UserSession, UserSession.user_id == ana.user.id) == 1
-    assert admin_events(db_session) == []
-    assert outbox.messages == []
-
-
-def test_change_email(client, outbox, clock, db_session, root, ana):
-    new = "ana.nova@example.com"
-    open_session(db_session, ana.user)
-    # Código pedido ao email antigo antes da troca
-    client.post("/auth/code/request", json={"email": ANA})
-    old_code = code_in(outbox.to(ANA)[-1])
-
-    response = change(client, root, ana.user.id, "  Ana.Nova@Example.COM ")
-    assert response.status_code == 200, response.json()
-    assert response.json()["email"] == new
-    assert user_of(db_session, ana.user.id).email == new
-    assert count(db_session, UserSession, UserSession.user_id == ana.user.id) == 0
-    assert client.get("/auth/me", headers=ana.headers).status_code == 401
-    [row] = events(db_session, AuditEvent.EMAIL_CHANGED)
-    assert (row.user_id, row.ip, row.details) == (
-        root.user.id,
-        IP,
-        {"target_user_id": ana.user.id, "old_email": ANA, "new_email": new, "sessions": 2},
-    )
-
-    # Dois avisos, um para cada email
-    [old_message] = [m for m in outbox.to(ANA) if "trocado" in m["Subject"]]
-    assert new in old_message.get_body(preferencelist=("plain",)).get_content()
-    [new_message] = outbox.to(new)
-    assert new_message["Subject"] == "Este é o novo email da sua conta do ethos"
-
-    # O código mandado ao email antigo não serve mais
-    verify = {"email": ANA, "code": old_code, "timezone": "UTC", "locale": "pt"}
-    assert client.post("/auth/code/verify", json=verify).status_code == 400
-    assert count(db_session, User, User.email == ANA) == 0
-    # O email novo entra na mesma conta
-    clock.shift(timedelta(minutes=2))
-    client.post("/auth/code/request", json={"email": new})
-    verify = {"email": new, "code": code_in(outbox.to(new)[-1]), "timezone": "UTC", "locale": "en"}
-    response = client.post("/auth/code/verify", json=verify)
-    assert response.json() == {"new_account": False}
-
-
-def test_change_email_expires_only_the_pending_codes_of_the_account(
-    client, outbox, db_session, root, ana, bia
-):
-    client.post("/auth/code/request", json={"email": ANA})
-    client.post("/auth/code/request", json={"email": BIA})
-    change(client, root, ana.user.id, "ana.nova@example.com")
-    db_session.rollback()
-    codes = {code.email: code for code in db_session.scalars(select(LoginCode))}
-    assert codes[ANA].expires_at == NOW
-    assert codes[BIA].expires_at > NOW
-
-
-def test_change_email_in_english(client, outbox, root, make_account):
-    en = make_account("en@example.com", locale="en")
-    change(client, root, en.user.id, "en2@example.com")
-    assert outbox.to("en@example.com")[0]["Subject"] == "Your ethos account email was changed"
-    assert outbox.to("en2@example.com")[0]["Subject"] == "This is now your ethos account email"
-
-
-@pytest.mark.parametrize("value", ["no-at", "", "a@b", None, 1, "x" * 250 + "@example.com"])
-def test_change_email_invalid(client, root, ana, value):
-    response = change(client, root, ana.user.id, value)
-    assert response.status_code == 422
-    assert response.json() == invalid("new_email")
-
-
-def test_change_email_refuses_unknown_fields(client, root, ana):
-    response = client.patch(
-        f"/admin/users/{ana.user.id}/email",
-        json={"new_email": "x@example.com", "email": "y@example.com"},
-        headers=root.headers,
-    )
-    assert response.json() == invalid("email")
-
-
-def test_change_email_of_unknown_account(client, outbox, db_session, root):
-    response = change(client, root, 999, "x@example.com")
-    assert response.status_code == 404
-    assert outbox.messages == []
-
-
-def test_deleting_the_account_scrubs_the_emails_of_the_change(client, db_session, root, ana):
-    ana_id = ana.user.id
-    change(client, root, ana_id, "ana.nova@example.com")
-    client.delete(f"/admin/users/{ana_id}", headers=root.headers)
-    [row] = events(db_session, AuditEvent.EMAIL_CHANGED)
-    assert row.details == {
-        "target_user_id": ana_id,
-        "old_email": None,
-        "new_email": None,
-        "sessions": 1,
-    }
-
-
-# --- exclusão ---
-
-
-def test_admin_deletes_an_account(client, outbox, db_session, root, ana, bia):
-    habit = new_habit(ana.user, name="Corrida")
-    save(db_session, habit)
-    save(db_session, new_member(habit, bia.user))
-    ana_id, root_id = ana.user.id, root.user.id
-    response = client.delete(f"/admin/users/{ana_id}", headers=root.headers)
-    assert response.status_code == 204
-    assert user_of(db_session, ana_id) is None
-    [row] = events(db_session, AuditEvent.ACCOUNT_DELETED)
-    assert (row.user_id, row.ip, row.details) == (
-        root_id,
-        IP,
-        {"account_id": ana_id, "by_admin": True},
-    )
-    assert [m["Subject"] for m in outbox.to(ANA)] == ["Sua conta do ethos foi excluída"]
-    assert len(outbox.to(BIA)) == 1
-
-
-def test_admin_deletes_unknown_account(client, root):
-    response = client.delete("/admin/users/999", headers=root.headers)
-    assert response.status_code == 404
-
-
-def test_last_admin_cannot_delete_itself(client, db_session, outbox, root):
-    response = client.delete(f"/admin/users/{root.user.id}", headers=root.headers)
-    assert response.status_code == 409
-    assert response.json() == {"error": "last_admin", "field": None}
-    assert user_of(db_session, root.user.id) is not None
-    assert outbox.messages == []
+    for user_id in (0, 2**53):
+        response = client.get(f"/admin/users/{user_id}/habits", headers=root.headers)
+        assert response.json() == invalid("user_id")
+    assert view(client, root, 2**53 - 1).json() == NOT_FOUND
 
 
 # --- banners ---
@@ -714,7 +416,7 @@ def test_create_banner(client, db_session, root):
         "updated_at": iso(NOW),
     }
     [row] = events(db_session, AuditEvent.BANNER_CREATED)
-    assert (row.user_id, row.ip) == (root.user.id, IP)
+    assert (row.user_id, row.ip) == (root.user.id, None)
     assert row.details == {
         "banner_id": body["id"],
         "text_pt": "<b>Oi</b> & tchau",
@@ -747,15 +449,17 @@ def test_banner_window(client, root):
     assert response.json() == invalid("ends_at")
 
 
-def test_active_banner_needs_no_login(client, make_client, settings, database, root):
+def test_active_banner_needs_no_login(client, make_client, app, root):
     banner = created(client, root)
-    anonymous = make_client(create_app(settings), origin=False)
+    anonymous = make_client(app, origin=False)
     shown = active(anonymous)
     assert shown == {
         key: banner[key] for key in ("id", "text_pt", "text_en", "starts_at", "ends_at")
     }
-    # Cookie inválido ou de sessão com termos pendentes não atrapalha
-    assert active(anonymous, headers=cookie("x"))["id"] == banner["id"]
+    # O cookie antigo do ethos não atrapalha (e sai apagado)
+    legacy = anonymous.get("/banners/active", headers={"Cookie": "__Host-ethos_session=x"})
+    assert legacy.json()["banner"]["id"] == banner["id"]
+    assert "Max-Age=0" in legacy.headers["set-cookie"]
 
 
 def test_banner_outside_the_window_does_not_appear(client, clock, root):
@@ -891,10 +595,16 @@ def test_list_banners(client, clock, root):
     assert response.json() == invalid("cursor")
 
 
-def test_banner_survives_the_deletion_of_its_author(client, db_session, root, make_account):
-    other = make_account("other.root@example.com", is_admin=True)
+def test_banner_survives_the_deletion_of_its_author(
+    client, make_client, app, db_session, root, make_account
+):
+    other = make_account("other.root@example.com", admin=True)
     banner = created(client, other)
-    client.delete(f"/admin/users/{other.user.id}", headers=root.headers)
+    # A conta do outro admin é excluída pelo imago, que chama a API interna do ethos
+    internal = make_client(app, origin=False)
+    headers = {"Authorization": f"Bearer {INTERNAL_TOKEN}"}
+    response = internal.post(f"/internal/users/{other.user.id}/delete", headers=headers)
+    assert response.status_code == 200
     body = client.get("/admin/banners", headers=root.headers).json()
     assert body["banners"][0]["id"] == banner["id"]
     assert body["banners"][0]["created_by"] is None

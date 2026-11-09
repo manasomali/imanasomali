@@ -1,5 +1,4 @@
 import { useId, useRef, useState } from 'react';
-import { Link } from 'react-router';
 import { Trans, useTranslation } from 'react-i18next';
 import { useAlert, useSaveAlert } from '../../api/alerts';
 import ErrorMessage from '../../components/ErrorMessage';
@@ -22,8 +21,13 @@ import {
 import { formatDateTime, formatShortDay, weekdayNames } from '../../lib/format';
 import { goalSummary, habitForm } from '../../lib/habitForm';
 import { formatMoney } from '../../lib/money';
-import { PATHS } from '../../paths';
+import { IMAGO_PATHS } from '../../paths';
 import styles from './styles.module.css';
+
+// O fuso fica na conta do imago (a conta única do manasomali.com): link comum, fora do app
+function AccountLink({ children }) {
+  return <a href={IMAGO_PATHS.account}>{children}</a>;
+}
 
 // Campos que um 422 da API pode apontar e que a tela mostra como inválidos
 const FORM_FIELDS = ['goal_enabled', 'cost_enabled', 'hour', 'frequency', 'weekday'];
@@ -204,7 +208,7 @@ function AlertForm({ habit, alert, timeZone }) {
                 <Trans
                   i18nKey="habit_alerts.time_zone"
                   values={{ timeZone }}
-                  components={{ account: <Link to={PATHS.account} /> }}
+                  components={{ account: <AccountLink /> }}
                 />
               </p>
               {fieldError('hour')}

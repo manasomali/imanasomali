@@ -7,7 +7,7 @@ hábitos pedidos (nada de uma consulta por hábito):
     evaluations = evaluate_habits(session, habits, ZoneInfo(user.timezone), now=utcnow())
     evaluations[habit.id].score
 
-O fuso é sempre o de quem vê (`users.timezone`), como no calendário.
+O fuso é sempre o de quem vê (o `X-User-Timezone`), como no calendário.
 """
 
 from collections.abc import Collection, Iterable

@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminKeys, createBanner, endBanner, updateBanner, useBanners } from '../../api/admin';
-import { useMe } from '../../api/auth';
+import { useMe } from '../../api/me';
 import { activeBannerQueryKey, useActiveBanner } from '../../api/banners';
 import ErrorMessage from '../../components/ErrorMessage';
 import PageTitle from '../../components/PageTitle';

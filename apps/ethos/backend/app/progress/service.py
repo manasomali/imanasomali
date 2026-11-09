@@ -1,6 +1,6 @@
 """Progresso dos hábitos num intervalo de datas: os dados do relatório e do export (ETH-23).
 
-Todo cálculo sai do `app/score.py`, no fuso de quem pede (`users.timezone`), como no calendário:
+Todo cálculo sai do `app/score.py`, no fuso de quem pede (`X-User-Timezone`), como no calendário:
 
 - `periods`: `score.summarize_periods` nos períodos da meta (`goal_period`) que tocam o intervalo.
   Cada período vem inteiro, com o valor e o gasto do período todo, mesmo que o intervalo comece
