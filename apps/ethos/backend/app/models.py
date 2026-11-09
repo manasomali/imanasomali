@@ -21,11 +21,9 @@ Convenções:
   de outras pessoas (`marks.user_id`, `audit_log.user_id`) e em `banners.created_by`. Depende do
   `PRAGMA foreign_keys=ON` que o `app/db.py` liga em toda conexão.
 - Legado do login próprio (antes do imago): as tabelas `sessions` e `login_codes` saíram na
-  migração 0006. A coluna `audit_log.ip` continua no banco (vazia) até a 0007, num deploy
-  seguinte; ela fica fora do mapeamento (`Unmapped`), para o rollback daquele deploy voltar para
-  este código sem a coluna. As chaves estrangeiras para `app_users` mantêm o nome de antes
-  do rename (`fk_<tabela>_<coluna>_users`, `user_fk`): no SQLite, renomear uma constraint exige
-  recriar a tabela inteira.
+  migração 0006, e a coluna `audit_log.ip` na 0007. As chaves estrangeiras para `app_users`
+  mantêm o nome de antes do rename (`fk_<tabela>_<coluna>_users`, `user_fk`): no SQLite,
+  renomear uma constraint exige recriar a tabela inteira.
 
 Qualquer mudança aqui vai junto com uma migração nova, escrita e revisada à mão; o teste de
 drift (tests/test_migrations.py) compara os dois.
@@ -50,7 +48,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, Unmapped, mapped_column, unmapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Mesmos idiomas do front e dos emails (app_users.locale)
 from app.mail.language import Locale
@@ -78,8 +76,6 @@ DEFAULT_SCORE_THRESHOLD = 70
 TIMEZONE_MAX_LENGTH = 64
 # Id de usuário do imago: inteiro de 1 a 2^53 - 1 (cabe num Number do javascript)
 MAX_USER_ID = 2**53 - 1
-# Tamanho da coluna legada `audit_log.ip`: IPv6 por extenso com IPv4 no fim
-IP_MAX_LENGTH = 45
 EVENT_MAX_LENGTH = 64
 
 
@@ -240,7 +236,6 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
     __table_args__ = (
         CheckConstraint(_max_length("event", EVENT_MAX_LENGTH), name="event_length"),
-        CheckConstraint(_max_length("ip", IP_MAX_LENGTH), name="ip_length"),
         CheckConstraint("json_valid(details)", name="details_json"),
         Index(None, "created_at"),
         # Anonimização na exclusão da conta
@@ -260,10 +255,6 @@ class AuditLog(Base):
     # Hábito a que o evento se refere: apagar o hábito apaga a auditoria dele junto
     habit_id: Mapped[int | None] = mapped_column(ForeignKey("habits.id", ondelete="CASCADE"))
     event: Mapped[str] = mapped_column(String(EVENT_MAX_LENGTH))
-    # LEGADO: sempre NULL (o ethos não grava IP; a migração 0005 apagou os que havia). A coluna sai
-    # na 0007, e o rollback daquele deploy volta para este código: por isso ela está na tabela
-    # (para o teste de drift) mas não no mapeamento, e nenhum INSERT ou SELECT do ORM a cita
-    ip: Unmapped[str | None] = unmapped_column(String(IP_MAX_LENGTH))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, server_default=text("'{}'"))
     # `details.mark_id` dos eventos de marcação, calculado pelo SQLite (coluna VIRTUAL: não ocupa
