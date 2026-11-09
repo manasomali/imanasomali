@@ -1,14 +1,16 @@
 # Config do site (infra/nginx/site.conf) e as rotas de cada aplicação: infra/apps/<nome>/nginx.conf
 # em /etc/nginx/apps.d/<nome>.conf (dentro do server 443) e nginx-http.conf, se existir, em
-# /etc/nginx/conf.d/<nome>.conf (contexto http), com __PORTA__ trocado pelo PORT do app.conf.
+# /etc/nginx/conf.d/<nome>.conf (contexto http), com __PORTA__ trocado pelo PORT do app.conf. Um
+# desses arquivos que sai do repo (a aplicação continua) sai também do nginx.
 # Tudo de uma vez: se o nginx -t falhar, todos os arquivos voltam ao que eram e o provision para.
-# Usa read_apps e valid_port de lib/apps.sh.
+# Usa read_apps e valid_port de lib/apps.sh. A aplicação que sai inteira de infra/apps/ é tirada do
+# nginx pelo remove_old_apps (lib/apps.sh).
 
 NGINX_SITE=/etc/nginx/sites-available/default
 
 provision_nginx() {
   local tmp apps name file dir port i ts
-  local -a srcs=() dests=() changed=()
+  local -a srcs=() dests=() changed=() removed=()
 
   install -d -m 0755 -o root -g root /etc/nginx/apps.d
   tmp=$(mktemp -d)
@@ -25,12 +27,18 @@ provision_nginx() {
       die "PORT inválido em infra/apps/$name/app.conf: '$port' (1024 a 65535)"
     fi
     for file in nginx.conf nginx-http.conf; do
-      [[ -f $INFRA_DIR/apps/$name/$file ]] || continue
+      dir=/etc/nginx/apps.d
+      [[ $file == nginx-http.conf ]] && dir=/etc/nginx/conf.d
+      if [[ ! -f $INFRA_DIR/apps/$name/$file ]]; then
+        # Saiu do repo: sai do nginx na mesma troca (ex.: a zona de rate limit com a location que a usa)
+        if [[ -f $dir/$name.conf ]]; then
+          removed+=("$dir/$name.conf")
+        fi
+        continue
+      fi
       if [[ -z $port ]] && grep -q __PORTA__ "$INFRA_DIR/apps/$name/$file"; then
         die "infra/apps/$name/$file usa __PORTA__, mas infra/apps/$name/app.conf não tem PORT"
       fi
-      dir=/etc/nginx/apps.d
-      [[ $file == nginx-http.conf ]] && dir=/etc/nginx/conf.d
       sed "s/__PORTA__/$port/g" "$INFRA_DIR/apps/$name/$file" > "$tmp/$name-$file"
       srcs+=("$tmp/$name-$file")
       dests+=("$dir/$name.conf")
@@ -47,8 +55,12 @@ provision_nginx() {
     install -m 0644 -o root -g root "${srcs[$i]}" "${dests[$i]}"
     changed+=("$i")
   done
+  for i in "${!removed[@]}"; do
+    cp -p "${removed[$i]}" "$tmp/removido-$i"
+    rm -f "${removed[$i]}"
+  done
 
-  if ((${#changed[@]} == 0)); then
+  if ((${#changed[@]} == 0 && ${#removed[@]} == 0)); then
     rm -rf "$tmp"
     systemctl is-active --quiet nginx || systemctl start nginx
     return 0
@@ -62,11 +74,14 @@ provision_nginx() {
         rm -f "${dests[$i]}"
       fi
     done
+    for i in "${!removed[@]}"; do
+      cp -p "$tmp/removido-$i" "${removed[$i]}"
+    done
     rm -rf "$tmp"
     die "nginx -t falhou com a config nova; todos os arquivos anteriores foram restaurados"
   fi
 
-  # Cópia de cada arquivo substituído, para comparar ou voltar à mão
+  # Cópia de cada arquivo substituído ou tirado, para comparar ou voltar à mão
   install -d -m 0700 /var/backups/infra
   ts=$(date -u +%Y%m%dT%H%M%SZ)
   for i in "${changed[@]}"; do
@@ -75,6 +90,11 @@ provision_nginx() {
         "/var/backups/infra/nginx-$(basename "$(dirname "${dests[$i]}")")-$(basename "${dests[$i]}").$ts"
     fi
     log "atualizado: ${dests[$i]}"
+  done
+  for i in "${!removed[@]}"; do
+    cp -p "$tmp/removido-$i" \
+      "/var/backups/infra/nginx-$(basename "$(dirname "${removed[$i]}")")-$(basename "${removed[$i]}").$ts"
+    log "removido do nginx: ${removed[$i]} (cópia em /var/backups/infra)"
   done
   rm -rf "$tmp"
 

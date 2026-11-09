@@ -12,7 +12,7 @@ Type=oneshot
 User=app-ethos
 Group=app-ethos
 WorkingDirectory=/opt/apps/ethos
-EnvironmentFile=/etc/infra/smtp.env
+# Os alertas saem pelo imago (POST /internal/mail), com o token do ethos
 EnvironmentFile=/etc/infra/internal/ethos.env
 EnvironmentFile=/etc/infra/apps/ethos.env
 Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1

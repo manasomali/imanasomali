@@ -39,6 +39,15 @@ CI also runs `nginx -t` against `infra/nginx/site.conf` in an `nginx:1.24` conta
 - ESLint includes `jsx-a11y`, and `react/prop-types` is off.
 - SEO metadata (Open Graph, Twitter, JSON-LD Person) is static in `site/index.html`. `site/public/sitemap.xml` is maintained by hand, so update it when you add a route.
 
+## Login and apps (`apps/imago/`)
+
+Apps have no login of their own. imago (`/imago/`, API at `/api/imago/`) owns accounts, sessions, the terms, account deletion and every email; `imago-plan.md` is the design and `apps/imago/README.md` the reference.
+
+- For each request to `/api/<app>/`, nginx asks imago who the user is (`auth_request /_imago/session`) and passes the answer as `X-User-Id`, `X-User-Email`, `X-User-Locale`, `X-User-Timezone` and `X-User-Admin`. Apps trust those headers only because their backends listen on `127.0.0.1`. Every nginx `location` that reaches an app backend must set all five (empty outside `auth_request`, e.g. `/health`), or a header sent by the browser would reach the app; CI checks this for every app.
+- imago and each app talk over an internal API on `127.0.0.1` (`/internal/*`, 404 through nginx), with one token per app generated on the VM by the provision (`/etc/infra/internal/<app>.env`, never in GitHub). An app never calls another app's internal API.
+- A new app goes in imago's `IMAGO_APPS` (`infra/apps/imago/app.env`) with its texts in imago's `translation.json`, and implements `POST /internal/users/{id}/delete` and `/refresh`; `.github/scripts/check-imago-apps.sh` checks the list, the ports and the texts.
+- To run an app locally with login, use the dev nginx in `apps/imago/dev/` (Docker); there is no login shortcut, not even in dev.
+
 ## Deploy
 
 - **Website** (`.github/workflows/deploy.yaml`): pushes and PRs that touch `site/**`, `packages/**` or the workflow itself run `npm ci`, `npm run lint` and `npm run build` in `site/` on Node 22. A push to `main` then rsyncs `site/dist/` to `/var/www/html/` with `--delete`.
