@@ -25,11 +25,11 @@ check() {
 # Como check, para o que depende de uma aplicação no ar. Logo depois de um start ou restart (pelo
 # start_app_units do provision ou por um deploy dela rodando ao mesmo tempo), ela ainda não
 # responde: a unit fica em "activating" durante a migração (ExecStartPre) e o uvicorn importa o
-# código antes de abrir a porta, o que leva vários segundos na VM de 1 GB. Tenta de novo a cada
-# segundo por até APP_WAIT_SECS (mais a duração da última tentativa), mais ou menos o que o health
-# check dos deploys espera. No ar, passa na primeira tentativa, sem espera; se não responder nesse
-# tempo, falha com a mesma mensagem do check
-APP_WAIT_SECS=30
+# código antes de abrir a porta. Na VM de 1 GB, em 2026-11-09, só os imports do Python levaram ~10 s
+# e o uvicorn ainda não respondia 11 s depois de o systemctl start voltar. Tenta de novo a cada
+# segundo por até APP_WAIT_SECS (mais a duração da última tentativa). No ar, passa na primeira
+# tentativa, sem espera; se não responder nesse tempo, falha com a mesma mensagem do check
+APP_WAIT_SECS=60
 check_app() {
   local desc=$1 start=$SECONDS tries=1
   shift
