@@ -22,6 +22,33 @@ check() {
   fi
 }
 
+# Como check, para o que depende de uma aplicação no ar. Logo depois de um start ou restart (pelo
+# start_app_units do provision ou por um deploy dela rodando ao mesmo tempo), ela ainda não
+# responde: a unit fica em "activating" durante a migração (ExecStartPre) e o uvicorn importa o
+# código antes de abrir a porta. Na VM de 1 GB, em 2026-11-09, só os imports do Python levaram ~10 s
+# e o uvicorn ainda não respondia 11 s depois de o systemctl start voltar. Tenta de novo a cada
+# segundo por até APP_WAIT_SECS (mais a duração da última tentativa). No ar, passa na primeira
+# tentativa, sem espera; se não responder nesse tempo, falha com a mesma mensagem do check
+APP_WAIT_SECS=60
+check_app() {
+  local desc=$1 start=$SECONDS tries=1
+  shift
+  until "$@" >/dev/null 2>&1; do
+    if ((SECONDS - start >= APP_WAIT_SECS)); then
+      log "FALHOU $desc"
+      failures=$((failures + 1))
+      return 0
+    fi
+    sleep 1
+    tries=$((tries + 1))
+  done
+  if ((tries > 1)); then
+    log "ok     $desc (na tentativa $tries, depois de $((SECONDS - start)) s)"
+  else
+    log "ok     $desc"
+  fi
+}
+
 owner_is() { [[ $(stat -c %U "$1") == "$2" ]]; }
 secret_file_ok() { [[ -f $1 && ! -L $1 && $(stat -c '%U:%G %a' "$1") == "root:root 600" ]]; }
 sql_is() { [[ $(runuser -u "$1" -- sqlite3 "$2" "$3") == "$4" ]]; }
@@ -71,7 +98,7 @@ for manifest in "$INFRA_STATE_DIR"/apps/*.units; do
   name=$(basename "$manifest" .units)
   [[ -f /etc/nginx/apps.d/$name.conf && -f /var/www/$name/index.html ]] || continue
   check "$name: /$name/ serve o frontend da aplicação" app_serves_index "$name"
-  check "$name: /api/$name/health responde 200 com JSON" app_health_ok "$name"
+  check_app "$name: /api/$name/health responde 200 com JSON" app_health_ok "$name"
 done
 
 # A API das aplicações com auth_request pergunta ao imago quem é o usuário: sem ele no ar, responde
@@ -81,7 +108,7 @@ for conf in /etc/nginx/apps.d/*.conf; do
   grep -qE '^[[:space:]]*auth_request[[:space:]]+/_imago/session;' "$conf" || continue
   name=$(basename "$conf" .conf)
   if [[ -e /opt/apps/$IMAGO_APP/.venv/bin/uvicorn ]]; then
-    check "$name: app-$IMAGO_APP no ar (auth_request da API)" systemctl is-active --quiet "app-$IMAGO_APP"
+    check_app "$name: app-$IMAGO_APP no ar (auth_request da API)" systemctl is-active --quiet "app-$IMAGO_APP"
   else
     warn "$name: a API pergunta ao $IMAGO_APP quem é o usuário, mas ele ainda não foi publicado: responde 500 até o deploy dele"
   fi
