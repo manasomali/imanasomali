@@ -165,10 +165,9 @@ def test_invite_with_account(client, ana, bia, habit_id, imago, db_session):
         NOW,
     )
     [entry] = events(db_session, AuditEvent.INVITE_CREATED)
-    assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
+    assert (entry.user_id, entry.habit_id, entry.details) == (
         ana.user.id,
         habit_id,
-        None,
         {"invite_id": row.id, "role": "viewer"},
     )
     # O imago foi perguntado pelo email normalizado, no corpo
@@ -633,10 +632,9 @@ def test_accept_makes_member_and_removes_invite(client, ana, bia, habit_id, db_s
     assert members(db_session, habit_id) == {bia.user.id: "viewer"}
     assert pending(db_session, habit_id) == []
     [entry] = events(db_session, AuditEvent.INVITE_ACCEPTED)
-    assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
+    assert (entry.user_id, entry.habit_id, entry.details) == (
         bia.user.id,
         habit_id,
-        None,
         {"invite_id": invite_id, "role": "viewer"},
     )
     habits = client.get("/habits", headers=bia.headers).json()["habits"]
@@ -676,10 +674,9 @@ def test_cancel_removes_invite(client, ana, bia, habit_id, db_session):
     assert response.status_code == 204
     assert pending(db_session, habit_id) == []
     [entry] = events(db_session, AuditEvent.INVITE_CANCELED)
-    assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
+    assert (entry.user_id, entry.habit_id, entry.details) == (
         ana.user.id,
         habit_id,
-        None,
         {"invite_id": invite_id, "role": "editor"},
     )
     assert accept(client, bia, invite_id).json() == NOT_FOUND
@@ -851,10 +848,9 @@ def test_leave_keeps_marks_and_drops_alerts(client, ana, bia, habit_id, busy, db
     assert alerts(db_session, bia.user.id) == [busy]
     assert alerts(db_session, ana.user.id) == [habit_id]
     [entry] = events(db_session, AuditEvent.MEMBER_LEFT)
-    assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
+    assert (entry.user_id, entry.habit_id, entry.details) == (
         bia.user.id,
         habit_id,
-        None,
         {"role": "editor"},
     )
     assert client.get(f"/habits/{habit_id}", headers=bia.headers).json() == NOT_FOUND
@@ -876,10 +872,9 @@ def test_remove_member_keeps_marks_and_drops_alerts(client, ana, bia, habit_id, 
     assert alerts(db_session, bia.user.id) == [busy]
     assert alerts(db_session, ana.user.id) == [habit_id]
     [entry] = events(db_session, AuditEvent.MEMBER_REMOVED)
-    assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
+    assert (entry.user_id, entry.habit_id, entry.details) == (
         ana.user.id,
         habit_id,
-        None,
         {"member_id": bia.user.id, "role": "editor"},
     )
     again = client.delete(f"/habits/{habit_id}/members/{bia.user.id}", headers=ana.headers)
@@ -912,10 +907,9 @@ def test_demote_editor_drops_alerts(client, ana, bia, habit_id, busy, db_session
     assert alerts(db_session, bia.user.id) == [busy]
     assert alerts(db_session, ana.user.id) == [habit_id]
     [entry] = events(db_session, AuditEvent.MEMBER_ROLE_CHANGED)
-    assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
+    assert (entry.user_id, entry.habit_id, entry.details) == (
         ana.user.id,
         habit_id,
-        None,
         {
             "member_id": bia.user.id,
             "changes": [{"field": "role", "old": "editor", "new": "viewer"}],

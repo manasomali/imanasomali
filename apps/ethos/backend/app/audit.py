@@ -21,7 +21,7 @@ Regras:
 - `event`: só os da lista fechada `AuditEvent`. Os eventos de login e de conta são do imago: o
   ethos guarda a auditoria dos hábitos, das marcações, do compartilhamento, dos alertas e do admin.
 - `user_id`: quem fez. `None` em evento sem autor (sistema) ou quando o autor não existe mais.
-- Sem IP: o ethos não grava IP (a coluna `audit_log.ip` é legado, vazia).
+- Sem IP: o ethos não grava IP (a coluna `audit_log.ip` é legado, vazia, e sai na migração 0007).
 - `details`: dicionário JSON com o que mudou, pequeno (`MAX_DETAILS_LENGTH`). São recusados:
   valores que não são JSON (datetime, set, bytes, float infinito...), chaves que não são texto e
   qualquer chave, em qualquer nível, cujo nome contém code, token, cookie, password, secret etc.

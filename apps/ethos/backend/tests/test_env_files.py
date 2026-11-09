@@ -2,12 +2,8 @@
 
 Lê os arquivos do repo: o workflow do ethos roda também quando o app.env muda.
 
-- O `.env.example` tem exatamente as variáveis do `app.env` (config não secreta, versionada) mais
-  as do `/etc/infra/internal/ethos.env` (`INTERNAL_API_TOKEN`, gerado pelo provision na VM).
-- Até o PR de infra B da ETH-64, o `app.env` ainda traz as variáveis do login próprio de antes do
-  imago (`LEGACY_ENV_VARS`), que o ethos ignora. Elas são toleradas no `app.env`, mas nunca no
-  `.env.example` nem no `Settings`: o teste passa com e sem elas. Depois do PR B, num deploy
-  seguinte do ethos, `LEGACY_ENV_VARS` sai daqui (e o teste volta a exigir igualdade estrita).
+O `.env.example` tem exatamente as variáveis do `app.env` (config não secreta, versionada) mais as
+do `/etc/infra/internal/ethos.env` (`INTERNAL_API_TOKEN`, gerado pelo provision na VM).
 """
 
 from pathlib import Path
@@ -23,17 +19,6 @@ APP_ENV = REPO / "infra" / "apps" / "ethos" / "app.env"
 
 # Do /etc/infra/internal/ethos.env (0600 root), fora do git
 INTERNAL_ENV_VARS = frozenset({"INTERNAL_API_TOKEN"})
-# Do login próprio de antes do imago: o PR de infra B as tira do app.env. TIRAR esta lista num
-# deploy seguinte, depois do PR B
-LEGACY_ENV_VARS = frozenset(
-    {
-        "EMAIL_BACKEND",
-        "MAIL_FROM",
-        "SUPPORT_EMAIL",
-        "MAX_CODE_EMAILS_PER_HOUR",
-        "MAX_CODE_EMAILS_PER_DAY",
-    }
-)
 TOKEN = "x" * 43
 
 
@@ -58,14 +43,9 @@ def parse_env(content: str, name: str) -> dict[str, str]:
     return values
 
 
-def expected_example(app_env: set[str]) -> set[str]:
-    """Os nomes que o .env.example tem que ter para um app.env com estes nomes."""
-    return (app_env - LEGACY_ENV_VARS) | INTERNAL_ENV_VARS
-
-
 def test_env_example_matches_app_env():
     example = set(read_env(ENV_EXAMPLE))
-    expected = expected_example(set(read_env(APP_ENV)))
+    expected = set(read_env(APP_ENV)) | INTERNAL_ENV_VARS
 
     assert sorted(example - expected) == [], "no .env.example e fora do app.env"
     assert sorted(expected - example) == [], "no app.env e fora do .env.example"
@@ -73,11 +53,6 @@ def test_env_example_matches_app_env():
 
 def test_env_example_has_every_setting():
     assert set(read_env(ENV_EXAMPLE)) == set(ENV_VARS)
-
-
-def test_legacy_variables_are_not_settings():
-    assert not LEGACY_ENV_VARS & set(ENV_VARS)
-    assert not LEGACY_ENV_VARS & set(read_env(ENV_EXAMPLE))
 
 
 def test_app_env_has_no_secrets():
@@ -99,16 +74,6 @@ def test_env_example_works_for_local_development():
 
     assert settings.is_dev
     assert settings.imago_internal_url == "http://127.0.0.1:3003"
-
-
-@pytest.mark.parametrize("with_legacy", [True, False])
-def test_both_app_env_shapes_match_the_example(with_legacy):
-    # O app.env do PR de infra A (com as antigas) e o do PR B (sem elas)
-    app_env = set(ENV_VARS) - INTERNAL_ENV_VARS
-    if with_legacy:
-        app_env |= LEGACY_ENV_VARS
-
-    assert expected_example(app_env) == set(read_env(ENV_EXAMPLE))
 
 
 @pytest.mark.parametrize(

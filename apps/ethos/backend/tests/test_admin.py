@@ -330,9 +330,9 @@ def test_view_habits_records_the_access(client, db_session, root, ana):
     assert view(client, root, ana.user.id).status_code == 200
     assert view(client, root, ana.user.id, habit_id=habit.id).status_code == 200
     rows = events(db_session, AuditEvent.ADMIN_VIEWED_HABITS)
-    assert [(row.user_id, row.habit_id, row.ip, row.details) for row in rows] == [
-        (root.user.id, None, None, {"target_user_id": ana.user.id}),
-        (root.user.id, None, None, {"target_user_id": ana.user.id, "habit_id": habit.id}),
+    assert [(row.user_id, row.habit_id, row.details) for row in rows] == [
+        (root.user.id, None, {"target_user_id": ana.user.id}),
+        (root.user.id, None, {"target_user_id": ana.user.id, "habit_id": habit.id}),
     ]
 
 
@@ -416,7 +416,7 @@ def test_create_banner(client, db_session, root):
         "updated_at": iso(NOW),
     }
     [row] = events(db_session, AuditEvent.BANNER_CREATED)
-    assert (row.user_id, row.ip) == (root.user.id, None)
+    assert row.user_id == root.user.id
     assert row.details == {
         "banner_id": body["id"],
         "text_pt": "<b>Oi</b> & tchau",

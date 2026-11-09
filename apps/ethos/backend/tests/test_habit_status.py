@@ -122,10 +122,9 @@ def test_pause_and_resume(client, ana, db_session, clock):
     assert stored(db_session, habit["id"]).status == "paused"
     assert pauses(db_session, habit["id"]) == [(NOW, None)]
     [entry] = events(db_session, AuditEvent.HABIT_PAUSED)
-    assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
+    assert (entry.user_id, entry.habit_id, entry.details) == (
         ana.user.id,
         habit["id"],
-        None,
         {},
     )
 
@@ -136,7 +135,7 @@ def test_pause_and_resume(client, ana, db_session, clock):
     assert resumed["updated_at"] == "2026-03-27T12:00:00Z"
     assert pauses(db_session, habit["id"]) == [(NOW, NOW + timedelta(days=2))]
     [entry] = events(db_session, AuditEvent.HABIT_RESUMED)
-    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], None)
+    assert (entry.user_id, entry.habit_id) == (ana.user.id, habit["id"])
 
 
 def test_pause_twice_keeps_one_open_interval(client, ana, db_session, clock):
@@ -258,10 +257,9 @@ def test_archive_and_unarchive(client, ana, db_session, clock):
     stored_habit = stored(db_session, habit["id"])
     assert (stored_habit.status, stored_habit.archived_at) == ("archived", NOW)
     [entry] = events(db_session, AuditEvent.HABIT_ARCHIVED)
-    assert (entry.user_id, entry.habit_id, entry.ip, entry.details) == (
+    assert (entry.user_id, entry.habit_id, entry.details) == (
         ana.user.id,
         habit["id"],
-        None,
         {},
     )
 
@@ -272,7 +270,7 @@ def test_archive_and_unarchive(client, ana, db_session, clock):
     # O tempo arquivado (sem poder marcar) vira pausa: não conta como meta não cumprida
     assert pauses(db_session, habit["id"]) == [(NOW, NOW + timedelta(days=10))]
     [entry] = events(db_session, AuditEvent.HABIT_UNARCHIVED)
-    assert (entry.user_id, entry.habit_id, entry.ip) == (ana.user.id, habit["id"], None)
+    assert (entry.user_id, entry.habit_id) == (ana.user.id, habit["id"])
 
 
 def test_unarchive_in_the_same_instant_records_no_pause(client, ana, db_session):

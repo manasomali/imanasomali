@@ -24,12 +24,13 @@ APP_TABLES = {
     "habit_members",
     "habit_pauses",
     "habits",
-    "login_codes",
     "marks",
-    "sessions",
 }
+# As tabelas do login próprio de antes do imago, vazias desde a 0005: saem na 0006
+LEGACY_TABLES = {"login_codes", "sessions"}
+TABLES_0005 = APP_TABLES | LEGACY_TABLES
 # As tabelas até a 0004 (o login próprio, antes do imago)
-TABLES_0004 = APP_TABLES - {"app_users"} | {"users"}
+TABLES_0004 = TABLES_0005 - {"app_users"} | {"users"}
 
 
 @pytest.fixture
@@ -79,7 +80,7 @@ def schema_snapshot(path: Path) -> dict[str, Any]:
     try:
         inspector = inspect(engine)
         tables: dict[str, Any] = {}
-        for table in sorted(set(inspector.get_table_names()) & (APP_TABLES | TABLES_0004)):
+        for table in sorted(set(inspector.get_table_names()) & (TABLES_0005 | TABLES_0004)):
             tables[table] = {
                 "columns": [
                     (
@@ -546,7 +547,7 @@ def test_0005_moves_the_accounts_to_app_users_with_the_same_ids(db_path, make_al
     ]
     assert {table: rows(db_path, sql) for table, sql in LINKED.items()} == before
     assert rows(db_path, "PRAGMA foreign_key_check") == []
-    assert table_names(db_path) == APP_TABLES | {"alembic_version"}
+    assert table_names(db_path) == TABLES_0005 | {"alembic_version"}
     # Auditoria: só a dos hábitos e do admin, sem nenhum IP
     assert rows(db_path, "SELECT event, user_id FROM audit_log ORDER BY id") == [
         ("habit_created", ANA),
@@ -629,3 +630,78 @@ def test_0005_downgrade_restores_the_0004_schema(db_path, make_alembic_config):
         connection.execute("PRAGMA foreign_keys = ON")
         insert_user(connection)
         assert insert_habit(connection, "teal") == 1
+
+
+# --- 0006: saem as tabelas do login próprio ---------------------------------------------------
+
+# O que sobra do ethos de antes do imago depois da 0005: tem que sair igual da 0006
+KEPT = {
+    **LINKED,
+    "app_users": "SELECT * FROM app_users ORDER BY user_id",
+    "audit_log": "SELECT id, user_id, habit_id, event, ip, created_at, details FROM audit_log",
+}
+
+
+def test_0006_drops_the_legacy_login_tables(db_path, make_alembic_config):
+    config = ethos_before_imago(db_path, make_alembic_config)
+    command.upgrade(config, "0005")
+    before = {table: rows(db_path, sql) for table, sql in KEPT.items()}
+    sequences = rows(db_path, "SELECT name, seq FROM sqlite_sequence ORDER BY name")
+    # O código gravado antes da 0005 (e apagado por ela) deixou o contador de login_codes em 1
+    assert ("login_codes", 1) in sequences
+
+    command.upgrade(config, "0006")
+
+    assert current_revision(db_path) == "0006"
+    assert table_names(db_path) == APP_TABLES | {"alembic_version"}
+    assert {table: rows(db_path, sql) for table, sql in KEPT.items()} == before
+    assert rows(db_path, "PRAGMA foreign_key_check") == []
+    # Índices e contador saem com as tabelas; os outros contadores não mudam
+    leftovers = rows(
+        db_path,
+        "SELECT name FROM sqlite_master WHERE name LIKE '%sessions%' OR name LIKE '%login_codes%'",
+    )
+    assert leftovers == []
+    assert rows(db_path, "SELECT name, seq FROM sqlite_sequence ORDER BY name") == [
+        row for row in sequences if row[0] != "login_codes"
+    ]
+
+
+def test_0006_on_the_database_of_a_fresh_install(db_path, make_alembic_config):
+    # Instalação nova: a 0006 roda logo depois da 0005, sem nenhuma linha
+    config = make_alembic_config(db_path)
+    command.upgrade(config, "0006")
+
+    assert table_names(db_path) == APP_TABLES | {"alembic_version"}
+
+
+def test_0006_downgrade_restores_the_0005_schema(db_path, make_alembic_config):
+    config = make_alembic_config(db_path)
+    command.upgrade(config, "0005")
+    before = schema_snapshot(db_path)
+
+    command.upgrade(config, "0006")
+    command.downgrade(config, "0005")
+
+    assert schema_snapshot(db_path) == before
+    assert set(before["tables"]) == TABLES_0005
+    # As chaves recriadas apontam para app_users e apagam junto com a conta
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute(
+            "INSERT INTO app_users VALUES (?, 'ana@example.com', 'pt', 'UTC', ?, ?)",
+            (ANA, T2, T2),
+        )
+        connection.execute(
+            "INSERT INTO sessions (token_hash, user_id, created_at, expires_at, last_seen_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            ("a" * 64, ANA, T2, T2, T2),
+        )
+        connection.execute(
+            "INSERT INTO login_codes (email, user_id, purpose, code_hash, expires_at, created_at) "
+            "VALUES ('ana@example.com', ?, 'login', ?, ?, ?)",
+            (ANA, "b" * 64, T2, T2),
+        )
+        connection.execute("DELETE FROM app_users WHERE user_id = ?", (ANA,))
+    assert rows(db_path, "SELECT count(*) FROM sessions") == [(0,)]
+    assert rows(db_path, "SELECT count(*) FROM login_codes") == [(0,)]

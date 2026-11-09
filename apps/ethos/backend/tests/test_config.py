@@ -13,7 +13,7 @@ from app.config import (
 from app.main import create_app
 
 TOKEN = "token-que-nao-pode-vazar-0123456789abcdefgh"  # noqa: S105 (token falso do teste)
-# As variáveis do login próprio de antes do imago, que o app.env só perde no PR de infra B
+# As variáveis do login próprio de antes do imago (podem sobrar num .env antigo)
 LEGACY = {
     "EMAIL_BACKEND": "smtp",
     "MAIL_FROM": "ethos <no-reply@exemplo.com>",
@@ -82,7 +82,7 @@ def test_env_vars_are_the_fields():
 
 
 def test_legacy_variables_are_ignored(environ):
-    # Até o PR de infra B, o app.env ainda traz as do login próprio (e o smtp.env pode sobrar)
+    # Variável que o Settings não tem é ignorada, mesmo com um valor que ele recusaria
     assert load_settings(environ | LEGACY) == load_settings(environ)
 
 

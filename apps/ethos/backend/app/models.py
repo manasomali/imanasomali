@@ -20,10 +20,11 @@ Convenções:
 - Exclusão: `ON DELETE CASCADE` no que é do usuário e do hábito; `SET NULL` na autoria em dados
   de outras pessoas (`marks.user_id`, `audit_log.user_id`) e em `banners.created_by`. Depende do
   `PRAGMA foreign_keys=ON` que o `app/db.py` liga em toda conexão.
-- Legado do login próprio (antes do imago): as tabelas `sessions` e `login_codes` e a coluna
-  `audit_log.ip` continuam no banco (vazias) até a migração do deploy seguinte, que as apaga. O
-  app não as lê nem grava. As chaves estrangeiras para `app_users` mantêm o nome de antes do
-  rename (`fk_<tabela>_<coluna>_users`, `user_fk`): no SQLite, renomear uma constraint exige
+- Legado do login próprio (antes do imago): as tabelas `sessions` e `login_codes` saíram na
+  migração 0006. A coluna `audit_log.ip` continua no banco (vazia) até a 0007, num deploy
+  seguinte; ela fica fora do mapeamento (`Unmapped`), para o rollback daquele deploy voltar para
+  este código sem a coluna. As chaves estrangeiras para `app_users` mantêm o nome de antes
+  do rename (`fk_<tabela>_<coluna>_users`, `user_fk`): no SQLite, renomear uma constraint exige
   recriar a tabela inteira.
 
 Qualquer mudança aqui vai junto com uma migração nova, escrita e revisada à mão; o teste de
@@ -49,7 +50,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, Unmapped, mapped_column, unmapped_column
 
 # Mesmos idiomas do front e dos emails (app_users.locale)
 from app.mail.language import Locale
@@ -77,11 +78,8 @@ DEFAULT_SCORE_THRESHOLD = 70
 TIMEZONE_MAX_LENGTH = 64
 # Id de usuário do imago: inteiro de 1 a 2^53 - 1 (cabe num Number do javascript)
 MAX_USER_ID = 2**53 - 1
-# Tamanhos das tabelas legadas (sessions, login_codes, audit_log.ip): sha256 em hexadecimal e IPv6
-# por extenso com IPv4 no fim
-SECRET_HASH_LENGTH = 64
+# Tamanho da coluna legada `audit_log.ip`: IPv6 por extenso com IPv4 no fim
 IP_MAX_LENGTH = 45
-USER_AGENT_MAX_LENGTH = 512
 EVENT_MAX_LENGTH = 64
 
 
@@ -233,58 +231,6 @@ class AppUser(Base):
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
 
 
-class UserSession(Base):
-    """LEGADO (login próprio, antes do imago): vazia, sai na migração do deploy seguinte."""
-
-    __tablename__ = "sessions"
-    __table_args__ = (
-        CheckConstraint(f"length(token_hash) = {SECRET_HASH_LENGTH}", name="token_hash_length"),
-        CheckConstraint(_max_length("ip", IP_MAX_LENGTH), name="ip_length"),
-        CheckConstraint(
-            _max_length("user_agent", USER_AGENT_MAX_LENGTH, minimum=0), name="user_agent_length"
-        ),
-        Index(None, "user_id"),
-        # Limpeza das vencidas
-        Index(None, "expires_at"),
-    )
-
-    token_hash: Mapped[str] = mapped_column(String(SECRET_HASH_LENGTH), primary_key=True)
-    user_id: Mapped[int] = mapped_column(user_fk("sessions", "user_id", ondelete="CASCADE"))
-    created_at: Mapped[datetime] = mapped_column(default=utcnow)
-    expires_at: Mapped[datetime]
-    last_seen_at: Mapped[datetime] = mapped_column(default=utcnow)
-    ip: Mapped[str | None] = mapped_column(String(IP_MAX_LENGTH))
-    user_agent: Mapped[str | None] = mapped_column(String(USER_AGENT_MAX_LENGTH))
-
-
-class LoginCode(Base):
-    """LEGADO (login próprio, antes do imago): vazia, sai na migração do deploy seguinte."""
-
-    __tablename__ = "login_codes"
-    __table_args__ = (
-        CheckConstraint("purpose IN ('login', 'delete_account')", name="purpose"),
-        CheckConstraint(f"length(code_hash) = {SECRET_HASH_LENGTH}", name="code_hash_length"),
-        CheckConstraint("attempts >= 0", name="attempts_not_negative"),
-        Index(None, "email", "created_at"),
-        Index(None, "created_at"),
-        Index(None, "expires_at"),
-        Index(None, "user_id"),
-        {"sqlite_autoincrement": True},
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(EMAIL_MAX_LENGTH))
-    user_id: Mapped[int | None] = mapped_column(
-        user_fk("login_codes", "user_id", ondelete="CASCADE")
-    )
-    purpose: Mapped[str] = mapped_column(String(16))
-    code_hash: Mapped[str] = mapped_column(String(SECRET_HASH_LENGTH))
-    attempts: Mapped[int] = mapped_column(default=0, server_default=text("0"))
-    expires_at: Mapped[datetime]
-    used_at: Mapped[datetime | None]
-    created_at: Mapped[datetime] = mapped_column(default=utcnow)
-
-
 class AuditLog(Base):
     """Auditoria das marcações, da configuração dos hábitos, do compartilhamento e do admin.
 
@@ -315,8 +261,9 @@ class AuditLog(Base):
     habit_id: Mapped[int | None] = mapped_column(ForeignKey("habits.id", ondelete="CASCADE"))
     event: Mapped[str] = mapped_column(String(EVENT_MAX_LENGTH))
     # LEGADO: sempre NULL (o ethos não grava IP; a migração 0005 apagou os que havia). A coluna sai
-    # na migração do deploy seguinte
-    ip: Mapped[str | None] = mapped_column(String(IP_MAX_LENGTH))
+    # na 0007, e o rollback daquele deploy volta para este código: por isso ela está na tabela
+    # (para o teste de drift) mas não no mapeamento, e nenhum INSERT ou SELECT do ORM a cita
+    ip: Unmapped[str | None] = unmapped_column(String(IP_MAX_LENGTH))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, server_default=text("'{}'"))
     # `details.mark_id` dos eventos de marcação, calculado pelo SQLite (coluna VIRTUAL: não ocupa
