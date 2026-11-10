@@ -705,3 +705,108 @@ def test_0006_downgrade_restores_the_0005_schema(db_path, make_alembic_config):
         connection.execute("DELETE FROM app_users WHERE user_id = ?", (ANA,))
     assert rows(db_path, "SELECT count(*) FROM sessions") == [(0,)]
     assert rows(db_path, "SELECT count(*) FROM login_codes") == [(0,)]
+
+
+# --- 0007: sai a coluna audit_log.ip ----------------------------------------------------------
+
+AUDIT_ROWS = (
+    "SELECT id, user_id, habit_id, event, created_at, details, mark_id FROM audit_log ORDER BY id"
+)
+AUDIT_SEQUENCE = "SELECT seq FROM sqlite_sequence WHERE name = 'audit_log'"
+
+
+def audit_columns(path: Path) -> list[str]:
+    # table_xinfo: o table_info não lista colunas geradas
+    return [row[1] for row in rows(path, "PRAGMA table_xinfo(audit_log)")]
+
+
+def ethos_on_0006(db_path: Path, make_alembic_config) -> Any:
+    """O banco do ethos de antes do imago na 0006, com um evento apagado no fim (id 100): o
+    contador do AUTOINCREMENT fica acima do maior id."""
+    config = ethos_before_imago(db_path, make_alembic_config)
+    command.upgrade(config, "0006")
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        connection.execute(
+            "INSERT INTO audit_log (id, event, created_at) VALUES (100, 'habit_created', ?)", (T2,)
+        )
+        connection.execute("DELETE FROM audit_log WHERE id = 100")
+    return config
+
+
+def test_0007_drops_audit_log_ip_and_keeps_the_rows(db_path, make_alembic_config):
+    config = ethos_on_0006(db_path, make_alembic_config)
+    before = rows(db_path, AUDIT_ROWS)
+    assert "ip" in audit_columns(db_path)
+
+    command.upgrade(config, "0007")
+
+    assert current_revision(db_path) == "0007"
+    assert audit_columns(db_path) == [
+        "id",
+        "user_id",
+        "habit_id",
+        "event",
+        "created_at",
+        "details",
+        "mark_id",
+    ]
+    assert rows(db_path, AUDIT_ROWS) == before
+    assert rows(db_path, "PRAGMA foreign_key_check") == []
+    assert rows(db_path, AUDIT_SEQUENCE) == [(100,)]
+    # A tabela temporária não sobra, nem o contador dela
+    assert rows(db_path, "SELECT name FROM sqlite_master WHERE name = '_audit_log_new'") == []
+    assert rows(db_path, "SELECT name FROM sqlite_sequence WHERE name = '_audit_log_new'") == []
+    # O índice parcial volta e acha a marcação pelo mark_id calculado
+    assert rows(
+        db_path, "SELECT event FROM audit_log INDEXED BY ix_audit_log_mark_id WHERE mark_id = 2"
+    ) == [("mark_created",)]
+
+
+def test_0007_keeps_the_keys_checks_and_counter_of_audit_log(db_path, make_alembic_config):
+    config = ethos_on_0006(db_path, make_alembic_config)
+    command.upgrade(config, "0007")
+
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        connection.execute("PRAGMA foreign_keys = ON")
+        # Um id apagado no fim não volta
+        cursor = connection.execute(
+            "INSERT INTO audit_log (event, created_at) VALUES ('banner_ended', ?)", (T2,)
+        )
+        assert cursor.lastrowid == 101
+        with pytest.raises(sqlite3.IntegrityError, match="ck_audit_log_details_json"):
+            connection.execute(
+                "INSERT INTO audit_log (event, created_at, details) VALUES ('x', ?, 'not json')",
+                (T2,),
+            )
+        # Conta apagada: a autoria vira NULL; hábito apagado: a auditoria dele sai junto
+        connection.execute("DELETE FROM app_users WHERE user_id = ?", (BIA,))
+        after_account = connection.execute(
+            "SELECT event, user_id FROM audit_log ORDER BY id"
+        ).fetchall()
+        connection.execute("DELETE FROM habits WHERE id = 1")
+
+    assert after_account == [
+        ("habit_created", ANA),
+        ("mark_created", None),
+        ("banner_created", ANA),
+        ("banner_ended", None),
+    ]
+    assert rows(db_path, "SELECT event FROM audit_log ORDER BY id") == [
+        ("banner_created",),
+        ("banner_ended",),
+    ]
+
+
+def test_0007_downgrade_restores_the_0006_schema_and_rows(db_path, make_alembic_config):
+    config = ethos_on_0006(db_path, make_alembic_config)
+    schema = schema_snapshot(db_path)
+    before = rows(db_path, AUDIT_ROWS)
+
+    command.upgrade(config, "0007")
+    command.downgrade(config, "0006")
+
+    assert schema_snapshot(db_path) == schema
+    assert rows(db_path, AUDIT_ROWS) == before
+    assert rows(db_path, "SELECT count(*) FROM audit_log WHERE ip IS NOT NULL") == [(0,)]
+    assert rows(db_path, AUDIT_SEQUENCE) == [(100,)]
+    assert rows(db_path, "PRAGMA foreign_key_check") == []

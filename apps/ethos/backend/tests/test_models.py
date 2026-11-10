@@ -1,12 +1,9 @@
-import re
 from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Any
 
 import pytest
 import time_machine
 from sqlalchemy import delete, select, text, update
-from sqlalchemy import event as sa_event
-from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.exc import IntegrityError, StatementError
 from sqlalchemy.orm import Session
 
@@ -401,30 +398,6 @@ def test_alert_limits(db_session, ana):
     assert_check_fails(db_session, "ck_alerts_weekly_weekday", alert(hour=8, frequency="weekly"))
     # O diário pode guardar o dia escolhido antes
     save(db_session, alert(hour=0, frequency="daily", weekday=6))
-
-
-def test_legacy_audit_ip_is_not_mapped(db_session, engine):
-    """A coluna `audit_log.ip` sai na migração 0007, e o rollback daquele deploy volta para este
-    código: nenhum SQL do ORM pode citar a coluna (senão a auditoria quebraria sem ela)."""
-    statements: list[str] = []
-
-    def record(_conn, _cursor, statement, _params, _context, _executemany):
-        statements.append(statement)
-
-    sa_event.listen(engine, "before_cursor_execute", record)
-    try:
-        save(db_session, AuditLog(event="habit_created", details={"x": 1}))
-        db_session.expunge_all()
-        entry = db_session.scalars(select(AuditLog)).one()
-    finally:
-        sa_event.remove(engine, "before_cursor_execute", record)
-
-    assert any("audit_log" in statement for statement in statements)
-    assert not [s for s in statements if re.search(r"\bip\b", s)]
-    assert entry.details == {"x": 1}
-    # Na tabela (o teste de drift a compara com a migração), fora do mapeamento
-    assert "ip" in AuditLog.__table__.c
-    assert "ip" not in sa_inspect(AuditLog).attrs
 
 
 def test_audit_details_must_be_json(engine, ana):
